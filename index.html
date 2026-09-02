@@ -1,12 +1,13 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#09090b">
-<meta name="description" content="MP SCAN — plataforma independente de leitura">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✦</text></svg>">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
+<meta content="#09090b" name="theme-color"/>
+<meta content="MP SCAN — plataforma independente de leitura" name="description"/>
+<link href="manifest.webmanifest" rel="manifest"/>
+<link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;✦&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <style>
 
     *{box-sizing:border-box}
@@ -406,551 +407,494 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 </style>
 </head>
 <body>
-
-  <div aria-modal='true' class='mp-auth-lock open' id='mpAuthLock' role='dialog'><div class='mp-auth-bg'></div><div class='mp-auth-shell'><section class='mp-auth-brand'><div class='mp-auth-logo'><span class='mp-auth-logo-mark'>✦</span><span>MP SCAN</span></div><div class='mp-auth-hero'><div class='mp-auth-kicker'>SEU UNIVERSO DE LEITURA</div><h1>Leia.<br/>Descubra.<br/><span style='color:#c084fc'>Viva histórias.</span></h1><p>Entre na sua conta para acompanhar obras, salvar capítulos, continuar de onde parou e ter sua biblioteca sempre organizada.</p><div class='mp-auth-features'><div class='mp-auth-feature'><i>✓</i><span>Biblioteca e favoritos sincronizados</span></div><div class='mp-auth-feature'><i>✓</i><span>Continue sua leitura de onde parou</span></div><div class='mp-auth-feature'><i>✓</i><span>Notificações da comunidade</span></div></div></div><div style='color:#52525b;font-size:10px'>MP SCAN • plataforma independente de leitura</div></section><section class='mp-auth-form-area'><div class='mp-auth-card'><div id='mpAuthMain'><div class='mp-auth-tabs'><button class='mp-auth-tab active' id='mpLoginTab' onclick='mpAuthMode('login')' type='button'>Entrar</button><button class='mp-auth-tab' id='mpRegisterTab' onclick='mpAuthMode('register')' type='button'>Criar conta</button></div><h2 class='mp-auth-title' id='mpAuthTitle'>Bem-vindo de volta</h2><p class='mp-auth-sub' id='mpAuthSub'>Entre para acessar sua biblioteca, histórico e tudo do MP SCAN.</p><div class='mp-auth-message' id='mpAuthMessage'></div><form id='mpLoginForm' onsubmit='return mpDoLogin(event)'><div class='mp-auth-field'><label class='mp-auth-label'>E-mail</label><input autocomplete='email' class='mp-auth-input' id='mpLoginEmail' placeholder='voce@email.com' required='required' type='email'/></div><div class='mp-auth-field'><label class='mp-auth-label'>Senha</label><div class='mp-auth-pass'><input autocomplete='current-password' class='mp-auth-input' id='mpLoginPassword' placeholder='Sua senha' required='required' type='password'/><button class='mp-auth-eye' onclick='mpTogglePassword('mpLoginPassword',this)' type='button'>◉</button></div></div><div class='mp-auth-row'><label class='mp-auth-check'><input type='checkbox'/> Lembrar neste dispositivo</label><button class='mp-auth-link' onclick='mpForgotPassword()' type='button'>Esqueci minha senha</button></div><button class='mp-auth-primary' id='mpLoginButton' type='submit'>Entrar na minha conta</button></form><form id='mpRegisterForm' onsubmit='return mpDoRegister(event)' style='display:none'><div class='mp-auth-field'><label class='mp-auth-label'>Nome</label><input autocomplete='name' class='mp-auth-input' id='mpRegName' maxlength='60' placeholder='Como quer ser chamado?' required='required' type='text'/></div><div class='mp-auth-field'><label class='mp-auth-label'>E-mail</label><input autocomplete='email' class='mp-auth-input' id='mpRegEmail' placeholder='voce@email.com' required='required' type='email'/></div><div class='mp-auth-field'><label class='mp-auth-label'>Senha</label><input autocomplete='new-password' class='mp-auth-input' id='mpRegPassword' minlength='6' placeholder='Mínimo de 6 caracteres' required='required' type='password'/></div><div class='mp-auth-field'><label class='mp-auth-label'>Confirmar senha</label><input autocomplete='new-password' class='mp-auth-input' id='mpRegPassword2' minlength='6' placeholder='Digite novamente' required='required' type='password'/></div><button class='mp-auth-primary' id='mpRegisterButton' type='submit'>Criar minha conta</button></form><div class='mp-auth-divider'>OU CONTINUE COM</div><button class='mp-auth-google' id='mpGoogleButton' onclick='mpGoogleLogin()' type='button'><b>G</b> Continuar com Google</button><div class='mp-auth-status' id='mpAuthStatus'></div><div class='mp-auth-footer'>Ao continuar, você concorda com os termos de uso e a política de privacidade do MP SCAN.</div></div><div class='mp-auth-verify' id='mpAuthVerify'><div class='mp-auth-verify-icon'>✉</div><h2>Confirme seu e-mail</h2><p>Enviamos um link de confirmação para <strong id='mpVerifyEmail'></strong>. Abra o e-mail e confirme sua conta.</p><button class='mp-auth-primary' onclick='mpCheckVerification()' type='button'>Já confirmei meu e-mail</button><button class='mp-auth-secondary' onclick='mpResendVerification()' type='button'>Reenviar e-mail</button><button class='mp-auth-secondary' onclick='mpAuthBack()' type='button'>Voltar para o login</button><div class='mp-auth-status' id='mpVerifyStatus'></div></div></div></section></div></div>
-
-  <div class='scan'>
-    <div class='wrap'>
-
-      <header class='top'>
-        <a class='logo' href='#inicio'><i>✦</i><span>MP SCAN</span></a>
-        <div class='icons'>
-          <button aria-label='Buscar' class='icon' onclick='mpOpenSearch()' type='button'>⌕</button>
-          <button aria-label='Notificações' class='icon' onclick='mpOpenNotifications()' style='position:relative' type='button'>♧<span class='notification-count' id='mpTopNoticeCount'></span></button>
-          <button aria-label='Perfil' class='icon' onclick='mpOpenProfileDrawer()' type='button'>◉</button>
-        </div>
-      </header>
-
-      <!-- HOME DINÂMICA / FIREBASE -->
-      <div class='view active' id='homeView'>
-        <main>
-          <section class='hero' id='mpHomeHero'>
-            <div class='hero-content' id='mpHomeHeroContent'>
-              <div class='tag'>✦ CARREGANDO CATÁLOGO</div>
-              <h1>MP SCAN</h1>
-              <p class='desc'>Carregando as obras publicadas...</p>
-            </div>
-          </section>
-          <section id='mpHomePopularSection'>
-            <div class='sect-head'><div class='sect-title'>⭐ Obras populares</div><button class='see' onclick='mpOpenSearch()' type='button'>Ver todas</button></div>
-            <div class='row' id='mpHomePopular'><div style='color:#777;padding:20px'>Carregando obras...</div></div>
-          </section>
-          <section id='mpHomeContinueSection' style='display:none'>
-            <div class='sect-head'><div class='sect-title'>📖 Continuar lendo</div><button class='see' onclick='mpOpenLibrary()' type='button'>Histórico</button></div>
-            <div class='continue' id='mpHomeContinue'></div>
-          </section>
-          <section id='mpHomeUpdatesSection'>
-            <div class='sect-head'><div class='sect-title'>🔔 Atualizações</div><button class='see' onclick='mpOpenSearch()' type='button'>Ver obras</button></div>
-            <div class='updates' id='mpHomeUpdates'><div style='color:#777;padding:20px'>Carregando atualizações...</div></div>
-          </section>
-        </main>
-      </div>
-
-      <!-- BUSCA -->
-      <div class='view' id='searchView'>
-        <main class='search-shell'>
-          <div class='search-head'>
-            <div class='search-topline'>
-              <button aria-label='Voltar' class='back-search' onclick='mpGoHome()' type='button'>←</button>
-              <div class='search-title-wrap'>
-                <div class='eyebrow'>CATÁLOGO</div>
-                <div class='search-title'>Buscar obras</div>
-                <p class='search-description'>Pesquise por título, autor ou artista e filtre do seu jeito.</p>
-              </div>
-              <button aria-label='Limpar' class='reset-search' onclick='mpResetSearch()' type='button'>↻</button>
-            </div>
-
-            <div class='search-box'>
-              <span class='glass'>⌕</span>
-              <input id='mpQuery' oninput='mpRunSearch()' placeholder='Pesquisar por título, autor, artista, scan...' type='search'/>
-            </div>
-
-            <div class='search-bottom'>
-              <div class='result-count'><strong id='mpResultCount'>0</strong> resultados</div>
-              <button class='filter-open' onclick='mpOpenFilters()' type='button'>☷ Filtros <span class='filter-count' id='mpFilterCount'>0</span></button>
-            </div>
-          </div>
-
-          <div class='quick-title'>Filtros rápidos <span class='bolt'>ϟ</span></div>
-          <div class='chips' id='quickGenres'>
-            <button class='chip' data-quick='Ação' onclick='mpQuick(this)' type='button'>Ação</button>
-            <button class='chip' data-quick='Romance' onclick='mpQuick(this)' type='button'>Romance</button>
-            <button class='chip' data-quick='Comédia' onclick='mpQuick(this)' type='button'>Comédia</button>
-            <button class='chip' data-quick='Drama' onclick='mpQuick(this)' type='button'>Drama</button>
-            <button class='chip' data-quick='Fantasia' onclick='mpQuick(this)' type='button'>Fantasia</button>
-            <button class='chip' data-quick='BL' onclick='mpQuick(this)' type='button'>BL</button>
-            <button class='chip' data-quick='GL' onclick='mpQuick(this)' type='button'>GL</button>
-            <button class='chip' data-quick='Manga' onclick='mpQuick(this)' type='button'>Manga</button>
-          </div>
-
-          <div class='results-head'>
-            <div><div class='results-label'>RESULTADOS</div><div class='results-title'>Obras</div></div>
-            <select class='sort-select' id='mpSort' onchange='mpRunSearch()'>
-              <option value='relevantes'>Mais relevantes</option>
-              <option value='avaliacao'>Melhor avaliadas</option>
-              <option value='recentes'>Mais recentes</option>
-              <option value='titulo'>Título A-Z</option>
-            </select>
-          </div>
-
-          <div class='results-grid' id='mpResults'></div>
-          <div class='empty-search' id='mpEmpty'>Nenhuma obra encontrada.<br/>Tente outro título ou ajuste os filtros.</div>
-        </main>
-      </div>
-
-    </div>
-
-
-      <!-- BIBLIOTECA -->
-      <div class='view' id='libraryView'>
-        <main class='library-shell'>
-          <div class='library-head'>
-            <div>
-              <div class='library-eyebrow'>SEU ESPAÇO</div>
-              <div class='library-title'>Biblioteca</div>
-              <p class='library-sub'>Seus favoritos, histórico e coleções ficam salvos neste dispositivo.</p>
-            </div>
-            <div class='offline-badge'>● SALVO OFFLINE</div>
-          </div>
-
-          <div class='library-tabs'>
-            <button class='library-tab active' id='libTabFav' onclick='mpLibraryTab('favorites')'>♡ Favoritos <span id='favCount'>0</span></button>
-            <button class='library-tab' id='libTabHist' onclick='mpLibraryTab('history')'>◷ Histórico <span id='histCount'>0</span></button>
-            <button class='library-tab' id='libTabCol' onclick='mpLibraryTab('collections')'>▣ Coleções <span id='colCount'>0</span></button>
-          </div>
-
-          <div id='libraryFavorites'>
-            <div class='library-toolbar'>
-              <button class='library-action primary' onclick='mpCreateCollection()'>＋ Nova coleção</button>
-              <button class='library-action' onclick='mpClearFavorites()'>Limpar favoritos</button>
-            </div>
-            <div class='library-grid' id='favoriteGrid'></div>
-            <div class='library-empty' id='favoriteEmpty'><strong>Seus favoritos aparecem aqui</strong>Toque no ♡ de uma obra para salvá-la offline.</div>
-          </div>
-
-          <div id='libraryHistory' style='display:none'>
-            <div class='library-toolbar'>
-              <button class='library-action' onclick='mpClearHistory()'>Limpar histórico</button>
-            </div>
-            <div class='library-grid' id='historyGrid'></div>
-            <div class='library-empty' id='historyEmpty'><strong>Nenhum histórico ainda</strong>Quando você abrir uma obra ou capítulo, ela poderá aparecer aqui.</div>
-          </div>
-
-          <div id='libraryCollections' style='display:none'>
-            <div class='library-toolbar'>
-              <button class='library-action primary' onclick='mpCreateCollection()'>＋ Criar coleção</button>
-            </div>
-            <div class='collection-list' id='collectionList'></div>
-            <div class='library-empty' id='collectionEmpty'><strong>Crie sua primeira coleção</strong>Ex.: Completos, Favoritos BL, Para ler depois...</div>
-            <div id='collectionItems'></div>
-          </div>
-        </main>
-      </div>
-
-
-      <!-- PERFIL -->
-      <div class='view' id='profileView'>
-        <main class='profile-shell'>
-          <div class='profile-headline'>
-            <button class='back-profile' onclick='mpGoHome()' type='button'>←</button>
-            <div><div class='profile-eyebrow'>MINHA CONTA</div><div class='profile-page-title'>Perfil</div></div>
-          </div>
-
-          <section class='profile-hero'>
-            <div class='profile-top'>
-              <div class='avatar' id='profileAvatar'><span class='avatar-letter' id='profileAvatarLetter'>M</span><img alt='Foto de perfil' id='profileAvatarImg'/></div>
-              <div class='profile-main'>
-                <div class='profile-name-line'><div class='profile-name' id='profileName'>Meu perfil</div><span class='admin-badge' id='adminBadge' style='display:none'>✓ ADM</span></div>
-                <div class='handle' id='profileHandle'>@usuario</div>
-                <div class='fixed-name' id='profileFixedName'>Nome fixo: —</div>
-                <div class='profile-actions'>
-                  <button class='profile-btn primary-profile' onclick='mpOpenEditProfile()' type='button'>✎ Editar perfil</button>
-                  <button class='profile-btn' onclick='mpOpenSettings()' type='button'>⚙ Configurações</button>
-                  <button class='profile-btn' onclick='mpLogout()' type='button'>↪ Sair</button>
-                </div>
-              </div>
-            </div>
-            <div class='profile-bio' id='profileBio'>Adicione uma bio para contar um pouco sobre você.</div>
-            <div class='privacy-pill' id='profilePrivacy'>● Perfil público</div>
-            <div class='profile-stats'>
-              <button class='stat-box' onclick='mpOpenPeople('followers')' type='button'><div class='stat-number' id='profileFollowers'>0</div><div class='stat-label'>SEGUIDORES</div></button>
-              <button class='stat-box' onclick='mpOpenPeople('following')' type='button'><div class='stat-number' id='profileFollowing'>0</div><div class='stat-label'>SEGUINDO</div></button>
-              <button class='stat-box' onclick='mpNotice('Abrindo favoritos')' type='button'><div class='stat-number' id='profileFavorites'>0</div><div class='stat-label'>FAVORITOS</div></button>
-              <button class='stat-box' onclick='mpNotice('Abrindo avaliações')' type='button'><div class='stat-number' id='profileRatings'>0</div><div class='stat-label'>AVALIAÇÕES</div></button>
-              <button class='stat-box' onclick='mpNotice('Abrindo obras lidas')' type='button'><div class='stat-number' id='profileRead'>0</div><div class='stat-label'>OBRAS LIDAS</div></button>
-              <button class='stat-box' onclick='mpOpenPeople('followers')' type='button'><div class='stat-number' id='profileMinutes'>0</div><div class='stat-label'>MIN. NO SITE</div></button>
-            </div>
-          </section>
-
-          <div class='profile-grid'>
-            <section class='profile-card'>
-              <div class='profile-card-title'>📊 Minha atividade</div>
-              <div class='metric-list'>
-                <div class='metric'><b id='profileChapters'>0</b><span>Capítulos lidos</span></div>
-                <div class='metric'><b id='profileFollowingWorks'>0</b><span>Obras acompanhando</span></div>
-                <div class='metric'><b id='profileCollections'>0</b><span>Coleções criadas</span></div>
-                <div class='metric'><b id='profileTime'>0 min</b><span>Tempo de leitura</span></div>
-              </div>
-              <div class='public-note'>Estas estatísticas podem aparecer para outras pessoas quando o seu perfil estiver público.</div>
-            </section>
-
-            <section class='profile-card'>
-              <div class='profile-card-title'>⚙ Conta e privacidade</div>
-              <div class='profile-links'>
-                <button class='profile-link' onclick='mpOpenEditProfile()' type='button'>Editar informações <small>›</small></button>
-                <button class='profile-link' onclick='mpOpenSettings()' type='button'>Configurações <small>›</small></button>
-                <button class='profile-link' onclick='mpOpenPeople('followers')' type='button'>Seguidores e seguindo <small>›</small></button>
-                <button class='profile-link' onclick='mpNotice('Termos de uso')' type='button'>Termos de uso <small>›</small></button>
-                <button class='profile-link' onclick='mpNotice('Central de segurança')' type='button'>Segurança <small>›</small></button>
-              </div>
-            </section>
-          </div>
-
-          <section class='profile-card' style='margin-top:15px'>
-            <div class='profile-card-title'>👥 Pessoas</div>
-            <div class='follow-list' id='profilePeoplePreview'></div>
-            <div class='blocked-content' id='profilePeopleEmpty' style='display:none'><b>Nenhuma pessoa ainda</b>Quando você tiver seguidores ou estiver seguindo alguém, eles aparecerão aqui.</div>
-          </section>
-
-          <section class='admin-card' id='adminPanelCard'>
-            <div class='admin-title'>🛡 Painel de ADM</div>
-            <div class='admin-sub'>Área reservada para administração do MP SCAN. O painel é liberado somente para contas ADM autenticadas no Firebase.</div>
-            <div class='admin-grid'>
-              <div class='admin-item'><b id='adminWorks'>0</b><span>Obras publicadas</span></div>
-              <div class='admin-item'><b id='adminChapters'>0</b><span>Capítulos publicados</span></div>
-              <div class='admin-item'><b id='adminReaders'>0</b><span>Leituras</span></div>
-              <div class='admin-item'><b id='adminUsers'>0</b><span>Usuários</span></div>
-            </div>
-            <div class='profile-actions'>
-              <button class='profile-btn primary-profile' onclick='mpOpenAdmin('works')' type='button'>🛡 Abrir painel completo</button>
-              <button class='profile-btn' onclick='mpOpenAdmin('chapters')' type='button'>＋ Capítulo</button>
-              <button class='profile-btn' onclick='mpOpenAdmin('users')' type='button'>👥 Usuários</button>
-            </div>
-          </section>
-        </main>
-      </div>
-
-
-      <!-- PAINEL ADM -->
-      <div class='adm-view' id='adminView'>
-        <div class='adm-wrap'>
-          <div class='adm-head'>
-            <button class='adm-back' onclick='mpCloseAdmin()' type='button'>←</button>
-            <div><div class='adm-kicker'>MP SCAN / ADMINISTRAÇÃO</div><div class='adm-title'>Painel de ADM</div></div>
-            <div class='adm-head-right'><div class='adm-status'><i class='adm-dot'></i> Firebase conectado</div></div>
-          </div>
-
-          <div class='adm-dashboard'>
-            <div class='adm-stat'><div class='ico'>📚</div><b id='admStatWorks'>0</b><span>OBRAS</span></div>
-            <div class='adm-stat'><div class='ico'>📖</div><b id='admStatChapters'>0</b><span>CAPÍTULOS</span></div>
-            <div class='adm-stat'><div class='ico'>👁</div><b id='admStatReads'>0</b><span>LEITURAS</span></div>
-            <div class='adm-stat'><div class='ico'>👥</div><b id='admStatUsers'>0</b><span>USUÁRIOS</span></div>
-            <div class='adm-stat'><div class='ico'>💬</div><b id='admStatComments'>0</b><span>COMENTÁRIOS</span></div>
-            <div class='adm-stat'><div class='ico'>🚩</div><b id='admStatReports'>0</b><span>DENÚNCIAS</span></div>
-          </div>
-
-          <div class='adm-main'>
-            <aside class='adm-sidebar'>
-              <button class='adm-tab active' id='admTabOverview' onclick='mpAdmTab('overview')' type='button'>▦ Visão geral</button>
-              <button class='adm-tab' id='admTabWorks' onclick='mpAdmTab('works')' type='button'>📚 Obras <span class='tab-count' id='admCountWorks'>0</span></button>
-              <button class='adm-tab' id='admTabChapters' onclick='mpAdmTab('chapters')' type='button'>📖 Capítulos <span class='tab-count' id='admCountChapters'>0</span></button>
-              <button class='adm-tab' id='admTabUsers' onclick='mpAdmTab('users')' type='button'>👥 Usuários <span class='tab-count' id='admCountUsers'>0</span></button>
-              <button class='adm-tab' id='admTabComments' onclick='mpAdmTab('comments')' type='button'>💬 Comentários <span class='tab-count' id='admCountComments'>0</span></button>
-              <button class='adm-tab' id='admTabReports' onclick='mpAdmTab('reports')' type='button'>🚩 Denúncias <span class='tab-count' id='admCountReports'>0</span></button>
-              <button class='adm-tab' id='admTabAnalytics' onclick='mpAdmTab('analytics')' type='button'>📈 Analytics</button>
-            </aside>
-
-            <section class='adm-content'>
-              <div class='adm-panel active' id='admPanelOverview'>
-                <div class='adm-panel-head'><div><div class='adm-panel-title'>Central de controle</div><div class='adm-panel-sub'>Tudo que importa para acompanhar o MP SCAN em um só lugar. Os números abaixo são lidos do Firebase quando a estrutura correspondente existir.</div></div><div class='adm-actions'><button class='adm-btn' onclick='mpAdmReload()' type='button'>↻ Atualizar</button></div></div>
-                <div class='adm-kpis'>
-                  <div class='adm-kpi'><b id='admOverviewReads'>0</b><span>Acessos registrados</span></div>
-                  <div class='adm-kpi'><b id='admOverviewRatings'>0</b><span>Avaliações</span></div>
-                  <div class='adm-kpi'><b id='admOverviewPages'>0</b><span>Páginas publicadas</span></div>
-                </div>
-                <div class='adm-chart-grid' style='margin-top:11px'>
-                  <div class='adm-chart'><b>Leituras por obra</b><div class='adm-bars' id='admReadBars'></div><div class='adm-bars-label'><span>menos</span><span>mais</span></div></div>
-                  <div class='adm-chart'><b>Avaliações por obra</b><div class='adm-bars' id='admRatingBars'></div><div class='adm-bars-label'><span>menos</span><span>mais</span></div></div>
-                </div>
-                <div class='adm-info-box' style='margin-top:11px'><b>🔐 Segurança:</b> esconder o painel no navegador não protege os dados. As regras do Firebase precisam permitir gravação/remoção somente para o UID de ADM. O painel já foi construído para trabalhar com essa proteção.</div>
-              </div>
-
-              <div class='adm-panel' id='admPanelWorks'>
-                <div class='adm-panel-head'><div><div class='adm-panel-title'>Obras</div><div class='adm-panel-sub'>Cadastre, edite, publique e acompanhe cada obra.</div></div><button class='adm-btn primary' onclick='mpOpenWorkEditor()' type='button'>＋ Nova obra</button></div>
-                <div class='adm-search'><input id='admWorkSearch' oninput='mpAdmRenderWorks()' placeholder='Pesquisar título, autor, gênero...'/><select id='admWorkSort' onchange='mpAdmRenderWorks()'><option value='recent'>Mais recentes</option><option value='reads'>Mais lidas</option><option value='rating'>Melhor avaliadas</option><option value='title'>A-Z</option></select></div>
-                <div class='adm-table-wrap'><table class='adm-table'><thead><tr><th>OBRA</th><th>TIPO</th><th>STATUS</th><th>ACESSOS</th><th>AVALIAÇÃO</th><th>DOAÇÃO</th><th>AÇÕES</th></tr></thead><tbody id='admWorksBody'/></table></div>
-              </div>
-
-              <div class='adm-panel' id='admPanelChapters'>
-                <div class='adm-panel-head'><div><div class='adm-panel-title'>Capítulos</div><div class='adm-panel-sub'>Publique de 1 a 100 imagens pela galeria, reorganize páginas e edite o capítulo depois.</div></div><button class='adm-btn primary' onclick='mpOpenChapterEditor()' type='button'>＋ Novo capítulo</button></div>
-                <div class='adm-search'><select id='admChapterWorkFilter' onchange='mpAdmRenderChapters()'><option value=''>Todas as obras</option></select><input id='admChapterSearch' oninput='mpAdmRenderChapters()' placeholder='Buscar número ou título...'/></div>
-                <div class='adm-table-wrap'><table class='adm-table'><thead><tr><th>OBRA</th><th>Nº</th><th>TÍTULO</th><th>TEMP./VOLUME</th><th>PÁGINAS</th><th>PUBLICADO</th><th>AÇÕES</th></tr></thead><tbody id='admChaptersBody'/></table></div>
-              </div>
-
-              <div class='adm-panel' id='admPanelUsers'>
-                <div class='adm-panel-head'><div><div class='adm-panel-title'>Usuários</div><div class='adm-panel-sub'>Veja perfis, atividade, seguidores e ações administrativas.</div></div><button class='adm-btn' onclick='mpAdmReload()' type='button'>↻ Atualizar</button></div>
-                <div class='adm-search'><input id='admUserSearch' oninput='mpAdmRenderUsers()' placeholder='Pesquisar nome ou @...'/></div>
-                <div class='adm-table-wrap'><table class='adm-table'><thead><tr><th>USUÁRIO</th><th>E-MAIL</th><th>OBRAS LIDAS</th><th>SEGUIDORES</th><th>STATUS</th><th>AÇÕES</th></tr></thead><tbody id='admUsersBody'/></table></div>
-              </div>
-
-              <div class='adm-panel' id='admPanelComments'>
-                <div class='adm-panel-head'><div><div class='adm-panel-title'>Comentários</div><div class='adm-panel-sub'>Modere comentários e acompanhe onde a comunidade está interagindo.</div></div></div>
-                <div id='admCommentsList'></div>
-              </div>
-
-              <div class='adm-panel' id='admPanelReports'>
-                <div class='adm-panel-head'><div><div class='adm-panel-title'>Denúncias</div><div class='adm-panel-sub'>Analise denúncias feitas sobre usuários, comentários e obras.</div></div></div>
-                <div id='admReportsList'></div>
-              </div>
-
-              <div class='adm-panel' id='admPanelAnalytics'>
-                <div class='adm-panel-head'><div><div class='adm-panel-title'>Analytics</div><div class='adm-panel-sub'>Indicadores de leitura, avaliação e desempenho das obras.</div></div></div>
-                <div class='adm-detail-grid'>
-                  <div class='adm-detail'><b>Total de leituras</b><span id='admAnaReads'>0</span></div>
-                  <div class='adm-detail'><b>Total de avaliações</b><span id='admAnaRatings'>0</span></div>
-                  <div class='adm-detail'><b>Média geral</b><span id='admAnaAverage'>0</span></div>
-                  <div class='adm-detail'><b>Obra mais acessada</b><span id='admAnaTopWork'>—</span></div>
-                  <div class='adm-detail'><b>Capítulo mais lido</b><span id='admAnaTopChapter'>—</span></div>
-                  <div class='adm-detail'><b>Páginas publicadas</b><span id='admAnaPages'>0</span></div>
-                </div>
-                <div class='adm-info-box' style='margin-top:12px'><b>Como os acessos funcionam:</b> o painel aceita campos como <code>cliques</code>, <code>leituras</code>, <code>visualizacoes</code>, <code>ratingMedio</code> e <code>totalAvaliacoes</code>. Assim ele se adapta aos dados que você já possui sem apagar sua estrutura.</div>
-              </div>
-            </section>
-          </div>
-        </div>
-      </div>
-
-    <!-- MENU INFERIOR -->
-    <nav class='bottom'>
-      <button class='nav active' id='navHome' onclick='mpGoHome()' type='button'>⌂<span>Tela inicial</span></button>
-      <button class='nav' id='navSearch' onclick='mpOpenSearch()' type='button'>⌕<span>Busca</span></button>
-      <button class='nav center' onclick='mpNotice('MP SCAN')' type='button'>✦</button>
-      <button class='nav' id='navLibrary' onclick='mpOpenLibrary()' type='button'>▣<span>Biblioteca</span></button>
-      <button class='nav' id='navProfile' onclick='mpOpenProfile()' type='button'>◉<span>Perfil</span></button>
-    </nav>
-  </div>
-
-
-  <div class='adm-modal-backdrop' id='admWorkModal' onclick='if(event.target.id==='admWorkModal')mpCloseAdmModal('admWorkModal')'>
-    <div class='adm-modal'>
-      <div class='adm-modal-head'><div class='adm-modal-title' id='admWorkModalTitle'>Nova obra</div><button class='adm-close' onclick='mpCloseAdmModal('admWorkModal')' type='button'>×</button></div>
-      <input id='admWorkId' type='hidden'/>
-      <div class='adm-form'>
-        <div class='adm-form-grid'>
-          <div class='adm-field'><label class='adm-label'>TÍTULO</label><input class='adm-input' id='admWorkTitle' placeholder='Título principal'/></div>
-          <div class='adm-field'><label class='adm-label'>NOME ALTERNATIVO</label><input class='adm-input' id='admWorkAlt' placeholder='Também conhecido como...'/></div>
-          <div class='adm-field'>
-<label class='adm-label'>GÊNEROS</label>
-<input autocomplete='off' class='adm-input' id='admWorkGenre' placeholder='Selecione os gêneros abaixo ou crie um novo'/>
-<div class='adm-genre-picker' id='admGenrePicker'></div>
-<div class='adm-genre-create'><input class='adm-input' id='admNewGenre' placeholder='Novo gênero...'/><button class='adm-btn' onclick='mpAdmCreateGenre()' type='button'>＋ Criar gênero</button></div>
-<small style='display:block;color:#777;margin-top:6px;font-size:9px'>Os gêneros já usados nas obras aparecem aqui. Se não existir, crie um novo.</small>
+<div aria-modal="true" class="mp-auth-lock open" id="mpAuthLock" role="dialog"><div class="mp-auth-bg"></div><div class="mp-auth-shell"><section class="mp-auth-brand"><div class="mp-auth-logo"><span class="mp-auth-logo-mark">✦</span><span>MP SCAN</span></div><div class="mp-auth-hero"><div class="mp-auth-kicker">SEU UNIVERSO DE LEITURA</div><h1>Leia.<br/>Descubra.<br/><span style="color:#c084fc">Viva histórias.</span></h1><p>Entre na sua conta para acompanhar obras, salvar capítulos, continuar de onde parou e ter sua biblioteca sempre organizada.</p><div class="mp-auth-features"><div class="mp-auth-feature"><i>✓</i><span>Biblioteca e favoritos sincronizados</span></div><div class="mp-auth-feature"><i>✓</i><span>Continue sua leitura de onde parou</span></div><div class="mp-auth-feature"><i>✓</i><span>Notificações da comunidade</span></div></div></div><div style="color:#52525b;font-size:10px">MP SCAN • plataforma independente de leitura</div></section><section class="mp-auth-form-area"><div class="mp-auth-card"><div id="mpAuthMain"><div class="mp-auth-tabs"><button class="mp-auth-tab active" id="mpLoginTab" login')'="" onclick="mpAuthMode(" type="button">Entrar</button><button class="mp-auth-tab" id="mpRegisterTab" onclick="mpAuthMode(" register')'="" type="button">Criar conta</button></div><h2 class="mp-auth-title" id="mpAuthTitle">Bem-vindo de volta</h2><p class="mp-auth-sub" id="mpAuthSub">Entre para acessar sua biblioteca, histórico e tudo do MP SCAN.</p><div class="mp-auth-message" id="mpAuthMessage"></div><form id="mpLoginForm" onsubmit="return mpDoLogin(event)"><div class="mp-auth-field"><label class="mp-auth-label">E-mail</label><input autocomplete="email" class="mp-auth-input" id="mpLoginEmail" placeholder="voce@email.com" required="required" type="email"/></div><div class="mp-auth-field"><label class="mp-auth-label">Senha</label><div class="mp-auth-pass"><input autocomplete="current-password" class="mp-auth-input" id="mpLoginPassword" placeholder="Sua senha" required="required" type="password"/><button class="mp-auth-eye" mploginpassword',this)'="" onclick="mpTogglePassword(" type="button">◉</button></div></div><div class="mp-auth-row"><label class="mp-auth-check"><input type="checkbox"/> Lembrar neste dispositivo</label><button class="mp-auth-link" onclick="mpForgotPassword()" type="button">Esqueci minha senha</button></div><button class="mp-auth-primary" id="mpLoginButton" type="submit">Entrar na minha conta</button></form><form id="mpRegisterForm" onsubmit="return mpDoRegister(event)" style="display:none"><div class="mp-auth-field"><label class="mp-auth-label">Nome</label><input autocomplete="name" class="mp-auth-input" id="mpRegName" maxlength="60" placeholder="Como quer ser chamado?" required="required" type="text"/></div><div class="mp-auth-field"><label class="mp-auth-label">E-mail</label><input autocomplete="email" class="mp-auth-input" id="mpRegEmail" placeholder="voce@email.com" required="required" type="email"/></div><div class="mp-auth-field"><label class="mp-auth-label">Senha</label><input autocomplete="new-password" class="mp-auth-input" id="mpRegPassword" minlength="6" placeholder="Mínimo de 6 caracteres" required="required" type="password"/></div><div class="mp-auth-field"><label class="mp-auth-label">Confirmar senha</label><input autocomplete="new-password" class="mp-auth-input" id="mpRegPassword2" minlength="6" placeholder="Digite novamente" required="required" type="password"/></div><button class="mp-auth-primary" id="mpRegisterButton" type="submit">Criar minha conta</button></form><div class="mp-auth-divider">OU CONTINUE COM</div><button class="mp-auth-google" id="mpGoogleButton" onclick="mpGoogleLogin()" type="button"><b>G</b> Continuar com Google</button><div class="mp-auth-status" id="mpAuthStatus"></div><div class="mp-auth-footer">Ao continuar, você concorda com os termos de uso e a política de privacidade do MP SCAN.</div></div><div class="mp-auth-verify" id="mpAuthVerify"><div class="mp-auth-verify-icon">✉</div><h2>Confirme seu e-mail</h2><p>Enviamos um link de confirmação para <strong id="mpVerifyEmail"></strong>. Abra o e-mail e confirme sua conta.</p><button class="mp-auth-primary" onclick="mpCheckVerification()" type="button">Já confirmei meu e-mail</button><button class="mp-auth-secondary" onclick="mpResendVerification()" type="button">Reenviar e-mail</button><button class="mp-auth-secondary" onclick="mpAuthBack()" type="button">Voltar para o login</button><div class="mp-auth-status" id="mpVerifyStatus"></div></div></div></section></div></div>
+<div class="scan">
+<div class="wrap">
+<header class="top">
+<a class="logo" href="#inicio"><i>✦</i><span>MP SCAN</span></a>
+<div class="icons">
+<button aria-label="Buscar" class="icon" onclick="mpOpenSearch()" type="button">⌕</button>
+<button aria-label="Notificações" class="icon" onclick="mpOpenNotifications()" style="position:relative" type="button">♧<span class="notification-count" id="mpTopNoticeCount"></span></button>
+<button aria-label="Perfil" class="icon" onclick="mpOpenProfileDrawer()" type="button">◉</button>
 </div>
-          <div class='adm-field'><label class='adm-label'>TIPO</label><select class='adm-select' id='admWorkType'><option>Manhwa</option><option>Manga</option><option>Manhua</option><option>Novel</option><option>Webtoon</option><option>Light Novel</option></select></div>
-          <div class='adm-field'><label class='adm-label'>AUTOR</label><input class='adm-input' id='admWorkAuthor' placeholder='Autor'/></div>
-          <div class='adm-field'><label class='adm-label'>ARTISTA</label><input class='adm-input' id='admWorkArtist' placeholder='Artista — deixe vazio para Novel'/></div>
-          <div class='adm-field'><label class='adm-label'>STATUS</label><select class='adm-select' id='admWorkStatus'><option>Em andamento</option><option>Completo</option><option>Hiato</option><option>Cancelado</option></select></div>
-          <div class='adm-field'><label class='adm-label'>ANO</label><input class='adm-input' id='admWorkYear' placeholder='2026' type='number'/></div>
-          <div class='adm-field'><label class='adm-label'>SCAN / EQUIPE</label><select class='adm-select' id='admWorkScan'><option>Padrão</option><option>MP SCAN</option><option>Parceira</option><option>Externa</option></select></div>
-          <div class='adm-field full'><label class='adm-label'>CAPA DA OBRA</label><input class='adm-input' id='admWorkCover' placeholder='A imagem escolhida na galeria será armazenada no Firebase (sem Storage)' readonly='readonly'/><input accept='image/*' id='admWorkCoverFile' style='display:none' type='file'/><button class='adm-btn' onclick='document.getElementById("admWorkCoverFile").click()' style='margin-top:8px' type='button'>📷 Escolher capa pela galeria</button><div id='admWorkCoverPreview' style='margin-top:10px'></div></div>
-          <div class='adm-field full'><label class='adm-label'>SINOPSE</label><textarea class='adm-textarea' id='admWorkSynopsis' placeholder='Sinopse da obra...'></textarea></div>
-          <div class='adm-field full'>
-            <div class='adm-checks'>
-              <div class='adm-check'><input id='admWorkDonated' type='checkbox'/><label for='admWorkDonated'>💜 Obra doada</label></div>
-              <div class='adm-check'><input id='admWorkSensitive' type='checkbox'/><label for='admWorkSensitive'>🔞 Conteúdo sensível</label></div>
-            </div>
-          </div>
-        </div>
-        <div class='adm-info-box'><b>Nota:</b> em Novel, o campo artista pode ficar vazio. O número de capítulo é independente do título, então especiais podem ter qualquer nome sem quebrar a ordem.</div>
-        <button class='adm-btn primary' onclick='mpSaveWork()' style='width:100%;height:45px' type='button'>Salvar obra</button>
-      </div>
-    </div>
-  </div>
-
-  <div class='adm-modal-backdrop' id='admChapterModal' onclick='if(event.target.id==='admChapterModal')mpCloseAdmModal('admChapterModal')'>
-    <div class='adm-modal'>
-      <div class='adm-modal-head'><div class='adm-modal-title' id='admChapterModalTitle'>Novo capítulo</div><button class='adm-close' onclick='mpCloseAdmModal('admChapterModal')' type='button'>×</button></div>
-      <input id='admChapterId' type='hidden'/>
-      <div class='adm-form'>
-        <div class='adm-form-grid'>
-          <div class='adm-field full'><label class='adm-label'>OBRA</label><select class='adm-select' id='admChapterWork'></select></div>
-          <div class='adm-field'><label class='adm-label'>NÚMERO DO CAPÍTULO</label><input class='adm-input' id='admChapterNumber' placeholder='1' step='1' type='number'/></div>
-          <div class='adm-field'><label class='adm-label'>TÍTULO DO CAPÍTULO</label><input class='adm-input' id='admChapterTitle' placeholder='O Herói que faz todo mundo...'/></div>
-          <div class='adm-field'><label class='adm-label'>TEMPORADA</label><input class='adm-input' id='admChapterSeason' placeholder='1 — ou Final da 1ª temporada'/></div>
-          <div class='adm-field'><label class='adm-label'>VOLUME — NOVEL</label><input class='adm-input' id='admChapterVolume' placeholder='Volume 1'/></div>
-          <div class='adm-field full'><label class='adm-label'>ESPECIAL / OBSERVAÇÃO</label><input class='adm-input' id='admChapterSpecial' placeholder='Especial de Natal, Especial de Dia dos Namorados...'/></div>
-        </div>
-        <div class='adm-info-box'><b>Regra do MP SCAN:</b> o número é o identificador de ordem. O título é livre. Assim, “Especial de Natal” pode ser publicado sem transformar o capítulo em um número quebrado.</div>
-        <div class='adm-drop'>
-          <b>🖼️ Páginas do capítulo</b>
-          <p>Escolha diretamente da galeria. Aceita de 1 a 100 imagens por capítulo. Você pode selecionar várias de uma vez.</p>
-          <label class='adm-btn primary' for='admChapterFiles'>Selecionar imagens</label>
-          <input accept='image/*' id='admChapterFiles' multiple='multiple' onchange='mpAdmSelectFiles(event)' type='file'/>
-          <div class='adm-progress'><i id='admUploadProgress'></i></div>
-          <div class='adm-file-list' id='admFileList'></div>
-        </div>
-        <div class='adm-actions'><button class='adm-btn' onclick='mpCloseAdmModal('admChapterModal')' type='button'>Cancelar</button><button class='adm-btn primary' onclick='mpSaveChapter()' type='button'>Publicar capítulo</button></div>
-      </div>
-    </div>
-  </div>
-  <div class='adm-toast' id='admToast'></div>
-
-  <!-- MODAL DE FILTROS -->
-  <div class='filter-backdrop' id='filterBackdrop' onclick='mpBackdrop(event)'>
-    <div class='filter-panel'>
-      <div class='filter-panel-head'>
-        <div class='filter-panel-title'>Filtros</div>
-        <button class='close-filter' onclick='mpCloseFilters()' type='button'>×</button>
-      </div>
-
-      <div class='filter-group'>
-        <div class='filter-group-title'>GÊNERO</div>
-        <div class='filter-options' id='filterGenre'>
-          <button class='filter-option' data-value='Ação' onclick='mpToggleFilter(this,'genre')' type='button'>Ação</button>
-          <button class='filter-option' data-value='Romance' onclick='mpToggleFilter(this,'genre')' type='button'>Romance</button>
-          <button class='filter-option' data-value='Comédia' onclick='mpToggleFilter(this,'genre')' type='button'>Comédia</button>
-          <button class='filter-option' data-value='Drama' onclick='mpToggleFilter(this,'genre')' type='button'>Drama</button>
-          <button class='filter-option' data-value='Fantasia' onclick='mpToggleFilter(this,'genre')' type='button'>Fantasia</button>
-          <button class='filter-option' data-value='BL' onclick='mpToggleFilter(this,'genre')' type='button'>BL</button>
-          <button class='filter-option' data-value='GL' onclick='mpToggleFilter(this,'genre')' type='button'>GL</button>
-          <button class='filter-option' data-value='Terror' onclick='mpToggleFilter(this,'genre')' type='button'>Terror</button>
-        </div>
-      </div>
-
-      <div class='filter-group'>
-        <div class='filter-group-title'>TIPO</div>
-        <div class='filter-options' id='filterType'>
-          <button class='filter-option' data-value='Manhwa' onclick='mpToggleFilter(this,'type')' type='button'>Manhwa</button>
-          <button class='filter-option' data-value='Manga' onclick='mpToggleFilter(this,'type')' type='button'>Manga</button>
-          <button class='filter-option' data-value='Manhua' onclick='mpToggleFilter(this,'type')' type='button'>Manhua</button>
-          <button class='filter-option' data-value='Novel' onclick='mpToggleFilter(this,'type')' type='button'>Novel</button>
-        </div>
-      </div>
-
-      <div class='filter-group'>
-        <div class='filter-group-title'>STATUS</div>
-        <div class='filter-options' id='filterStatus'>
-          <button class='filter-option' data-value='Em andamento' onclick='mpToggleFilter(this,'status')' type='button'>Em andamento</button>
-          <button class='filter-option' data-value='Completo' onclick='mpToggleFilter(this,'status')' type='button'>Completo</button>
-          <button class='filter-option' data-value='Hiato' onclick='mpToggleFilter(this,'status')' type='button'>Hiato</button>
-        </div>
-      </div>
-
-      <div class='filter-group'>
-        <div class='filter-group-title'>AVALIAÇÃO MÍNIMA</div>
-        <div class='filter-options' id='filterRating'>
-          <button class='filter-option' data-value='4' onclick='mpSetRating(this)' type='button'>⭐ 4+</button>
-          <button class='filter-option' data-value='4.5' onclick='mpSetRating(this)' type='button'>⭐ 4.5+</button>
-          <button class='filter-option' data-value='4.8' onclick='mpSetRating(this)' type='button'>⭐ 4.8+</button>
-        </div>
-      </div>
-
-      <div class='filter-actions'>
-        <button class='clear-filter' onclick='mpClearFilters()' type='button'>Limpar</button>
-        <button class='apply-filter' onclick='mpApplyFilters()' type='button'>Aplicar filtros</button>
-      </div>
-    </div>
-  </div>
-
-
-  <!-- MODAL: ADICIONAR À COLEÇÃO -->
-  <div class='modal-backdrop' id='collectionModal' onclick='mpModalBackdrop(event)'>
-    <div class='modal-box'>
-      <div class='modal-head'>
-        <div class='modal-title' id='collectionModalTitle'>Adicionar à coleção</div>
-        <button class='modal-close' onclick='mpCloseCollectionModal()'>×</button>
-      </div>
-      <div class='collection-create'>
-        <input id='newCollectionName' maxlength='40' placeholder='Nome da nova coleção...' type='text'/>
-        <button onclick='mpCreateCollectionFromModal()'>Criar</button>
-      </div>
-      <div class='collection-choices' id='collectionChoices'></div>
-    </div>
-  </div>
-
-
-  <!-- MODAL EDITAR PERFIL -->
-  <div class='profile-modal-backdrop' id='editProfileModal' onclick='mpModalBackdrop(event,'editProfileModal')'>
-    <div class='profile-modal'>
-      <div class='modal-head'><div class='modal-title'>Editar perfil</div><button class='modal-close' onclick='mpCloseModal('editProfileModal')' type='button'>×</button></div>
-      <div class='form-grid'>
-        <div>
-          <div class='form-label'>FOTO DE PERFIL</div>
-          <div class='photo-picker' style='margin-top:7px'>
-            <div class='photo-preview' id='editPhotoPreview'>M</div>
-            <div><input accept='image/*' id='profilePhotoInput' onchange='mpPreviewPhoto(event)' type='file'/><div class='public-note'>Escolha diretamente da galeria do dispositivo. Nenhum link é necessário.</div></div>
-          </div>
-        </div>
-        <label><span class='form-label'>NOME DE USUÁRIO</span><input class='form-input' id='editProfileName' maxlength='40' placeholder='Seu nome'/></label>
-        <label><span class='form-label'>ARROBA — ÚNICO</span><input class='form-input' id='editProfileHandle' maxlength='25' oninput='mpNormalizeHandle(this)' placeholder='penelope10'/><div class='public-note'>O @ precisa ser exclusivo. Não pode existir outro usuário com o mesmo arroba.</div></label>
-        <label><span class='form-label'>NOME FIXO</span><input class='form-input' id='editProfileFixed' maxlength='40' placeholder='Nome fixo'/></label>
-        <label><span class='form-label'>E-MAIL DA CONTA</span><input class='form-input' id='editProfileEmail' readonly='readonly' type='email'/></label>
-        <label><span class='form-label'>BIO</span><textarea class='form-textarea' id='editProfileBio' maxlength='220' placeholder='Conte um pouco sobre você...'></textarea></label>
-        <div class='switch-row'><div class='switch-copy'><b>Perfil público</b><span>Permite que outras pessoas vejam suas estatísticas públicas.</span></div><button class='switch on' id='profilePublicSwitch' onclick='mpToggleSwitch('profilePublicSwitch')' type='button'><i></i></button></div>
-        <button class='modal-save' onclick='mpSaveProfile()' type='button'>Salvar alterações</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL CONFIGURAÇÕES -->
-  <div class='profile-modal-backdrop' id='settingsModal' onclick='mpModalBackdrop(event,'settingsModal')'>
-    <div class='profile-modal'>
-      <div class='modal-head'><div class='modal-title'>Configurações</div><button class='modal-close' onclick='mpCloseModal('settingsModal')' type='button'>×</button></div>
-      <div class='settings-list'>
-        <div class='setting-item'><div class='setting-copy'><b>Aparência</b><span>Escolha o visual do MP SCAN.</span></div><button class='profile-btn' onclick='mpCycleTheme()' type='button'>Alternar</button></div>
-        <div class='setting-item'><div class='setting-copy'><b>Filtro de conteúdo sensível</b><span>Obras sensíveis ficam escondidas até você permitir.</span></div><button class='switch' id='sensitiveSwitch' onclick='mpToggleSwitch('sensitiveSwitch')' type='button'><i></i></button></div>
-        <div class='setting-item'><div class='setting-copy'><b>Segurança</b><span>Controle sua conta, sessões e dados.</span></div><button class='profile-btn' onclick='mpNotice('Central de segurança em construção')' type='button'>Abrir</button></div>
-        <div class='setting-item'><div class='setting-copy'><b>Termos de uso</b><span>Regras de utilização do MP SCAN.</span></div><button class='profile-btn' onclick='mpNotice('Termos de uso')' type='button'>Ler</button></div>
-      </div>
-      <div class='age-box' style='margin-top:13px'>
-        <b>🔞 Confirmação de maioridade</b>
-        <p>Confirme que você possui 18 anos ou mais. Ao confirmar, você declara que a informação é verdadeira e assume a responsabilidade pelo acesso ao conteúdo liberado.</p>
-        <button class='age-confirm' id='ageConfirmButton' onclick='mpConfirmAge()' type='button'>Tenho 18 anos ou mais</button>
-      </div>
-      <div class='blocked-content' id='ageStatus' style='margin-top:10px'><b>Conteúdo sensível protegido</b>Mesmo que a maioridade seja confirmada, obras sensíveis, com gatilhos ou conteúdo adulto só serão exibidas se o filtro de conteúdo sensível também estiver habilitado.</div>
-    </div>
-  </div>
-
-  <!-- MODAL PESSOAS -->
-  <div class='profile-modal-backdrop' id='peopleModal' onclick='mpModalBackdrop(event,'peopleModal')'>
-    <div class='profile-modal'>
-      <div class='modal-head'><div class='modal-title' id='peopleModalTitle'>Seguidores</div><button class='modal-close' onclick='mpCloseModal('peopleModal')' type='button'>×</button></div>
-      <div class='follow-list' id='peopleList'></div>
-      <div class='blocked-content' id='peopleEmpty'><b>Nenhuma pessoa encontrada</b>Essa lista será preenchida quando as relações de seguidores estiverem disponíveis no Firebase.</div>
-    </div>
-  </div>
-
-
-
-  <!-- GAVETAS: NOTIFICAÇÕES E PERFIL -->
-  <div class='drawer-backdrop' id='mpNotificationDrawer' onclick='if(event.target.id==='mpNotificationDrawer')mpCloseDrawer('mpNotificationDrawer')'>
-    <aside aria-label='Notificações' class='mp-drawer'>
-      <div class='mp-drawer-head'><div><div class='mp-drawer-kicker'>CENTRAL</div><div class='mp-drawer-title'>Notificações <span id='mpNoticeCountTitle' style='font-size:11px;color:#a95cff'></span></div></div><button class='mp-drawer-close' onclick='mpCloseDrawer('mpNotificationDrawer')' type='button'>×</button></div>
-      <div class='mp-drawer-body' id='mpNotificationList'></div>
-      <div class='mp-drawer-footer'><div class='mp-notice-actions'><button onclick='mpMarkNotificationsRead()' type='button'>Marcar como lidas</button><button class='primary' onclick='mpClearNotifications()' type='button'>Limpar</button></div></div>
-    </aside>
-  </div>
-
-  <div class='drawer-backdrop' id='mpProfileDrawer' onclick='if(event.target.id==='mpProfileDrawer')mpCloseDrawer('mpProfileDrawer')'>
-    <aside aria-label='Menu do perfil' class='mp-drawer'>
-      <div class='mp-drawer-head'><div><div class='mp-drawer-kicker'>MINHA CONTA</div><div class='mp-drawer-title'>Meu espaço</div></div><button class='mp-drawer-close' onclick='mpCloseDrawer('mpProfileDrawer')' type='button'>×</button></div>
-      <div class='mp-drawer-body'>
-        <div class='mp-profile-card'><div class='mp-profile-drawer-avatar' id='mpDrawerAvatar'><span id='mpDrawerAvatarLetter'>M</span><img alt='' id='mpDrawerAvatarImg'/></div><div class='mp-profile-drawer-main'><b id='mpDrawerName'>Meu perfil</b><span id='mpDrawerHandle'>@usuario</span><span id='mpDrawerEmail'></span></div></div>
-        <div class='mp-drawer-links'>
-          <button class='mp-drawer-link' onclick='mpCloseDrawer('mpProfileDrawer');mpOpenProfile()' type='button'>◉ Meu perfil <span class='arrow'>›</span></button>
-          <button class='mp-drawer-link' onclick='mpCloseDrawer('mpProfileDrawer');mpOpenEditProfile()' type='button'>✎ Editar perfil <span class='arrow'>›</span></button>
-          <button class='mp-drawer-link' onclick='mpCloseDrawer('mpProfileDrawer');mpOpenLibrary()' type='button'>▣ Minha biblioteca <span class='arrow'>›</span></button>
-          <button class='mp-drawer-link' onclick='mpCloseDrawer('mpProfileDrawer');mpOpenPeople('followers')' type='button'>👥 Seguidores e seguindo <span class='arrow'>›</span></button>
-          <button class='mp-drawer-link' onclick='mpCloseDrawer('mpProfileDrawer');mpOpenSettings()' type='button'>⚙ Configurações <span class='arrow'>›</span></button>
-          <button class='mp-drawer-link mp-admin-drawer-link' id='mpDrawerAdminLink' onclick='mpCloseDrawer('mpProfileDrawer');mpOpenAdmin('overview')' style='display:none' type='button'>🛡 Painel de ADM <span class='arrow'>›</span></button>
-        </div>
-      </div>
-    </aside>
-  </div>
-
-  
+</header>
+<!-- HOME DINÂMICA / FIREBASE -->
+<div class="view active" id="homeView">
+<main>
+<section class="hero" id="mpHomeHero">
+<div class="hero-content" id="mpHomeHeroContent">
+<div class="tag">✦ CARREGANDO CATÁLOGO</div>
+<h1>MP SCAN</h1>
+<p class="desc">Carregando as obras publicadas...</p>
+</div>
+</section>
+<section id="mpHomePopularSection">
+<div class="sect-head"><div class="sect-title">⭐ Obras populares</div><button class="see" onclick="mpOpenSearch()" type="button">Ver todas</button></div>
+<div class="row" id="mpHomePopular"><div style="color:#777;padding:20px">Carregando obras...</div></div>
+</section>
+<section id="mpHomeContinueSection" style="display:none">
+<div class="sect-head"><div class="sect-title">📖 Continuar lendo</div><button class="see" onclick="mpOpenLibrary()" type="button">Histórico</button></div>
+<div class="continue" id="mpHomeContinue"></div>
+</section>
+<section id="mpHomeUpdatesSection">
+<div class="sect-head"><div class="sect-title">🔔 Atualizações</div><button class="see" onclick="mpOpenSearch()" type="button">Ver obras</button></div>
+<div class="updates" id="mpHomeUpdates"><div style="color:#777;padding:20px">Carregando atualizações...</div></div>
+</section>
+</main>
+</div>
+<!-- BUSCA -->
+<div class="view" id="searchView">
+<main class="search-shell">
+<div class="search-head">
+<div class="search-topline">
+<button aria-label="Voltar" class="back-search" onclick="mpGoHome()" type="button">←</button>
+<div class="search-title-wrap">
+<div class="eyebrow">CATÁLOGO</div>
+<div class="search-title">Buscar obras</div>
+<p class="search-description">Pesquise por título, autor ou artista e filtre do seu jeito.</p>
+</div>
+<button aria-label="Limpar" class="reset-search" onclick="mpResetSearch()" type="button">↻</button>
+</div>
+<div class="search-box">
+<span class="glass">⌕</span>
+<input id="mpQuery" oninput="mpRunSearch()" placeholder="Pesquisar por título, autor, artista, scan..." type="search"/>
+</div>
+<div class="search-bottom">
+<div class="result-count"><strong id="mpResultCount">0</strong> resultados</div>
+<button class="filter-open" onclick="mpOpenFilters()" type="button">☷ Filtros <span class="filter-count" id="mpFilterCount">0</span></button>
+</div>
+</div>
+<div class="quick-title">Filtros rápidos <span class="bolt">ϟ</span></div>
+<div class="chips" id="quickGenres">
+<button class="chip" data-quick="Ação" onclick="mpQuick(this)" type="button">Ação</button>
+<button class="chip" data-quick="Romance" onclick="mpQuick(this)" type="button">Romance</button>
+<button class="chip" data-quick="Comédia" onclick="mpQuick(this)" type="button">Comédia</button>
+<button class="chip" data-quick="Drama" onclick="mpQuick(this)" type="button">Drama</button>
+<button class="chip" data-quick="Fantasia" onclick="mpQuick(this)" type="button">Fantasia</button>
+<button class="chip" data-quick="BL" onclick="mpQuick(this)" type="button">BL</button>
+<button class="chip" data-quick="GL" onclick="mpQuick(this)" type="button">GL</button>
+<button class="chip" data-quick="Manga" onclick="mpQuick(this)" type="button">Manga</button>
+</div>
+<div class="results-head">
+<div><div class="results-label">RESULTADOS</div><div class="results-title">Obras</div></div>
+<select class="sort-select" id="mpSort" onchange="mpRunSearch()">
+<option value="relevantes">Mais relevantes</option>
+<option value="avaliacao">Melhor avaliadas</option>
+<option value="recentes">Mais recentes</option>
+<option value="titulo">Título A-Z</option>
+</select>
+</div>
+<div class="results-grid" id="mpResults"></div>
+<div class="empty-search" id="mpEmpty">Nenhuma obra encontrada.<br/>Tente outro título ou ajuste os filtros.</div>
+</main>
+</div>
+</div>
+<!-- BIBLIOTECA -->
+<div class="view" id="libraryView">
+<main class="library-shell">
+<div class="library-head">
+<div>
+<div class="library-eyebrow">SEU ESPAÇO</div>
+<div class="library-title">Biblioteca</div>
+<p class="library-sub">Seus favoritos, histórico e coleções ficam salvos neste dispositivo.</p>
+</div>
+<div class="offline-badge">● SALVO OFFLINE</div>
+</div>
+<div class="library-tabs">
+<button class="library-tab active" favorites')'="" id="libTabFav" onclick="mpLibraryTab(">♡ Favoritos <span id="favCount">0</span></button>
+<button class="library-tab" history')'="" id="libTabHist" onclick="mpLibraryTab(">◷ Histórico <span id="histCount">0</span></button>
+<button class="library-tab" collections')'="" id="libTabCol" onclick="mpLibraryTab(">▣ Coleções <span id="colCount">0</span></button>
+</div>
+<div id="libraryFavorites">
+<div class="library-toolbar">
+<button class="library-action primary" onclick="mpCreateCollection()">＋ Nova coleção</button>
+<button class="library-action" onclick="mpClearFavorites()">Limpar favoritos</button>
+</div>
+<div class="library-grid" id="favoriteGrid"></div>
+<div class="library-empty" id="favoriteEmpty"><strong>Seus favoritos aparecem aqui</strong>Toque no ♡ de uma obra para salvá-la offline.</div>
+</div>
+<div id="libraryHistory" style="display:none">
+<div class="library-toolbar">
+<button class="library-action" onclick="mpClearHistory()">Limpar histórico</button>
+</div>
+<div class="library-grid" id="historyGrid"></div>
+<div class="library-empty" id="historyEmpty"><strong>Nenhum histórico ainda</strong>Quando você abrir uma obra ou capítulo, ela poderá aparecer aqui.</div>
+</div>
+<div id="libraryCollections" style="display:none">
+<div class="library-toolbar">
+<button class="library-action primary" onclick="mpCreateCollection()">＋ Criar coleção</button>
+</div>
+<div class="collection-list" id="collectionList"></div>
+<div class="library-empty" id="collectionEmpty"><strong>Crie sua primeira coleção</strong>Ex.: Completos, Favoritos BL, Para ler depois...</div>
+<div id="collectionItems"></div>
+</div>
+</main>
+</div>
+<!-- PERFIL -->
+<div class="view" id="profileView">
+<main class="profile-shell">
+<div class="profile-headline">
+<button class="back-profile" onclick="mpGoHome()" type="button">←</button>
+<div><div class="profile-eyebrow">MINHA CONTA</div><div class="profile-page-title">Perfil</div></div>
+</div>
+<section class="profile-hero">
+<div class="profile-top">
+<div class="avatar" id="profileAvatar"><span class="avatar-letter" id="profileAvatarLetter">M</span><img alt="Foto de perfil" id="profileAvatarImg"/></div>
+<div class="profile-main">
+<div class="profile-name-line"><div class="profile-name" id="profileName">Meu perfil</div><span class="admin-badge" id="adminBadge" style="display:none">✓ ADM</span></div>
+<div class="handle" id="profileHandle">@usuario</div>
+<div class="fixed-name" id="profileFixedName">Nome fixo: —</div>
+<div class="profile-actions">
+<button class="profile-btn primary-profile" onclick="mpOpenEditProfile()" type="button">✎ Editar perfil</button>
+<button class="profile-btn" onclick="mpOpenSettings()" type="button">⚙ Configurações</button>
+<button class="profile-btn" onclick="mpLogout()" type="button">↪ Sair</button>
+</div>
+</div>
+</div>
+<div class="profile-bio" id="profileBio">Adicione uma bio para contar um pouco sobre você.</div>
+<div class="privacy-pill" id="profilePrivacy">● Perfil público</div>
+<div class="profile-stats">
+<button class="stat-box" followers')'="" onclick="mpOpenPeople(" type="button"><div class="stat-number" id="profileFollowers">0</div><div class="stat-label">SEGUIDORES</div></button>
+<button class="stat-box" following')'="" onclick="mpOpenPeople(" type="button"><div class="stat-number" id="profileFollowing">0</div><div class="stat-label">SEGUINDO</div></button>
+<button abrindo="" class="stat-box" favoritos')'="" onclick="mpNotice(" type="button"><div class="stat-number" id="profileFavorites">0</div><div class="stat-label">FAVORITOS</div></button>
+<button abrindo="" avaliações')'="" class="stat-box" onclick="mpNotice(" type="button"><div class="stat-number" id="profileRatings">0</div><div class="stat-label">AVALIAÇÕES</div></button>
+<button abrindo="" class="stat-box" lidas')'="" obras="" onclick="mpNotice(" type="button"><div class="stat-number" id="profileRead">0</div><div class="stat-label">OBRAS LIDAS</div></button>
+<button class="stat-box" followers')'="" onclick="mpOpenPeople(" type="button"><div class="stat-number" id="profileMinutes">0</div><div class="stat-label">MIN. NO SITE</div></button>
+</div>
+</section>
+<div class="profile-grid">
+<section class="profile-card">
+<div class="profile-card-title">📊 Minha atividade</div>
+<div class="metric-list">
+<div class="metric"><b id="profileChapters">0</b><span>Capítulos lidos</span></div>
+<div class="metric"><b id="profileFollowingWorks">0</b><span>Obras acompanhando</span></div>
+<div class="metric"><b id="profileCollections">0</b><span>Coleções criadas</span></div>
+<div class="metric"><b id="profileTime">0 min</b><span>Tempo de leitura</span></div>
+</div>
+<div class="public-note">Estas estatísticas podem aparecer para outras pessoas quando o seu perfil estiver público.</div>
+</section>
+<section class="profile-card">
+<div class="profile-card-title">⚙ Conta e privacidade</div>
+<div class="profile-links">
+<button class="profile-link" onclick="mpOpenEditProfile()" type="button">Editar informações <small>›</small></button>
+<button class="profile-link" onclick="mpOpenSettings()" type="button">Configurações <small>›</small></button>
+<button class="profile-link" followers')'="" onclick="mpOpenPeople(" type="button">Seguidores e seguindo <small>›</small></button>
+<button class="profile-link" de="" onclick="mpNotice(" termos="" type="button" uso')'="">Termos de uso <small>›</small></button>
+<button central="" class="profile-link" de="" onclick="mpNotice(" segurança')'="" type="button">Segurança <small>›</small></button>
+</div>
+</section>
+</div>
+<section class="profile-card" style="margin-top:15px">
+<div class="profile-card-title">👥 Pessoas</div>
+<div class="follow-list" id="profilePeoplePreview"></div>
+<div class="blocked-content" id="profilePeopleEmpty" style="display:none"><b>Nenhuma pessoa ainda</b>Quando você tiver seguidores ou estiver seguindo alguém, eles aparecerão aqui.</div>
+</section>
+<section class="admin-card" id="adminPanelCard">
+<div class="admin-title">🛡 Painel de ADM</div>
+<div class="admin-sub">Área reservada para administração do MP SCAN. O painel é liberado somente para contas ADM autenticadas no Firebase.</div>
+<div class="admin-grid">
+<div class="admin-item"><b id="adminWorks">0</b><span>Obras publicadas</span></div>
+<div class="admin-item"><b id="adminChapters">0</b><span>Capítulos publicados</span></div>
+<div class="admin-item"><b id="adminReaders">0</b><span>Leituras</span></div>
+<div class="admin-item"><b id="adminUsers">0</b><span>Usuários</span></div>
+</div>
+<div class="profile-actions">
+<button class="profile-btn primary-profile" onclick="mpOpenAdmin(" type="button" works')'="">🛡 Abrir painel completo</button>
+<button chapters')'="" class="profile-btn" onclick="mpOpenAdmin(" type="button">＋ Capítulo</button>
+<button class="profile-btn" onclick="mpOpenAdmin(" type="button" users')'="">👥 Usuários</button>
+</div>
+</section>
+</main>
+</div>
+<!-- PAINEL ADM -->
+<div class="adm-view" id="adminView">
+<div class="adm-wrap">
+<div class="adm-head">
+<button class="adm-back" onclick="mpCloseAdmin()" type="button">←</button>
+<div><div class="adm-kicker">MP SCAN / ADMINISTRAÇÃO</div><div class="adm-title">Painel de ADM</div></div>
+<div class="adm-head-right"><div class="adm-status"><i class="adm-dot"></i> Firebase conectado</div></div>
+</div>
+<div class="adm-dashboard">
+<div class="adm-stat"><div class="ico">📚</div><b id="admStatWorks">0</b><span>OBRAS</span></div>
+<div class="adm-stat"><div class="ico">📖</div><b id="admStatChapters">0</b><span>CAPÍTULOS</span></div>
+<div class="adm-stat"><div class="ico">👁</div><b id="admStatReads">0</b><span>LEITURAS</span></div>
+<div class="adm-stat"><div class="ico">👥</div><b id="admStatUsers">0</b><span>USUÁRIOS</span></div>
+<div class="adm-stat"><div class="ico">💬</div><b id="admStatComments">0</b><span>COMENTÁRIOS</span></div>
+<div class="adm-stat"><div class="ico">🚩</div><b id="admStatReports">0</b><span>DENÚNCIAS</span></div>
+</div>
+<div class="adm-main">
+<aside class="adm-sidebar">
+<button class="adm-tab active" id="admTabOverview" onclick="mpAdmTab(" overview')'="" type="button">▦ Visão geral</button>
+<button class="adm-tab" id="admTabWorks" onclick="mpAdmTab(" type="button" works')'="">📚 Obras <span class="tab-count" id="admCountWorks">0</span></button>
+<button chapters')'="" class="adm-tab" id="admTabChapters" onclick="mpAdmTab(" type="button">📖 Capítulos <span class="tab-count" id="admCountChapters">0</span></button>
+<button class="adm-tab" id="admTabUsers" onclick="mpAdmTab(" type="button" users')'="">👥 Usuários <span class="tab-count" id="admCountUsers">0</span></button>
+<button class="adm-tab" comments')'="" id="admTabComments" onclick="mpAdmTab(" type="button">💬 Comentários <span class="tab-count" id="admCountComments">0</span></button>
+<button class="adm-tab" id="admTabReports" onclick="mpAdmTab(" reports')'="" type="button">🚩 Denúncias <span class="tab-count" id="admCountReports">0</span></button>
+<button analytics')'="" class="adm-tab" id="admTabAnalytics" onclick="mpAdmTab(" type="button">📈 Analytics</button>
+</aside>
+<section class="adm-content">
+<div class="adm-panel active" id="admPanelOverview">
+<div class="adm-panel-head"><div><div class="adm-panel-title">Central de controle</div><div class="adm-panel-sub">Tudo que importa para acompanhar o MP SCAN em um só lugar. Os números abaixo são lidos do Firebase quando a estrutura correspondente existir.</div></div><div class="adm-actions"><button class="adm-btn" onclick="mpAdmReload()" type="button">↻ Atualizar</button></div></div>
+<div class="adm-kpis">
+<div class="adm-kpi"><b id="admOverviewReads">0</b><span>Acessos registrados</span></div>
+<div class="adm-kpi"><b id="admOverviewRatings">0</b><span>Avaliações</span></div>
+<div class="adm-kpi"><b id="admOverviewPages">0</b><span>Páginas publicadas</span></div>
+</div>
+<div class="adm-chart-grid" style="margin-top:11px">
+<div class="adm-chart"><b>Leituras por obra</b><div class="adm-bars" id="admReadBars"></div><div class="adm-bars-label"><span>menos</span><span>mais</span></div></div>
+<div class="adm-chart"><b>Avaliações por obra</b><div class="adm-bars" id="admRatingBars"></div><div class="adm-bars-label"><span>menos</span><span>mais</span></div></div>
+</div>
+<div class="adm-info-box" style="margin-top:11px"><b>🔐 Segurança:</b> esconder o painel no navegador não protege os dados. As regras do Firebase precisam permitir gravação/remoção somente para o UID de ADM. O painel já foi construído para trabalhar com essa proteção.</div>
+</div>
+<div class="adm-panel" id="admPanelWorks">
+<div class="adm-panel-head"><div><div class="adm-panel-title">Obras</div><div class="adm-panel-sub">Cadastre, edite, publique e acompanhe cada obra.</div></div><button class="adm-btn primary" onclick="mpOpenWorkEditor()" type="button">＋ Nova obra</button></div>
+<div class="adm-search"><input id="admWorkSearch" oninput="mpAdmRenderWorks()" placeholder="Pesquisar título, autor, gênero..."/><select id="admWorkSort" onchange="mpAdmRenderWorks()"><option value="recent">Mais recentes</option><option value="reads">Mais lidas</option><option value="rating">Melhor avaliadas</option><option value="title">A-Z</option></select></div>
+<div class="adm-table-wrap"><table class="adm-table"><thead><tr><th>OBRA</th><th>TIPO</th><th>STATUS</th><th>ACESSOS</th><th>AVALIAÇÃO</th><th>DOAÇÃO</th><th>AÇÕES</th></tr></thead><tbody id="admWorksBody"></tbody></table></div>
+</div>
+<div class="adm-panel" id="admPanelChapters">
+<div class="adm-panel-head"><div><div class="adm-panel-title">Capítulos</div><div class="adm-panel-sub">Publique de 1 a 100 imagens pela galeria, reorganize páginas e edite o capítulo depois.</div></div><button class="adm-btn primary" onclick="mpOpenChapterEditor()" type="button">＋ Novo capítulo</button></div>
+<div class="adm-search"><select id="admChapterWorkFilter" onchange="mpAdmRenderChapters()"><option value="">Todas as obras</option></select><input id="admChapterSearch" oninput="mpAdmRenderChapters()" placeholder="Buscar número ou título..."/></div>
+<div class="adm-table-wrap"><table class="adm-table"><thead><tr><th>OBRA</th><th>Nº</th><th>TÍTULO</th><th>TEMP./VOLUME</th><th>PÁGINAS</th><th>PUBLICADO</th><th>AÇÕES</th></tr></thead><tbody id="admChaptersBody"></tbody></table></div>
+</div>
+<div class="adm-panel" id="admPanelUsers">
+<div class="adm-panel-head"><div><div class="adm-panel-title">Usuários</div><div class="adm-panel-sub">Veja perfis, atividade, seguidores e ações administrativas.</div></div><button class="adm-btn" onclick="mpAdmReload()" type="button">↻ Atualizar</button></div>
+<div class="adm-search"><input id="admUserSearch" oninput="mpAdmRenderUsers()" placeholder="Pesquisar nome ou @..."/></div>
+<div class="adm-table-wrap"><table class="adm-table"><thead><tr><th>USUÁRIO</th><th>E-MAIL</th><th>OBRAS LIDAS</th><th>SEGUIDORES</th><th>STATUS</th><th>AÇÕES</th></tr></thead><tbody id="admUsersBody"></tbody></table></div>
+</div>
+<div class="adm-panel" id="admPanelComments">
+<div class="adm-panel-head"><div><div class="adm-panel-title">Comentários</div><div class="adm-panel-sub">Modere comentários e acompanhe onde a comunidade está interagindo.</div></div></div>
+<div id="admCommentsList"></div>
+</div>
+<div class="adm-panel" id="admPanelReports">
+<div class="adm-panel-head"><div><div class="adm-panel-title">Denúncias</div><div class="adm-panel-sub">Analise denúncias feitas sobre usuários, comentários e obras.</div></div></div>
+<div id="admReportsList"></div>
+</div>
+<div class="adm-panel" id="admPanelAnalytics">
+<div class="adm-panel-head"><div><div class="adm-panel-title">Analytics</div><div class="adm-panel-sub">Indicadores de leitura, avaliação e desempenho das obras.</div></div></div>
+<div class="adm-detail-grid">
+<div class="adm-detail"><b>Total de leituras</b><span id="admAnaReads">0</span></div>
+<div class="adm-detail"><b>Total de avaliações</b><span id="admAnaRatings">0</span></div>
+<div class="adm-detail"><b>Média geral</b><span id="admAnaAverage">0</span></div>
+<div class="adm-detail"><b>Obra mais acessada</b><span id="admAnaTopWork">—</span></div>
+<div class="adm-detail"><b>Capítulo mais lido</b><span id="admAnaTopChapter">—</span></div>
+<div class="adm-detail"><b>Páginas publicadas</b><span id="admAnaPages">0</span></div>
+</div>
+<div class="adm-info-box" style="margin-top:12px"><b>Como os acessos funcionam:</b> o painel aceita campos como <code>cliques</code>, <code>leituras</code>, <code>visualizacoes</code>, <code>ratingMedio</code> e <code>totalAvaliacoes</code>. Assim ele se adapta aos dados que você já possui sem apagar sua estrutura.</div>
+</div>
+</section>
+</div>
+</div>
+</div>
+<!-- MENU INFERIOR -->
+<nav class="bottom">
+<button class="nav active" id="navHome" onclick="mpGoHome()" type="button">⌂<span>Tela inicial</span></button>
+<button class="nav" id="navSearch" onclick="mpOpenSearch()" type="button">⌕<span>Busca</span></button>
+<button class="nav center" mp="" onclick="mpNotice(" scan')'="" type="button">✦</button>
+<button class="nav" id="navLibrary" onclick="mpOpenLibrary()" type="button">▣<span>Biblioteca</span></button>
+<button class="nav" id="navProfile" onclick="mpOpenProfile()" type="button">◉<span>Perfil</span></button>
+</nav>
+</div>
+<div admworkmodal')mpcloseadmmodal('admworkmodal')'="" class="adm-modal-backdrop" id="admWorkModal" onclick="if(event.target.id===">
+<div class="adm-modal">
+<div class="adm-modal-head"><div class="adm-modal-title" id="admWorkModalTitle">Nova obra</div><button admworkmodal')'="" class="adm-close" onclick="mpCloseAdmModal(" type="button">×</button></div>
+<input id="admWorkId" type="hidden"/>
+<div class="adm-form">
+<div class="adm-form-grid">
+<div class="adm-field"><label class="adm-label">TÍTULO</label><input class="adm-input" id="admWorkTitle" placeholder="Título principal"/></div>
+<div class="adm-field"><label class="adm-label">NOME ALTERNATIVO</label><input class="adm-input" id="admWorkAlt" placeholder="Também conhecido como..."/></div>
+<div class="adm-field">
+<label class="adm-label">GÊNEROS</label>
+<input autocomplete="off" class="adm-input" id="admWorkGenre" placeholder="Selecione os gêneros abaixo ou crie um novo"/>
+<div class="adm-genre-picker" id="admGenrePicker"></div>
+<div class="adm-genre-create"><input class="adm-input" id="admNewGenre" placeholder="Novo gênero..."/><button class="adm-btn" onclick="mpAdmCreateGenre()" type="button">＋ Criar gênero</button></div>
+<small style="display:block;color:#777;margin-top:6px;font-size:9px">Os gêneros já usados nas obras aparecem aqui. Se não existir, crie um novo.</small>
+</div>
+<div class="adm-field"><label class="adm-label">TIPO</label><select class="adm-select" id="admWorkType"><option>Manhwa</option><option>Manga</option><option>Manhua</option><option>Novel</option><option>Webtoon</option><option>Light Novel</option></select></div>
+<div class="adm-field"><label class="adm-label">AUTOR</label><input class="adm-input" id="admWorkAuthor" placeholder="Autor"/></div>
+<div class="adm-field"><label class="adm-label">ARTISTA</label><input class="adm-input" id="admWorkArtist" placeholder="Artista — deixe vazio para Novel"/></div>
+<div class="adm-field"><label class="adm-label">STATUS</label><select class="adm-select" id="admWorkStatus"><option>Em andamento</option><option>Completo</option><option>Hiato</option><option>Cancelado</option></select></div>
+<div class="adm-field"><label class="adm-label">ANO</label><input class="adm-input" id="admWorkYear" placeholder="2026" type="number"/></div>
+<div class="adm-field"><label class="adm-label">SCAN / EQUIPE</label><select class="adm-select" id="admWorkScan"><option>Padrão</option><option>MP SCAN</option><option>Parceira</option><option>Externa</option></select></div>
+<div class="adm-field full"><label class="adm-label">CAPA DA OBRA</label><input class="adm-input" id="admWorkCover" placeholder="A imagem escolhida na galeria será armazenada no Firebase (sem Storage)" readonly="readonly"/><input accept="image/*" id="admWorkCoverFile" style="display:none" type="file"/><button class="adm-btn" onclick='document.getElementById("admWorkCoverFile").click()' style="margin-top:8px" type="button">📷 Escolher capa pela galeria</button><div id="admWorkCoverPreview" style="margin-top:10px"></div></div>
+<div class="adm-field full"><label class="adm-label">SINOPSE</label><textarea class="adm-textarea" id="admWorkSynopsis" placeholder="Sinopse da obra..."></textarea></div>
+<div class="adm-field full">
+<div class="adm-checks">
+<div class="adm-check"><input id="admWorkDonated" type="checkbox"/><label for="admWorkDonated">💜 Obra doada</label></div>
+<div class="adm-check"><input id="admWorkSensitive" type="checkbox"/><label for="admWorkSensitive">🔞 Conteúdo sensível</label></div>
+</div>
+</div>
+</div>
+<div class="adm-info-box"><b>Nota:</b> em Novel, o campo artista pode ficar vazio. O número de capítulo é independente do título, então especiais podem ter qualquer nome sem quebrar a ordem.</div>
+<button class="adm-btn primary" onclick="mpSaveWork()" style="width:100%;height:45px" type="button">Salvar obra</button>
+</div>
+</div>
+</div>
+<div admchaptermodal')mpcloseadmmodal('admchaptermodal')'="" class="adm-modal-backdrop" id="admChapterModal" onclick="if(event.target.id===">
+<div class="adm-modal">
+<div class="adm-modal-head"><div class="adm-modal-title" id="admChapterModalTitle">Novo capítulo</div><button admchaptermodal')'="" class="adm-close" onclick="mpCloseAdmModal(" type="button">×</button></div>
+<input id="admChapterId" type="hidden"/>
+<div class="adm-form">
+<div class="adm-form-grid">
+<div class="adm-field full"><label class="adm-label">OBRA</label><select class="adm-select" id="admChapterWork"></select></div>
+<div class="adm-field"><label class="adm-label">NÚMERO DO CAPÍTULO</label><input class="adm-input" id="admChapterNumber" placeholder="1" step="1" type="number"/></div>
+<div class="adm-field"><label class="adm-label">TÍTULO DO CAPÍTULO</label><input class="adm-input" id="admChapterTitle" placeholder="O Herói que faz todo mundo..."/></div>
+<div class="adm-field"><label class="adm-label">TEMPORADA</label><input class="adm-input" id="admChapterSeason" placeholder="1 — ou Final da 1ª temporada"/></div>
+<div class="adm-field"><label class="adm-label">VOLUME — NOVEL</label><input class="adm-input" id="admChapterVolume" placeholder="Volume 1"/></div>
+<div class="adm-field full"><label class="adm-label">ESPECIAL / OBSERVAÇÃO</label><input class="adm-input" id="admChapterSpecial" placeholder="Especial de Natal, Especial de Dia dos Namorados..."/></div>
+</div>
+<div class="adm-info-box"><b>Regra do MP SCAN:</b> o número é o identificador de ordem. O título é livre. Assim, “Especial de Natal” pode ser publicado sem transformar o capítulo em um número quebrado.</div>
+<div class="adm-drop">
+<b>🖼️ Páginas do capítulo</b>
+<p>Escolha diretamente da galeria. Aceita de 1 a 100 imagens por capítulo. Você pode selecionar várias de uma vez.</p>
+<label class="adm-btn primary" for="admChapterFiles">Selecionar imagens</label>
+<input accept="image/*" id="admChapterFiles" multiple="multiple" onchange="mpAdmSelectFiles(event)" type="file"/>
+<div class="adm-progress"><i id="admUploadProgress"></i></div>
+<div class="adm-file-list" id="admFileList"></div>
+</div>
+<div class="adm-actions"><button admchaptermodal')'="" class="adm-btn" onclick="mpCloseAdmModal(" type="button">Cancelar</button><button class="adm-btn primary" onclick="mpSaveChapter()" type="button">Publicar capítulo</button></div>
+</div>
+</div>
+</div>
+<div class="adm-toast" id="admToast"></div>
+<!-- MODAL DE FILTROS -->
+<div class="filter-backdrop" id="filterBackdrop" onclick="mpBackdrop(event)">
+<div class="filter-panel">
+<div class="filter-panel-head">
+<div class="filter-panel-title">Filtros</div>
+<button class="close-filter" onclick="mpCloseFilters()" type="button">×</button>
+</div>
+<div class="filter-group">
+<div class="filter-group-title">GÊNERO</div>
+<div class="filter-options" id="filterGenre">
+<button class="filter-option" data-value="Ação" genre')'="" onclick="mpToggleFilter(this," type="button">Ação</button>
+<button class="filter-option" data-value="Romance" genre')'="" onclick="mpToggleFilter(this," type="button">Romance</button>
+<button class="filter-option" data-value="Comédia" genre')'="" onclick="mpToggleFilter(this," type="button">Comédia</button>
+<button class="filter-option" data-value="Drama" genre')'="" onclick="mpToggleFilter(this," type="button">Drama</button>
+<button class="filter-option" data-value="Fantasia" genre')'="" onclick="mpToggleFilter(this," type="button">Fantasia</button>
+<button class="filter-option" data-value="BL" genre')'="" onclick="mpToggleFilter(this," type="button">BL</button>
+<button class="filter-option" data-value="GL" genre')'="" onclick="mpToggleFilter(this," type="button">GL</button>
+<button class="filter-option" data-value="Terror" genre')'="" onclick="mpToggleFilter(this," type="button">Terror</button>
+</div>
+</div>
+<div class="filter-group">
+<div class="filter-group-title">TIPO</div>
+<div class="filter-options" id="filterType">
+<button class="filter-option" data-value="Manhwa" onclick="mpToggleFilter(this," type="button" type')'="">Manhwa</button>
+<button class="filter-option" data-value="Manga" onclick="mpToggleFilter(this," type="button" type')'="">Manga</button>
+<button class="filter-option" data-value="Manhua" onclick="mpToggleFilter(this," type="button" type')'="">Manhua</button>
+<button class="filter-option" data-value="Novel" onclick="mpToggleFilter(this," type="button" type')'="">Novel</button>
+</div>
+</div>
+<div class="filter-group">
+<div class="filter-group-title">STATUS</div>
+<div class="filter-options" id="filterStatus">
+<button class="filter-option" data-value="Em andamento" onclick="mpToggleFilter(this," status')'="" type="button">Em andamento</button>
+<button class="filter-option" data-value="Completo" onclick="mpToggleFilter(this," status')'="" type="button">Completo</button>
+<button class="filter-option" data-value="Hiato" onclick="mpToggleFilter(this," status')'="" type="button">Hiato</button>
+</div>
+</div>
+<div class="filter-group">
+<div class="filter-group-title">AVALIAÇÃO MÍNIMA</div>
+<div class="filter-options" id="filterRating">
+<button class="filter-option" data-value="4" onclick="mpSetRating(this)" type="button">⭐ 4+</button>
+<button class="filter-option" data-value="4.5" onclick="mpSetRating(this)" type="button">⭐ 4.5+</button>
+<button class="filter-option" data-value="4.8" onclick="mpSetRating(this)" type="button">⭐ 4.8+</button>
+</div>
+</div>
+<div class="filter-actions">
+<button class="clear-filter" onclick="mpClearFilters()" type="button">Limpar</button>
+<button class="apply-filter" onclick="mpApplyFilters()" type="button">Aplicar filtros</button>
+</div>
+</div>
+</div>
+<!-- MODAL: ADICIONAR À COLEÇÃO -->
+<div class="modal-backdrop" id="collectionModal" onclick="mpModalBackdrop(event)">
+<div class="modal-box">
+<div class="modal-head">
+<div class="modal-title" id="collectionModalTitle">Adicionar à coleção</div>
+<button class="modal-close" onclick="mpCloseCollectionModal()">×</button>
+</div>
+<div class="collection-create">
+<input id="newCollectionName" maxlength="40" placeholder="Nome da nova coleção..." type="text"/>
+<button onclick="mpCreateCollectionFromModal()">Criar</button>
+</div>
+<div class="collection-choices" id="collectionChoices"></div>
+</div>
+</div>
+<!-- MODAL EDITAR PERFIL -->
+<div class="profile-modal-backdrop" editprofilemodal')'="" id="editProfileModal" onclick="mpModalBackdrop(event,">
+<div class="profile-modal">
+<div class="modal-head"><div class="modal-title">Editar perfil</div><button class="modal-close" editprofilemodal')'="" onclick="mpCloseModal(" type="button">×</button></div>
+<div class="form-grid">
+<div>
+<div class="form-label">FOTO DE PERFIL</div>
+<div class="photo-picker" style="margin-top:7px">
+<div class="photo-preview" id="editPhotoPreview">M</div>
+<div><input accept="image/*" id="profilePhotoInput" onchange="mpPreviewPhoto(event)" type="file"/><div class="public-note">Escolha diretamente da galeria do dispositivo. Nenhum link é necessário.</div></div>
+</div>
+</div>
+<label><span class="form-label">NOME DE USUÁRIO</span><input class="form-input" id="editProfileName" maxlength="40" placeholder="Seu nome"/></label>
+<label><span class="form-label">ARROBA — ÚNICO</span><input class="form-input" id="editProfileHandle" maxlength="25" oninput="mpNormalizeHandle(this)" placeholder="penelope10"/><div class="public-note">O @ precisa ser exclusivo. Não pode existir outro usuário com o mesmo arroba.</div></label>
+<label><span class="form-label">NOME FIXO</span><input class="form-input" id="editProfileFixed" maxlength="40" placeholder="Nome fixo"/></label>
+<label><span class="form-label">E-MAIL DA CONTA</span><input class="form-input" id="editProfileEmail" readonly="readonly" type="email"/></label>
+<label><span class="form-label">BIO</span><textarea class="form-textarea" id="editProfileBio" maxlength="220" placeholder="Conte um pouco sobre você..."></textarea></label>
+<div class="switch-row"><div class="switch-copy"><b>Perfil público</b><span>Permite que outras pessoas vejam suas estatísticas públicas.</span></div><button class="switch on" id="profilePublicSwitch" onclick="mpToggleSwitch(" profilepublicswitch')'="" type="button"><i></i></button></div>
+<button class="modal-save" onclick="mpSaveProfile()" type="button">Salvar alterações</button>
+</div>
+</div>
+</div>
+<!-- MODAL CONFIGURAÇÕES -->
+<div class="profile-modal-backdrop" id="settingsModal" onclick="mpModalBackdrop(event," settingsmodal')'="">
+<div class="profile-modal">
+<div class="modal-head"><div class="modal-title">Configurações</div><button class="modal-close" onclick="mpCloseModal(" settingsmodal')'="" type="button">×</button></div>
+<div class="settings-list">
+<div class="setting-item"><div class="setting-copy"><b>Aparência</b><span>Escolha o visual do MP SCAN.</span></div><button class="profile-btn" onclick="mpCycleTheme()" type="button">Alternar</button></div>
+<div class="setting-item"><div class="setting-copy"><b>Filtro de conteúdo sensível</b><span>Obras sensíveis ficam escondidas até você permitir.</span></div><button class="switch" id="sensitiveSwitch" onclick="mpToggleSwitch(" sensitiveswitch')'="" type="button"><i></i></button></div>
+<div class="setting-item"><div class="setting-copy"><b>Segurança</b><span>Controle sua conta, sessões e dados.</span></div><button central="" class="profile-btn" construção')'="" de="" em="" onclick="mpNotice(" segurança="" type="button">Abrir</button></div>
+<div class="setting-item"><div class="setting-copy"><b>Termos de uso</b><span>Regras de utilização do MP SCAN.</span></div><button class="profile-btn" de="" onclick="mpNotice(" termos="" type="button" uso')'="">Ler</button></div>
+</div>
+<div class="age-box" style="margin-top:13px">
+<b>🔞 Confirmação de maioridade</b>
+<p>Confirme que você possui 18 anos ou mais. Ao confirmar, você declara que a informação é verdadeira e assume a responsabilidade pelo acesso ao conteúdo liberado.</p>
+<button class="age-confirm" id="ageConfirmButton" onclick="mpConfirmAge()" type="button">Tenho 18 anos ou mais</button>
+</div>
+<div class="blocked-content" id="ageStatus" style="margin-top:10px"><b>Conteúdo sensível protegido</b>Mesmo que a maioridade seja confirmada, obras sensíveis, com gatilhos ou conteúdo adulto só serão exibidas se o filtro de conteúdo sensível também estiver habilitado.</div>
+</div>
+</div>
+<!-- MODAL PESSOAS -->
+<div class="profile-modal-backdrop" id="peopleModal" onclick="mpModalBackdrop(event," peoplemodal')'="">
+<div class="profile-modal">
+<div class="modal-head"><div class="modal-title" id="peopleModalTitle">Seguidores</div><button class="modal-close" onclick="mpCloseModal(" peoplemodal')'="" type="button">×</button></div>
+<div class="follow-list" id="peopleList"></div>
+<div class="blocked-content" id="peopleEmpty"><b>Nenhuma pessoa encontrada</b>Essa lista será preenchida quando as relações de seguidores estiverem disponíveis no Firebase.</div>
+</div>
+</div>
+<!-- GAVETAS: NOTIFICAÇÕES E PERFIL -->
+<div class="drawer-backdrop" id="mpNotificationDrawer" mpnotificationdrawer')mpclosedrawer('mpnotificationdrawer')'="" onclick="if(event.target.id===">
+<aside aria-label="Notificações" class="mp-drawer">
+<div class="mp-drawer-head"><div><div class="mp-drawer-kicker">CENTRAL</div><div class="mp-drawer-title">Notificações <span id="mpNoticeCountTitle" style="font-size:11px;color:#a95cff"></span></div></div><button class="mp-drawer-close" mpnotificationdrawer')'="" onclick="mpCloseDrawer(" type="button">×</button></div>
+<div class="mp-drawer-body" id="mpNotificationList"></div>
+<div class="mp-drawer-footer"><div class="mp-notice-actions"><button onclick="mpMarkNotificationsRead()" type="button">Marcar como lidas</button><button class="primary" onclick="mpClearNotifications()" type="button">Limpar</button></div></div>
+</aside>
+</div>
+<div class="drawer-backdrop" id="mpProfileDrawer" mpprofiledrawer')mpclosedrawer('mpprofiledrawer')'="" onclick="if(event.target.id===">
+<aside aria-label="Menu do perfil" class="mp-drawer">
+<div class="mp-drawer-head"><div><div class="mp-drawer-kicker">MINHA CONTA</div><div class="mp-drawer-title">Meu espaço</div></div><button class="mp-drawer-close" mpprofiledrawer')'="" onclick="mpCloseDrawer(" type="button">×</button></div>
+<div class="mp-drawer-body">
+<div class="mp-profile-card"><div class="mp-profile-drawer-avatar" id="mpDrawerAvatar"><span id="mpDrawerAvatarLetter">M</span><img alt="" id="mpDrawerAvatarImg"/></div><div class="mp-profile-drawer-main"><b id="mpDrawerName">Meu perfil</b><span id="mpDrawerHandle">@usuario</span><span id="mpDrawerEmail"></span></div></div>
+<div class="mp-drawer-links">
+<button class="mp-drawer-link" mpprofiledrawer');mpopenprofile()'="" onclick="mpCloseDrawer(" type="button">◉ Meu perfil <span class="arrow">›</span></button>
+<button class="mp-drawer-link" mpprofiledrawer');mpopeneditprofile()'="" onclick="mpCloseDrawer(" type="button">✎ Editar perfil <span class="arrow">›</span></button>
+<button class="mp-drawer-link" mpprofiledrawer');mpopenlibrary()'="" onclick="mpCloseDrawer(" type="button">▣ Minha biblioteca <span class="arrow">›</span></button>
+<button class="mp-drawer-link" mpprofiledrawer');mpopenpeople('followers')'="" onclick="mpCloseDrawer(" type="button">👥 Seguidores e seguindo <span class="arrow">›</span></button>
+<button class="mp-drawer-link" mpprofiledrawer');mpopensettings()'="" onclick="mpCloseDrawer(" type="button">⚙ Configurações <span class="arrow">›</span></button>
+<button class="mp-drawer-link mp-admin-drawer-link" id="mpDrawerAdminLink" mpprofiledrawer');mpopenadmin('overview')'="" onclick="mpCloseDrawer(" style="display:none" type="button">🛡 Painel de ADM <span class="arrow">›</span></button>
+</div>
+</div>
+</aside>
+</div>
 <script>window.MP_HOME_URL=location.origin+'/' ;</script>
-<script type='text/javascript'>
+<script type="text/javascript">
   //
   var MP_OBRAS = [];
 
@@ -2138,17 +2082,17 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
       var rid=mpObraId(o),fav=mpIsFavorite(rid);
       card.innerHTML='<div class="result-cover'+cls+'" style="cursor:pointer">'+(mpWorkImage(o)?'<img class="cover-img" src="'+mpSafe(mpWorkImage(o))+'" alt="" loading="lazy" onerror="this.style.display=\'none\'"/><span class="cover-shade"></span>':'')+'<b>'+mpSafe(title)+'</b><span class="rating">⭐ '+(rating?rating.toFixed(1):'—')+'</span><span class="notice-bell-wrap"><button type="button" class="notice-bell" onclick="event.stopPropagation();mpToggleWorkNotification(\''+mpSafe(rid)+'\')" title="Avisar quando houver capítulo novo">♧</button></span></div><div class="result-info"><div class="result-name">'+mpSafe(title)+'</div><div class="result-meta">'+mpSafe(tipo)+' • '+mpSafe(genres)+'</div><div class="library-card-actions"><button class="mini-action favorite'+(fav?' active':'')+'" onclick="event.stopPropagation();mpSaveFavorite(\''+mpSafe(rid)+'\')">'+(fav?'♥ Salvo':'♡ Favoritar')+'</button><button class="mini-action collection" onclick="event.stopPropagation();mpOpenCollectionForObra(\''+mpSafe(rid)+'\')">▣ Coleção</button></div></div>';
       card.setAttribute('data-obra-id',rid);
-      card.addEventListener('click',function(e){
+      (function(cardEl,ridEl){cardEl.addEventListener('click',function(e){
         if(e.target.closest('button'))return;
-        var work=mpFindObra(card.getAttribute('data-obra-id'));
+        var work=mpFindObra(ridEl);
         if(work&&typeof window.mpOpenWork==='function')window.mpOpenWork(work);
-      });
+      });})(card,rid);
       box.appendChild(card);
     }
   }
 
   function mpSafe(s){
-    return String(s==null?'':s).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"').replace(/'/g,''');
+    return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
   function mpRenderGenreFilters(){
@@ -2486,80 +2430,74 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 
   //
   </script>
-
-
-  <!-- PÁGINA DA OBRA -->
-  <div aria-hidden='true' class='mp-work-backdrop' id='mpWorkBackdrop'>
-    <div class='mp-work-page'>
-      <div class='mp-work-top'>
-        <button aria-label='Voltar' class='mp-work-back' onclick='mpCloseWork()' type='button'>←</button>
-        <div class='mp-work-top-title' id='mpWorkTopTitle'>INFORMAÇÕES DA OBRA</div>
-        <div class='mp-work-top-actions'>
-          <button class='mp-work-icon-btn' id='mpWorkTopBell' onclick='mpWorkToggleNotice()' title='Avisar sobre capítulos' type='button'>♧</button>
-          <button class='mp-work-icon-btn' onclick='mpWorkShare()' title='Compartilhar' type='button'>↗</button>
-          <button aria-label='Fechar' class='mp-work-close' onclick='mpCloseWork()' type='button'>×</button>
-        </div>
-      </div>
-      <section class='mp-work-hero'>
-        <div class='mp-work-glow'/>
-        <div class='mp-work-cover'>
-          <div class='mp-work-cover-bg' id='mpWorkCoverBg'/><div class='mp-work-cover-shade'/>
-          <div class='mp-work-cover-tag' id='mpWorkCoverTag'>MP SCAN</div><div class='mp-work-cover-title' id='mpWorkCoverTitle'>Obra</div>
-        </div>
-        <div class='mp-work-info'>
-          <div class='mp-work-kicker' id='mpWorkKicker'>OBRA</div><h1 class='mp-work-title' id='mpWorkTitle'>Obra</h1>
-          <div class='mp-work-alt' id='mpWorkAlt'>—</div>
-          <div class='mp-work-rating'><span class='mp-stars' id='mpWorkStars'>★★★★★</span><span class='mp-rating-number' id='mpWorkRating'>—</span><span class='mp-rating-count' id='mpWorkRatingCount'>0 avaliações</span></div>
-          <div class='mp-work-actions'><button class='mp-work-primary' onclick='mpWorkStartReading()' type='button'>▶ Começar a ler</button><button class='mp-work-secondary' id='mpWorkFav' onclick='mpWorkFavorite()' type='button'>♡ Favoritar</button><button class='mp-work-secondary' id='mpWorkCollection' onclick='mpOpenCollectionForCurrentWork()' type='button'>▣ Coleção</button></div>
-          <div class='mp-work-pills' id='mpWorkPills'/>
-        </div>
-      </section>
-      <section class='mp-work-content'>
-        <div>
-          <div class='mp-work-panel'><div class='mp-work-panel-head'><div><div class='mp-work-panel-kicker'>SOBRE A OBRA</div><div class='mp-work-panel-title'>Sinopse</div></div></div><div class='mp-work-description' id='mpWorkSynopsis'>Nenhuma sinopse cadastrada.</div></div>
-          <div class='mp-work-panel'><div class='mp-work-panel-head'><div><div class='mp-work-panel-kicker'>LEITURA</div><div class='mp-work-panel-title'>Capítulos</div></div><div class='mp-work-panel-kicker' id='mpWorkChapterCount'>0 CAPÍTULOS</div></div><div class='mp-chapter-list' id='mpWorkChapters'><div class='mp-chapter-loading'>Carregando capítulos...</div></div></div>
-        </div>
-        <aside>
-          <div class='mp-work-panel'><div class='mp-work-side-title'>INFORMAÇÕES</div><div class='mp-work-detail-list' id='mpWorkDetails'/><div class='mp-work-safety' id='mpWorkSafety' style='display:none'>⚠ Esta obra possui conteúdo sensível. O acesso depende das preferências de conteúdo do usuário.</div></div>
-          <div class='mp-work-panel'><div class='mp-work-side-title'>NÚMEROS DA OBRA</div><div class='mp-work-stats'><div class='mp-work-stat'><b id='mpWorkReads'>0</b><span>Leituras</span></div><div class='mp-work-stat'><b id='mpWorkViews'>0</b><span>Acessos</span></div><div class='mp-work-stat'><b id='mpWorkPages'>0</b><span>Páginas</span></div><div class='mp-work-stat'><b id='mpWorkFollowers'>0</b><span>Acompanhando</span></div></div></div>
-        </aside>
-      </section>
-    </div>
-  </div>
-
-
+<!-- PÁGINA DA OBRA -->
+<div aria-hidden="true" class="mp-work-backdrop" id="mpWorkBackdrop">
+<div class="mp-work-page">
+<div class="mp-work-top">
+<button aria-label="Voltar" class="mp-work-back" onclick="mpCloseWork()" type="button">←</button>
+<div class="mp-work-top-title" id="mpWorkTopTitle">INFORMAÇÕES DA OBRA</div>
+<div class="mp-work-top-actions">
+<button class="mp-work-icon-btn" id="mpWorkTopBell" onclick="mpWorkToggleNotice()" title="Avisar sobre capítulos" type="button">♧</button>
+<button class="mp-work-icon-btn" onclick="mpWorkShare()" title="Compartilhar" type="button">↗</button>
+<button aria-label="Fechar" class="mp-work-close" onclick="mpCloseWork()" type="button">×</button>
+</div>
+</div>
+<section class="mp-work-hero">
+<div class="mp-work-glow"></div>
+<div class="mp-work-cover">
+<div class="mp-work-cover-bg" id="mpWorkCoverBg"></div><div class="mp-work-cover-shade"></div>
+<div class="mp-work-cover-tag" id="mpWorkCoverTag">MP SCAN</div><div class="mp-work-cover-title" id="mpWorkCoverTitle">Obra</div>
+</div>
+<div class="mp-work-info">
+<div class="mp-work-kicker" id="mpWorkKicker">OBRA</div><h1 class="mp-work-title" id="mpWorkTitle">Obra</h1>
+<div class="mp-work-alt" id="mpWorkAlt">—</div>
+<div class="mp-work-rating"><span class="mp-stars" id="mpWorkStars">★★★★★</span><span class="mp-rating-number" id="mpWorkRating">—</span><span class="mp-rating-count" id="mpWorkRatingCount">0 avaliações</span></div>
+<div class="mp-work-actions"><button class="mp-work-primary" onclick="mpWorkStartReading()" type="button">▶ Começar a ler</button><button class="mp-work-secondary" id="mpWorkFav" onclick="mpWorkFavorite()" type="button">♡ Favoritar</button><button class="mp-work-secondary" id="mpWorkCollection" onclick="mpOpenCollectionForCurrentWork()" type="button">▣ Coleção</button></div>
+<div class="mp-work-pills" id="mpWorkPills"></div>
+</div>
+</section>
+<section class="mp-work-content">
+<div>
+<div class="mp-work-panel"><div class="mp-work-panel-head"><div><div class="mp-work-panel-kicker">SOBRE A OBRA</div><div class="mp-work-panel-title">Sinopse</div></div></div><div class="mp-work-description" id="mpWorkSynopsis">Nenhuma sinopse cadastrada.</div></div>
+<div class="mp-work-panel"><div class="mp-work-panel-head"><div><div class="mp-work-panel-kicker">LEITURA</div><div class="mp-work-panel-title">Capítulos</div></div><div class="mp-work-panel-kicker" id="mpWorkChapterCount">0 CAPÍTULOS</div></div><div class="mp-chapter-list" id="mpWorkChapters"><div class="mp-chapter-loading">Carregando capítulos...</div></div></div>
+</div>
+<aside>
+<div class="mp-work-panel"><div class="mp-work-side-title">INFORMAÇÕES</div><div class="mp-work-detail-list" id="mpWorkDetails"></div><div class="mp-work-safety" id="mpWorkSafety" style="display:none">⚠ Esta obra possui conteúdo sensível. O acesso depende das preferências de conteúdo do usuário.</div></div>
+<div class="mp-work-panel"><div class="mp-work-side-title">NÚMEROS DA OBRA</div><div class="mp-work-stats"><div class="mp-work-stat"><b id="mpWorkReads">0</b><span>Leituras</span></div><div class="mp-work-stat"><b id="mpWorkViews">0</b><span>Acessos</span></div><div class="mp-work-stat"><b id="mpWorkPages">0</b><span>Páginas</span></div><div class="mp-work-stat"><b id="mpWorkFollowers">0</b><span>Acompanhando</span></div></div></div>
+</aside>
+</section>
+</div>
+</div>
 <!-- MP SCAN • PÁGINA DA OBRA V2 -->
-<div class='mp2-page' id='mp2WorkPage'>
- <div class='mp2-shell'>
-  <div class='mp2-nav'><button class='mp2-back' onclick='mpCloseWork()'>←</button><div class='mp2-nav-title'>MP SCAN / OBRA</div><div class='mp2-nav-spacer'></div><button class='mp2-icon' onclick='mp2Notify()'>♧</button><button class='mp2-icon' onclick='mp2Share()'>↗</button></div>
-  <section class='mp2-hero'><div class='mp2-bg' id='mp2Bg'/><div class='mp2-shade'/><div class='mp2-cover' id='mp2Cover'/><div class='mp2-content'><div class='mp2-kicker'>INFORMAÇÕES DA OBRA</div><h1 class='mp2-title' id='mp2Title'>Obra</h1><div class='mp2-alt' id='mp2Alt'/><div class='mp2-rating'><span class='mp2-stars' id='mp2Stars'>☆☆☆☆☆</span><b class='mp2-rate' id='mp2Rate'>—</b><span class='mp2-rate-count' id='mp2RateCount'>0 avaliações</span><button class='mp2-rate-open' onclick='mp2OpenRating()' type='button'>★ Avaliar obra</button></div><div class='mp2-actions'><button class='mp2-btn primary' onclick='mp2Start()'>▶ Começar a ler</button><button class='mp2-btn' id='mp2Fav' onclick='mp2ToggleFavorite()'>♡ Favoritar</button><button class='mp2-btn' onclick='mp2Collection()'>▣ Coleção</button><button class='mp2-btn' onclick='mp2Notify()'>🔔 Avisar de capítulos</button></div><div class='mp2-meta' id='mp2Pills'/></div></section>
-  <div class='mp2-grid'><main>
-   <div class='mp2-card mp2-info-first'><div class='mp2-eyebrow'>INFORMAÇÕES</div><h2>Informações</h2><div class='mp2-details' id='mp2Details'/></div>
-   <div class='mp2-card'><div class='mp2-eyebrow'>SOBRE</div><h2>Sinopse</h2><div class='mp2-synopsis' id='mp2Synopsis'>Nenhuma sinopse cadastrada.</div></div>
-   <div class='mp2-card'><div class='mp2-eyebrow'>LEITURA</div><h2>Capítulos</h2><div class='mp2-chapter-tools'><button class='mp2-small' onclick='mp2Start()'>↳ Ler primeiro</button><button class='mp2-small' onclick='mp2Last()'>↲ Ler último</button></div><div class='mp2-download-progress' id='mp2Progress'><i/></div><div id='mp2OfflineStatus' class='mp2-offline-note'>Capítulos baixados podem ser lidos sem internet.</div><div id='mp2Chapters'/></div>
-   <div class='mp2-card'><div class='mp2-comments-head'><div><div class='mp2-eyebrow'>COMUNIDADE</div><h2>Comentários</h2></div><span class='mp2-pill'>Respeite a comunidade</span></div><div class='mp2-comment-form'><textarea class='mp2-textarea' id='mp2CommentText' placeholder='Compartilhe sua opinião sobre a obra...'></textarea><div class='mp2-form-row'><label class='mp2-spoiler'><input id='mp2Spoiler' type='checkbox'/> ⚠ Marcar como spoiler</label><button class='mp2-btn primary' onclick='mp2PostComment()'>Enviar comentário</button></div></div><div id='mp2Comments'/></div>
-  </main><aside>
-   <div class='mp2-card'><div class='mp2-eyebrow'>DESEMPENHO</div><h2>Números</h2><div class='mp2-statgrid'><div class='mp2-stat'><b id='mp2Reads'>0</b><span>Leituras</span></div><div class='mp2-stat'><b id='mp2Views'>0</b><span>Acessos</span></div><div class='mp2-stat'><b id='mp2Pages'>0</b><span>Páginas</span></div><div class='mp2-stat'><b id='mp2Followers'>0</b><span>Acompanhando</span></div></div></div>
-  </aside></div>
- </div>
+<div class="mp2-page" id="mp2WorkPage">
+<div class="mp2-shell">
+<div class="mp2-nav"><button class="mp2-back" onclick="mpCloseWork()">←</button><div class="mp2-nav-title">MP SCAN / OBRA</div><div class="mp2-nav-spacer"></div><button class="mp2-icon" onclick="mp2Notify()">♧</button><button class="mp2-icon" onclick="mp2Share()">↗</button></div>
+<section class="mp2-hero"><div class="mp2-bg" id="mp2Bg"></div><div class="mp2-shade"></div><div class="mp2-cover" id="mp2Cover"></div><div class="mp2-content"><div class="mp2-kicker">INFORMAÇÕES DA OBRA</div><h1 class="mp2-title" id="mp2Title">Obra</h1><div class="mp2-alt" id="mp2Alt"></div><div class="mp2-rating"><span class="mp2-stars" id="mp2Stars">☆☆☆☆☆</span><b class="mp2-rate" id="mp2Rate">—</b><span class="mp2-rate-count" id="mp2RateCount">0 avaliações</span><button class="mp2-rate-open" onclick="mp2OpenRating()" type="button">★ Avaliar obra</button></div><div class="mp2-actions"><button class="mp2-btn primary" onclick="mp2Start()">▶ Começar a ler</button><button class="mp2-btn" id="mp2Fav" onclick="mp2ToggleFavorite()">♡ Favoritar</button><button class="mp2-btn" onclick="mp2Collection()">▣ Coleção</button><button class="mp2-btn" onclick="mp2Notify()">🔔 Avisar de capítulos</button></div><div class="mp2-meta" id="mp2Pills"></div></div></section>
+<div class="mp2-grid"><main>
+<div class="mp2-card mp2-info-first"><div class="mp2-eyebrow">INFORMAÇÕES</div><h2>Informações</h2><div class="mp2-details" id="mp2Details"></div></div>
+<div class="mp2-card"><div class="mp2-eyebrow">SOBRE</div><h2>Sinopse</h2><div class="mp2-synopsis" id="mp2Synopsis">Nenhuma sinopse cadastrada.</div></div>
+<div class="mp2-card"><div class="mp2-eyebrow">LEITURA</div><h2>Capítulos</h2><div class="mp2-chapter-tools"><button class="mp2-small" onclick="mp2Start()">↳ Ler primeiro</button><button class="mp2-small" onclick="mp2Last()">↲ Ler último</button></div><div class="mp2-download-progress" id="mp2Progress"><i></i></div><div class="mp2-offline-note" id="mp2OfflineStatus">Capítulos baixados podem ser lidos sem internet.</div><div id="mp2Chapters"></div></div>
+<div class="mp2-card"><div class="mp2-comments-head"><div><div class="mp2-eyebrow">COMUNIDADE</div><h2>Comentários</h2></div><span class="mp2-pill">Respeite a comunidade</span></div><div class="mp2-comment-form"><textarea class="mp2-textarea" id="mp2CommentText" placeholder="Compartilhe sua opinião sobre a obra..."></textarea><div class="mp2-form-row"><label class="mp2-spoiler"><input id="mp2Spoiler" type="checkbox"/> ⚠ Marcar como spoiler</label><button class="mp2-btn primary" onclick="mp2PostComment()">Enviar comentário</button></div></div><div id="mp2Comments"></div></div>
+</main><aside>
+<div class="mp2-card"><div class="mp2-eyebrow">DESEMPENHO</div><h2>Números</h2><div class="mp2-statgrid"><div class="mp2-stat"><b id="mp2Reads">0</b><span>Leituras</span></div><div class="mp2-stat"><b id="mp2Views">0</b><span>Acessos</span></div><div class="mp2-stat"><b id="mp2Pages">0</b><span>Páginas</span></div><div class="mp2-stat"><b id="mp2Followers">0</b><span>Acompanhando</span></div></div></div>
+</aside></div>
 </div>
-<div class='mp2-reader' id='mp2Reader'><div class='mp2-reader-bar'><button class='mp2-icon' onclick='mp2CloseReader()'>←</button><div class='mp2-reader-info'><b id='mp2ReaderTitle'>Capítulo</b><span id='mp2ReaderSub'/></div></div><div class='mp2-reader-body' id='mp2ReaderBody'></div><div class='mp2-reader-nav'><button class='mp2-btn' id='mp2Prev'>← Anterior</button><button class='mp2-btn primary' id='mp2Next'>Próximo →</button></div></div>
-<div class='mp2-profile-pop' id='mp2ProfilePop' onclick='if(event.target===this)mp2ClosePublicProfile()'><div class='mp2-profile-card'><div class='mp2-form-row'><div class='mp2-eyebrow'>PERFIL PÚBLICO</div><button class='mp2-icon' onclick='mp2ClosePublicProfile()'>×</button></div><div class='mp2-profile-top'><div class='mp2-profile-big' id='mp2PublicAvatar'>U</div><div><div class='mp2-profile-name' id='mp2PublicName'>Usuário</div><div class='mp2-profile-handle' id='mp2PublicHandle'>@usuario</div><div id='mp2PublicOfficial'/></div></div><div class='mp2-profile-bio' id='mp2PublicBio'/><div class='mp2-profile-stats'><div class='mp2-profile-stat'><b id='mp2PFoll'>0</b><span>Seguidores</span></div><div class='mp2-profile-stat'><b id='mp2PFollowing'>0</b><span>Seguindo</span></div><div class='mp2-profile-stat'><b id='mp2PRead'>0</b><span>Obras lidas</span></div><div class='mp2-profile-stat'><b>—</b><span>Avaliações</span></div></div><div style='display:flex;gap:8px;margin-top:16px'><button class='mp2-btn primary' onclick='mp2Follow()'>＋ Seguir</button><button class='mp2-btn' onclick='toast('Perfil aberto.')'>Ver perfil completo</button></div><div class='mp2-report'><div class='mp2-eyebrow'>DENUNCIAR USUÁRIO</div><select id='mp2ReportReason'><option value=''>Selecione um motivo</option><option>Homofobia</option><option>Discurso de ódio</option><option>Assédio</option><option>Spam</option><option>Ofensa ou comportamento abusivo</option><option>Conteúdo sexual inadequado</option><option>Spoiler sem aviso</option><option>Outro</option></select><button class='mp2-btn' onclick='mp2ReportUser()' style='margin-top:8px'>⚑ Enviar denúncia</button></div></div></div>
-<div class='mp2-toast' id='mp2Toast'/>
-<div class='mp2-rating-modal' id='mp2RatingModal' onclick='if(event.target===this)mp2CloseRating()'>
-  <div class='mp2-rating-box'>
-    <div class='mp2-rating-head'><div class='mp2-rating-title'>Avaliar esta obra</div><button class='mp2-icon' onclick='mp2CloseRating()' type='button'>×</button></div>
-    <div class='mp2-rating-sub'>Escolha de 1 a 5 estrelas. Você pode alterar sua avaliação depois.</div>
-    <div class='mp2-rating-stars' id='mp2RatingStars'>
-      <button class='mp2-rating-star' data-rating='1' onclick='mp2SelectRating(1)' type='button'>★</button><button class='mp2-rating-star' data-rating='2' onclick='mp2SelectRating(2)' type='button'>★</button><button class='mp2-rating-star' data-rating='3' onclick='mp2SelectRating(3)' type='button'>★</button><button class='mp2-rating-star' data-rating='4' onclick='mp2SelectRating(4)' type='button'>★</button><button class='mp2-rating-star' data-rating='5' onclick='mp2SelectRating(5)' type='button'>★</button>
-    </div>
-    <div class='mp2-rating-selected' id='mp2RatingSelected'>Nenhuma nota selecionada.</div>
-    <div class='mp2-rating-actions'><button class='mp2-btn' onclick='mp2CloseRating()' type='button'>Cancelar</button><button class='mp2-btn primary' onclick='mp2SubmitRating()' type='button'>Salvar avaliação</button></div>
-  </div>
 </div>
-
-
-<script type='text/javascript'>
+<div class="mp2-reader" id="mp2Reader"><div class="mp2-reader-bar"><button class="mp2-icon" onclick="mp2CloseReader()">←</button><div class="mp2-reader-info"><b id="mp2ReaderTitle">Capítulo</b><span id="mp2ReaderSub"></span></div></div><div class="mp2-reader-body" id="mp2ReaderBody"></div><div class="mp2-reader-nav"><button class="mp2-btn" id="mp2Prev">← Anterior</button><button class="mp2-btn primary" id="mp2Next">Próximo →</button></div></div>
+<div class="mp2-profile-pop" id="mp2ProfilePop" onclick="if(event.target===this)mp2ClosePublicProfile()"><div class="mp2-profile-card"><div class="mp2-form-row"><div class="mp2-eyebrow">PERFIL PÚBLICO</div><button class="mp2-icon" onclick="mp2ClosePublicProfile()">×</button></div><div class="mp2-profile-top"><div class="mp2-profile-big" id="mp2PublicAvatar">U</div><div><div class="mp2-profile-name" id="mp2PublicName">Usuário</div><div class="mp2-profile-handle" id="mp2PublicHandle">@usuario</div><div id="mp2PublicOfficial"></div></div></div><div class="mp2-profile-bio" id="mp2PublicBio"></div><div class="mp2-profile-stats"><div class="mp2-profile-stat"><b id="mp2PFoll">0</b><span>Seguidores</span></div><div class="mp2-profile-stat"><b id="mp2PFollowing">0</b><span>Seguindo</span></div><div class="mp2-profile-stat"><b id="mp2PRead">0</b><span>Obras lidas</span></div><div class="mp2-profile-stat"><b>—</b><span>Avaliações</span></div></div><div style="display:flex;gap:8px;margin-top:16px"><button class="mp2-btn primary" onclick="mp2Follow()">＋ Seguir</button><button aberto.')'="" class="mp2-btn" onclick="toast(" perfil="">Ver perfil completo</button></div><div class="mp2-report"><div class="mp2-eyebrow">DENUNCIAR USUÁRIO</div><select id="mp2ReportReason"><option value="">Selecione um motivo</option><option>Homofobia</option><option>Discurso de ódio</option><option>Assédio</option><option>Spam</option><option>Ofensa ou comportamento abusivo</option><option>Conteúdo sexual inadequado</option><option>Spoiler sem aviso</option><option>Outro</option></select><button class="mp2-btn" onclick="mp2ReportUser()" style="margin-top:8px">⚑ Enviar denúncia</button></div></div></div>
+<div class="mp2-toast" id="mp2Toast"></div>
+<div class="mp2-rating-modal" id="mp2RatingModal" onclick="if(event.target===this)mp2CloseRating()">
+<div class="mp2-rating-box">
+<div class="mp2-rating-head"><div class="mp2-rating-title">Avaliar esta obra</div><button class="mp2-icon" onclick="mp2CloseRating()" type="button">×</button></div>
+<div class="mp2-rating-sub">Escolha de 1 a 5 estrelas. Você pode alterar sua avaliação depois.</div>
+<div class="mp2-rating-stars" id="mp2RatingStars">
+<button class="mp2-rating-star" data-rating="1" onclick="mp2SelectRating(1)" type="button">★</button><button class="mp2-rating-star" data-rating="2" onclick="mp2SelectRating(2)" type="button">★</button><button class="mp2-rating-star" data-rating="3" onclick="mp2SelectRating(3)" type="button">★</button><button class="mp2-rating-star" data-rating="4" onclick="mp2SelectRating(4)" type="button">★</button><button class="mp2-rating-star" data-rating="5" onclick="mp2SelectRating(5)" type="button">★</button>
+</div>
+<div class="mp2-rating-selected" id="mp2RatingSelected">Nenhuma nota selecionada.</div>
+<div class="mp2-rating-actions"><button class="mp2-btn" onclick="mp2CloseRating()" type="button">Cancelar</button><button class="mp2-btn primary" onclick="mp2SubmitRating()" type="button">Salvar avaliação</button></div>
+</div>
+</div>
+<script type="text/javascript">
 //
 (function(){
   const DB_NAME='MP_SCAN_OFFLINE_V2', DB_VER=1, STORE='chapters';
@@ -2698,7 +2636,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
   window.mp2ToggleFavorite=function(){var id=wid(MP2_CURRENT),arr=[];try{arr=JSON.parse(localStorage.getItem('mp_favorites')||'[]')}catch(e){}var i=arr.findIndex(function(x){return String(x.id||x._id)===id});if(i>=0){arr.splice(i,1);toast('Removida dos favoritos.')}else{arr.push({id:id,titulo:MP2_CURRENT.titulo,capa:wimg(MP2_CURRENT)});toast('Adicionada aos favoritos.')}localStorage.setItem('mp_favorites',JSON.stringify(arr));mp2RenderFavorite();};
   function mp2RenderFavorite(){var arr=[];try{arr=JSON.parse(localStorage.getItem('mp_favorites')||'[]')}catch(e){}var on=arr.some(function(x){return String(x.id||x._id)===wid(MP2_CURRENT)});var b=document.getElementById('mp2Fav');b.textContent=on?'♥ Favoritado':'♡ Favoritar';b.className='mp2-btn '+(on?'active':'');}
   window.mp2Download=async function(i){var c=MP2_CHAPTERS[i];if(!c)return;var urls=chapterPages(c),w=MP2_CURRENT||{};if(!urls.length){toast('Este capítulo ainda não possui páginas.');return}var prog=document.getElementById('mp2Progress');try{toast('Baixando capítulo para uso offline…');if(prog)prog.style.width='0%';if(!window.MP_OFFLINE_REAL)throw new Error('offline module unavailable');var total=urls.length,wrapped=[];for(var j=0;j<urls.length;j++){wrapped.push(urls[j]);if(prog)prog.style.width=Math.round((j+1)/total*100)+'%';}var k=await window.MP_OFFLINE_REAL.saveChapter(w,c,i,wrapped);saveMeta(k,{title:c.titulo||'',numero:c.numero||i+1,pages:urls.length,updatedAt:Date.now(),ready:true});renderChapters();toast('Capítulo disponível offline ✓');}catch(e){console.error('MP SCAN offline download',e);toast('Não consegui baixar todas as páginas. Verifique se cada imagem permite acesso pelo navegador.');}finally{setTimeout(function(){if(prog)prog.style.width='0%';},900)}};
-window.mp2Read=async function(i){var c=MP2_CHAPTERS[i];if(!c)return;var w=MP2_CURRENT||{};var pack=null;try{if(window.MP_OFFLINE_REAL)pack=await window.MP_OFFLINE_REAL.readChapter(w,c,i)}catch(e){console.warn('offline read',e)}var pages=pack&&pack.urls?pack.urls:chapterPages(c);if(!pages.length){toast('Este capítulo não possui páginas.');return}var r=document.getElementById('mp2Reader');r.className='mp2-reader open';setText('mp2ReaderTitle','Capítulo '+(c.numero||i+1)+' — '+(c.titulo||''));setText('mp2ReaderSub',(pack?'✓ Offline':'Online')+' • '+pages.length+' páginas');var body=document.getElementById('mp2ReaderBody');body.innerHTML='';pages.forEach(function(p,n){var im=document.createElement('img');im.className='mp2-reader-page';im.alt='Página '+(n+1);im.loading=n<2?'eager':'lazy';im.src=p;body.appendChild(im)});document.getElementById('mp2Prev').onclick=function(){if(i>0)mp2Read(i-1);else toast('Este é o primeiro capítulo.');};document.getElementById('mp2Next').onclick=function(){if(i<MP2_CHAPTERS.length-1)mp2Read(i+1);else toast('Este é o último capítulo.');};};document.getElementById('mp2Next').onclick=function(){if(i<MP2_CHAPTERS.length-1)mp2Read(i+1);else toast('Este é o último capítulo.');};};
+window.mp2Read=async function(i){var c=MP2_CHAPTERS[i];if(!c)return;var w=MP2_CURRENT||{};var pack=null;try{if(window.MP_OFFLINE_REAL)pack=await window.MP_OFFLINE_REAL.readChapter(w,c,i)}catch(e){console.warn('offline read',e)}var pages=pack&&pack.urls?pack.urls:chapterPages(c);if(!pages.length){toast('Este capítulo não possui páginas.');return}var r=document.getElementById('mp2Reader');r.className='mp2-reader open';setText('mp2ReaderTitle','Capítulo '+(c.numero||i+1)+' — '+(c.titulo||''));setText('mp2ReaderSub',(pack?'✓ Offline':'Online')+' • '+pages.length+' páginas');var body=document.getElementById('mp2ReaderBody');body.innerHTML='';pages.forEach(function(p,n){var im=document.createElement('img');im.className='mp2-reader-page';im.alt='Página '+(n+1);im.loading=n<2?'eager':'lazy';im.src=p;body.appendChild(im)});document.getElementById('mp2Prev').onclick=function(){if(i>0)mp2Read(i-1);else toast('Este é o primeiro capítulo.');};document.getElementById('mp2Next').onclick=function(){if(i<MP2_CHAPTERS.length-1)mp2Read(i+1);else toast('Este é o último capítulo.');};};
   window.mp2CloseReader=function(){document.getElementById('mp2Reader').className='mp2-reader';};
   async function loadComments(o){var list=[];var obraId=dbWorkId(o)||wid(o);try{var F=await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js');var D=await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js');var app=F.getApps().length?F.getApp():F.initializeApp({apiKey:'AIzaSyAbpqQIxWuEnFolv3lNjNDoPKTGm0mtrxU',authDomain:'nnnsss-23f2f.firebaseapp.com',databaseURL:'https://nnnsss-23f2f-default-rtdb.firebaseio.com',projectId:'nnnsss-23f2f',storageBucket:'nnnsss-23f2f.firebasestorage.app',messagingSenderId:'319942326245',appId:'1:319942326245:web:6d3df478376bf94876610c'});var s=await D.get(D.ref(D.getDatabase(app),'comentarios/'+obraId));var v=s.val()||{};Object.keys(v).forEach(function(k){var x=v[k]||{};if(x.capituloId||x.chapterId||x.capitulo||x.capituloNumero||x.chapterNumber)return;x._id=k;list.push(x)});}catch(e){console.log('MP SCAN carregar comentários:',e)}MP2_COMMENTS=list.length?list:[];renderComments();}
   function renderComments(){
@@ -2821,79 +2759,73 @@ window.mp2Read=async function(i){var c=MP2_CHAPTERS[i];if(!c)return;var w=MP2_CU
 })();
 //
 </script>
-
-
-<div aria-hidden='true' class='mp4-reader' id='mp4Reader'>
-  <div class='mp4-top' id='mp4Top'>
-    <button aria-label='Voltar' class='mp4-round' onclick='mp4Close()' type='button'>←</button>
-    <div class='mp4-reader-title'><b id='mp4Title'>Capítulo</b><span id='mp4Sub'>Online</span></div>
-    <div class='mp4-toolbar'>
-      <button aria-label='Lista de capítulos' class='mp4-tool' onclick='mp4ToggleChapterList()' type='button'>☷</button><button aria-label='Avisar de capítulos' class='mp4-tool' onclick='mp4NotifyFromReader()' type='button'>🔔</button>
-      <button aria-label='Configurações' class='mp4-tool' onclick='mp4ToggleSettings()' type='button'>⚙</button>
-    </div>
-  </div>
-  <div class='mp4-body' id='mp4Body' onclick='mp4TouchUI()'>
-    <div class='mp4-pages' id='mp4Pages'></div>
-    <div class='mp4-end' id='mp4End' style='display:none'>
-      <div class='mp4-end-icon'>⌂</div><h2>Você chegou ao fim</h2>
-      <p>Este foi o último capítulo disponível. Continue explorando a obra ou volte para a página da obra.</p>
-      <div class='mp4-end-actions'>
-        <button class='mp4-navbtn primary' onclick='mp4BackToWork()' type='button'>⌂ Voltar para a obra</button>
-        <button class='mp4-navbtn' onclick='mp4Close()' type='button'>← Fechar leitor</button>
-      </div>
-    </div>
-  </div>
-  <div class='mp4-bottom' id='mp4Bottom'>
-    <button class='mp4-navbtn' id='mp4Prev' type='button'>← Anterior</button>
-    <button class='mp4-navbtn mp4-home' id='mp4HomeBtn' onclick='mp4BackToWork()' type='button'>⌂</button>
-    <button class='mp4-navbtn primary' id='mp4Next' type='button'>Próximo →</button>
-  </div>
-  <div class='mp4-progress'><i id='mp4ProgressBar'/></div>
-
-  <div class='mp4-settings' id='mp4Settings'>
-    <h3>Configurações do leitor</h3><p>Suas escolhas ficam salvas neste dispositivo e não alteram a qualidade original das páginas.</p>
-    <div class='mp4-set'><label>Modo de leitura</label><div class='mp4-options'>
-      <button class='mp4-option' data-setting='mode' data-value='continuous' onclick='mp4Set('mode','continuous')'>Página contínua</button>
-      <button class='mp4-option' data-setting='mode' data-value='single' onclick='mp4Set('mode','single')'>Página por página</button>
-    </div></div>
-    <div class='mp4-set'><label>Largura das páginas</label><div class='mp4-options'>
-      <button class='mp4-option' data-setting='size' data-value='fit' onclick='mp4Set('size','fit')'>Tela inteira</button>
-      <button class='mp4-option' data-setting='size' data-value='wide' onclick='mp4Set('size','wide')'>Grande</button>
-      <button class='mp4-option' data-setting='size' data-value='medium' onclick='mp4Set('size','medium')'>Médio</button>
-      <button class='mp4-option' data-setting='size' data-value='small' onclick='mp4Set('size','small')'>Pequeno</button>
-    </div></div>
-    <div class='mp4-set'><label>Espaço entre páginas</label><div class='mp4-options'>
-      <button class='mp4-option' data-setting='gap' data-value='none' onclick='mp4Set('gap','none')'>Sem espaço</button>
-      <button class='mp4-option' data-setting='gap' data-value='gap' onclick='mp4Set('gap','gap')'>Separado</button>
-    </div></div>
-    <div class='mp4-set'><label>Zoom da página</label><div class='mp4-options'>
-      <button class='mp4-option' data-setting='zoom' data-value='fit' onclick='mp4Set('zoom','fit')'>Ajustado</button>
-      <button class='mp4-option' data-setting='zoom' data-value='90' onclick='mp4Set('zoom','90')'>90%</button>
-      <button class='mp4-option' data-setting='zoom' data-value='110' onclick='mp4Set('zoom','110')'>110%</button>
-      <button class='mp4-option' data-setting='zoom' data-value='130' onclick='mp4Set('zoom','130')'>130%</button>
-    </div></div>
-    <div class='mp4-set'><label>Brilho</label><input class='mp4-set-range' id='mp4Brightness' max='120' min='70' oninput='mp4SetBrightness(this.value)' type='range' value='100'/><div class='mp4-setting-row'><span>Mais escuro</span><span class='mp4-setting-value' id='mp4BrightnessValue'>100%</span><span>Mais claro</span></div></div>
-    <div class='mp4-set'><label>Controles de página</label><div class='mp4-options'>
-      <button class='mp4-option' type='button' onclick='mp4PrevPage()'>Página anterior</button>
-      <button class='mp4-option' type='button' onclick='mp4NextPage()'>Próxima página</button>
-      <button class='mp4-option' type='button' onclick='mp4GoPagePrompt()'>Ir para página</button>
-    </div><div class='mp4-page-indicator' id='mp4PageIndicator'>Página 1 de 1</div></div>
-    <div class='mp4-set'><label>Barra de página</label><div class='mp4-options'>
-      <button class='mp4-option' data-setting='pageBar' data-value='on' onclick='mp4Set('pageBar','on')'>Mostrar</button>
-      <button class='mp4-option' data-setting='pageBar' data-value='off' onclick='mp4Set('pageBar','off')'>Ocultar</button>
-    </div></div>
-    <div class='mp4-set'><div class='mp4-setting-row'><div><label style='margin:0'>Ocultar controles ao rolar</label><div style='font-size:8px;color:#777;margin-top:3px'>Deixa a leitura mais limpa.</div></div><button class='mp4-mini-toggle' id='mp4AutoHide' onclick='mp4ToggleAutoHide()' type='button'><i/></button></div></div>
-    <div class='mp4-set'><div class='mp4-setting-row'><div><label style='margin:0'>Continuar de onde parei</label><div style='font-size:8px;color:#777;margin-top:3px'>Salva capítulo e página automaticamente.</div></div><button class='mp4-mini-toggle on' id='mp4Remember' onclick='mp4ToggleRemember()' type='button'><i/></button></div></div>
-    <div class='mp4-set'><label>Atalhos</label><p style='margin:0'>← → mudam de capítulo no modo página. Esc fecha painéis. Espaço mostra/esconde controles. C abre capítulos e.</p></div>
-  </div>
-
-  <div class='mp4-chapter-panel' id='mp4ChapterPanel'>
-    <h3>Lista de capítulos</h3><p>Escolha outro capítulo sem sair do leitor.</p>
-    <div id='mp4ChapterList'></div>
-  </div>
+<div aria-hidden="true" class="mp4-reader" id="mp4Reader">
+<div class="mp4-top" id="mp4Top">
+<button aria-label="Voltar" class="mp4-round" onclick="mp4Close()" type="button">←</button>
+<div class="mp4-reader-title"><b id="mp4Title">Capítulo</b><span id="mp4Sub">Online</span></div>
+<div class="mp4-toolbar">
+<button aria-label="Lista de capítulos" class="mp4-tool" onclick="mp4ToggleChapterList()" type="button">☷</button><button aria-label="Avisar de capítulos" class="mp4-tool" onclick="mp4NotifyFromReader()" type="button">🔔</button>
+<button aria-label="Configurações" class="mp4-tool" onclick="mp4ToggleSettings()" type="button">⚙</button>
 </div>
-
-
+</div>
+<div class="mp4-body" id="mp4Body" onclick="mp4TouchUI()">
+<div class="mp4-pages" id="mp4Pages"></div>
+<div class="mp4-end" id="mp4End" style="display:none">
+<div class="mp4-end-icon">⌂</div><h2>Você chegou ao fim</h2>
+<p>Este foi o último capítulo disponível. Continue explorando a obra ou volte para a página da obra.</p>
+<div class="mp4-end-actions">
+<button class="mp4-navbtn primary" onclick="mp4BackToWork()" type="button">⌂ Voltar para a obra</button>
+<button class="mp4-navbtn" onclick="mp4Close()" type="button">← Fechar leitor</button>
+</div>
+</div>
+</div>
+<div class="mp4-bottom" id="mp4Bottom">
+<button class="mp4-navbtn" id="mp4Prev" type="button">← Anterior</button>
+<button class="mp4-navbtn mp4-home" id="mp4HomeBtn" onclick="mp4BackToWork()" type="button">⌂</button>
+<button class="mp4-navbtn primary" id="mp4Next" type="button">Próximo →</button>
+</div>
+<div class="mp4-progress"><i id="mp4ProgressBar"></i></div>
+<div class="mp4-settings" id="mp4Settings">
+<h3>Configurações do leitor</h3><p>Suas escolhas ficam salvas neste dispositivo e não alteram a qualidade original das páginas.</p>
+<div class="mp4-set"><label>Modo de leitura</label><div class="mp4-options">
+<button class="mp4-option" data-setting="mode" data-value="continuous" mode','continuous')'="" onclick="mp4Set(">Página contínua</button>
+<button class="mp4-option" data-setting="mode" data-value="single" mode','single')'="" onclick="mp4Set(">Página por página</button>
+</div></div>
+<div class="mp4-set"><label>Largura das páginas</label><div class="mp4-options">
+<button class="mp4-option" data-setting="size" data-value="fit" onclick="mp4Set(" size','fit')'="">Tela inteira</button>
+<button class="mp4-option" data-setting="size" data-value="wide" onclick="mp4Set(" size','wide')'="">Grande</button>
+<button class="mp4-option" data-setting="size" data-value="medium" onclick="mp4Set(" size','medium')'="">Médio</button>
+<button class="mp4-option" data-setting="size" data-value="small" onclick="mp4Set(" size','small')'="">Pequeno</button>
+</div></div>
+<div class="mp4-set"><label>Espaço entre páginas</label><div class="mp4-options">
+<button class="mp4-option" data-setting="gap" data-value="none" gap','none')'="" onclick="mp4Set(">Sem espaço</button>
+<button class="mp4-option" data-setting="gap" data-value="gap" gap','gap')'="" onclick="mp4Set(">Separado</button>
+</div></div>
+<div class="mp4-set"><label>Zoom da página</label><div class="mp4-options">
+<button class="mp4-option" data-setting="zoom" data-value="fit" onclick="mp4Set(" zoom','fit')'="">Ajustado</button>
+<button class="mp4-option" data-setting="zoom" data-value="90" onclick="mp4Set(" zoom','90')'="">90%</button>
+<button class="mp4-option" data-setting="zoom" data-value="110" onclick="mp4Set(" zoom','110')'="">110%</button>
+<button class="mp4-option" data-setting="zoom" data-value="130" onclick="mp4Set(" zoom','130')'="">130%</button>
+</div></div>
+<div class="mp4-set"><label>Brilho</label><input class="mp4-set-range" id="mp4Brightness" max="120" min="70" oninput="mp4SetBrightness(this.value)" type="range" value="100"/><div class="mp4-setting-row"><span>Mais escuro</span><span class="mp4-setting-value" id="mp4BrightnessValue">100%</span><span>Mais claro</span></div></div>
+<div class="mp4-set"><label>Controles de página</label><div class="mp4-options">
+<button class="mp4-option" onclick="mp4PrevPage()" type="button">Página anterior</button>
+<button class="mp4-option" onclick="mp4NextPage()" type="button">Próxima página</button>
+<button class="mp4-option" onclick="mp4GoPagePrompt()" type="button">Ir para página</button>
+</div><div class="mp4-page-indicator" id="mp4PageIndicator">Página 1 de 1</div></div>
+<div class="mp4-set"><label>Barra de página</label><div class="mp4-options">
+<button class="mp4-option" data-setting="pageBar" data-value="on" onclick="mp4Set(" pagebar','on')'="">Mostrar</button>
+<button class="mp4-option" data-setting="pageBar" data-value="off" onclick="mp4Set(" pagebar','off')'="">Ocultar</button>
+</div></div>
+<div class="mp4-set"><div class="mp4-setting-row"><div><label style="margin:0">Ocultar controles ao rolar</label><div style="font-size:8px;color:#777;margin-top:3px">Deixa a leitura mais limpa.</div></div><button class="mp4-mini-toggle" id="mp4AutoHide" onclick="mp4ToggleAutoHide()" type="button"><i></i></button></div></div>
+<div class="mp4-set"><div class="mp4-setting-row"><div><label style="margin:0">Continuar de onde parei</label><div style="font-size:8px;color:#777;margin-top:3px">Salva capítulo e página automaticamente.</div></div><button class="mp4-mini-toggle on" id="mp4Remember" onclick="mp4ToggleRemember()" type="button"><i></i></button></div></div>
+<div class="mp4-set"><label>Atalhos</label><p style="margin:0">← → mudam de capítulo no modo página. Esc fecha painéis. Espaço mostra/esconde controles. C abre capítulos e.</p></div>
+</div>
+<div class="mp4-chapter-panel" id="mp4ChapterPanel">
+<h3>Lista de capítulos</h3><p>Escolha outro capítulo sem sair do leitor.</p>
+<div id="mp4ChapterList"></div>
+</div>
+</div>
 <script>
 /**/
 (function(){
@@ -2901,7 +2833,7 @@ window.mp2Read=async function(i){var c=MP2_CHAPTERS[i];if(!c)return;var w=MP2_CU
   function gid(id){return document.getElementById(id)}
   function txt(id,v){var e=gid(id);if(e)e.textContent=v==null?'':v}
   function toast4(m){if(typeof toast==='function'){toast(m);return}var e=gid('mp2Toast')||gid('mpToast');if(e){e.textContent=m;e.classList.add('show');setTimeout(function(){e.classList.remove('show')},1800)}}
-  function safe(v){return String(v==null?'':v).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"').replace(/'/g,''')}
+  function safe(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
   function storage(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem(k)||'null');localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
   function pagesOf(c){var p=[];['paginas','pages','imagens','imagensPaginas','imagensCapitulo','images'].some(function(k){if(Array.isArray(c[k])){p=c[k];return true}return false});if(!p.length){['pagina1','pagina2','pagina3','pagina4','pagina5','pagina6','pagina7','pagina8','pagina9','pagina10'].forEach(function(k){if(c[k])p.push(c[k])})}return p.filter(Boolean)}
   async function offline(c,i){var w=M4.work||window.MP2_CURRENT||{};try{if(window.MP_OFFLINE_REAL){var p=await window.MP_OFFLINE_REAL.readChapter(w,c,i);if(p&&p.urls){p.urls.forEach(function(u){if(/^blob:/.test(u))M4.objectUrls.push(u)});return p.urls}}}catch(e){console.warn('MP4 offline V4',e)}var key=window.mpOfflineKey?window.mpOfflineKey(w,c,i):'';try{if(typeof idbGet==='function'){var d=await idbGet(key);if(d&&d.blobs)return d.blobs.map(function(b){if(typeof b==='string')return b;var u=URL.createObjectURL(b);M4.objectUrls.push(u);return u})}}catch(e){}return null}
@@ -2958,8 +2890,7 @@ window.mp2Read=async function(i){var c=MP2_CHAPTERS[i];if(!c)return;var w=MP2_CU
 })();
  /**/
 </script>
-
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 (function(){
 'use strict';
@@ -2992,7 +2923,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
 //
 </script>
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 (function(){
   'use strict';
@@ -3011,7 +2942,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 //
 </script>
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 /* ================================================================
    MP SCAN — LEITOR DE OBRAS (FALLBACK REST DO FIREBASE)
@@ -3235,7 +3166,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 //
 </script>
-\n<style type='text/css'>\n/* ===== MP SCAN • PROTEÇÃO DE CONTEÚDO + APARÊNCIAS PRO ===== */
+\n<style type="text/css">\n/* ===== MP SCAN • PROTEÇÃO DE CONTEÚDO + APARÊNCIAS PRO ===== */
 .mp-protected-lock{display:none;position:fixed;inset:0;z-index:50000;background:rgba(5,5,8,.96);backdrop-filter:blur(20px);align-items:center;justify-content:center;padding:20px}
 .mp-protected-lock.open{display:flex}
 .mp-protected-card{width:min(560px,100%);background:#111116;border:1px solid #3a3045;border-radius:28px;padding:28px;box-shadow:0 35px 120px #000;position:relative;overflow:hidden}
@@ -3266,59 +3197,54 @@ body.mp-theme-slate{background:#0b0e14}body.mp-theme-slate .scan,body.mp-theme-s
 body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,body.mp-theme-light .adm-view{background:#f2f3f7;color:#171820}body.mp-theme-light .top{background:rgba(242,243,247,.94);color:#171820;border-bottom-color:#d9dbe3}body.mp-theme-light .logo,body.mp-theme-light .nav,body.mp-theme-light .sect-title,body.mp-theme-light .ctitle,body.mp-theme-light h1{color:#171820}body.mp-theme-light .icon,body.mp-theme-light .card,body.mp-theme-light .update,body.mp-theme-light .continue,body.mp-theme-light .profile-card,body.mp-theme-light .profile-hero,body.mp-theme-light .search-head,body.mp-theme-light .filter-panel,body.mp-theme-light .library-card{background:#fff;color:#171820;border-color:#dfe1e8}body.mp-theme-light .desc,body.mp-theme-light .sub,body.mp-theme-light .result-meta,body.mp-theme-light .library-meta,body.mp-theme-light .search-description{color:#626773}body.mp-theme-light .bottom{background:#ffffffee;border-color:#dfe1e8;box-shadow:0 15px 50px #6b70801f}body.mp-theme-light .nav{color:#626773}body.mp-theme-light .nav.active{color:#7433b7;background:#eee6f8}body.mp-theme-light .filter-option,body.mp-theme-light .chip{background:#f5f6f9;color:#4e5360;border-color:#dfe1e8}
 @media(max-width:560px){.mp-appearance-grid,.mp-security-grid{grid-template-columns:1fr}.mp-protected-card{padding:22px;border-radius:23px}}
 </style>
-
 <!-- ===== MP SCAN • SEGURANÇA / TERMOS / APARÊNCIAS ===== -->
-<div class='profile-modal-backdrop' id='mpAppearanceModal' onclick='if(event.target.id==="mpAppearanceModal")mpCloseModal("mpAppearanceModal")'>
-  <div class='profile-modal'>
-    <div class='modal-head'><div><div class='modal-title'>Aparência profissional</div><div style='font-size:10px;color:#777780;margin-top:4px'>Escolha o ambiente que combina com você.</div></div><button class='modal-close' onclick='mpCloseModal("mpAppearanceModal")' type='button'>×</button></div>
-    <div class='mp-appearance-grid' id='mpAppearanceGrid'>
-      <button class='mp-appearance-option' data-theme='dark' onclick='mpSetAppearance("dark")' type='button'><div class='mp-appearance-swatch' style='--sw1:#09090b;--sw2:#8738ed'/><div class='mp-appearance-name'>Midnight</div><div class='mp-appearance-desc'>Escuro premium • padrão</div></button>
-      <button class='mp-appearance-option' data-theme='violet' onclick='mpSetAppearance("violet")' type='button'><div class='mp-appearance-swatch' style='--sw1:#170d24;--sw2:#9b4dff'/><div class='mp-appearance-name'>Violet Pro</div><div class='mp-appearance-desc'>Elegante e vibrante</div></button>
-      <button class='mp-appearance-option' data-theme='ocean' onclick='mpSetAppearance("ocean")' type='button'><div class='mp-appearance-swatch' style='--sw1:#071015;--sw2:#178fb5'/><div class='mp-appearance-name'>Ocean</div><div class='mp-appearance-desc'>Frio • moderno • clean</div></button>
-      <button class='mp-appearance-option' data-theme='rose' onclick='mpSetAppearance("rose")' type='button'><div class='mp-appearance-swatch' style='--sw1:#140b10;--sw2:#d94f86'/><div class='mp-appearance-name'>Rose</div><div class='mp-appearance-desc'>Sofisticado e delicado</div></button>
-      <button class='mp-appearance-option' data-theme='forest' onclick='mpSetAppearance("forest")' type='button'><div class='mp-appearance-swatch' style='--sw1:#08110d;--sw2:#238d65'/><div class='mp-appearance-name'>Forest</div><div class='mp-appearance-desc'>Natural e confortável</div></button>
-      <button class='mp-appearance-option' data-theme='slate' onclick='mpSetAppearance("slate")' type='button'><div class='mp-appearance-swatch' style='--sw1:#0b0e14;--sw2:#5c7cbb'/><div class='mp-appearance-name'>Slate</div><div class='mp-appearance-desc'>Discreto e profissional</div></button>
-      <button class='mp-appearance-option' data-theme='light' onclick='mpSetAppearance("light")' type='button'><div class='mp-appearance-swatch' style='--sw1:#f2f3f7;--sw2:#7433b7'/><div class='mp-appearance-name'>Light</div><div class='mp-appearance-desc'>Claro e confortável</div></button>
-    </div>
-  </div>
+<div class="profile-modal-backdrop" id="mpAppearanceModal" onclick='if(event.target.id==="mpAppearanceModal")mpCloseModal("mpAppearanceModal")'>
+<div class="profile-modal">
+<div class="modal-head"><div><div class="modal-title">Aparência profissional</div><div style="font-size:10px;color:#777780;margin-top:4px">Escolha o ambiente que combina com você.</div></div><button class="modal-close" onclick='mpCloseModal("mpAppearanceModal")' type="button">×</button></div>
+<div class="mp-appearance-grid" id="mpAppearanceGrid">
+<button class="mp-appearance-option" data-theme="dark" onclick='mpSetAppearance("dark")' type="button"><div class="mp-appearance-swatch" style="--sw1:#09090b;--sw2:#8738ed"></div><div class="mp-appearance-name">Midnight</div><div class="mp-appearance-desc">Escuro premium • padrão</div></button>
+<button class="mp-appearance-option" data-theme="violet" onclick='mpSetAppearance("violet")' type="button"><div class="mp-appearance-swatch" style="--sw1:#170d24;--sw2:#9b4dff"></div><div class="mp-appearance-name">Violet Pro</div><div class="mp-appearance-desc">Elegante e vibrante</div></button>
+<button class="mp-appearance-option" data-theme="ocean" onclick='mpSetAppearance("ocean")' type="button"><div class="mp-appearance-swatch" style="--sw1:#071015;--sw2:#178fb5"></div><div class="mp-appearance-name">Ocean</div><div class="mp-appearance-desc">Frio • moderno • clean</div></button>
+<button class="mp-appearance-option" data-theme="rose" onclick='mpSetAppearance("rose")' type="button"><div class="mp-appearance-swatch" style="--sw1:#140b10;--sw2:#d94f86"></div><div class="mp-appearance-name">Rose</div><div class="mp-appearance-desc">Sofisticado e delicado</div></button>
+<button class="mp-appearance-option" data-theme="forest" onclick='mpSetAppearance("forest")' type="button"><div class="mp-appearance-swatch" style="--sw1:#08110d;--sw2:#238d65"></div><div class="mp-appearance-name">Forest</div><div class="mp-appearance-desc">Natural e confortável</div></button>
+<button class="mp-appearance-option" data-theme="slate" onclick='mpSetAppearance("slate")' type="button"><div class="mp-appearance-swatch" style="--sw1:#0b0e14;--sw2:#5c7cbb"></div><div class="mp-appearance-name">Slate</div><div class="mp-appearance-desc">Discreto e profissional</div></button>
+<button class="mp-appearance-option" data-theme="light" onclick='mpSetAppearance("light")' type="button"><div class="mp-appearance-swatch" style="--sw1:#f2f3f7;--sw2:#7433b7"></div><div class="mp-appearance-name">Light</div><div class="mp-appearance-desc">Claro e confortável</div></button>
 </div>
-
-<div class='profile-modal-backdrop' id='mpSecurityModal' onclick='if(event.target.id==="mpSecurityModal")mpCloseModal("mpSecurityModal")'>
-  <div class='profile-modal'>
-    <div class='modal-head'><div><div class='modal-title'>Central de segurança</div><div style='font-size:10px;color:#777780;margin-top:4px'>Proteções e informações da sua conta.</div></div><button class='modal-close' onclick='mpCloseModal("mpSecurityModal")' type='button'>×</button></div>
-    <div class='mp-security-grid'>
-      <div class='mp-security-item'><b>🔐 Autenticação</b><span class='mp-security-ok'>● Conta protegida pelo MP SCAN</span></div>
-      <div class='mp-security-item'><b>✉️ E-mail</b><span class='mp-security-warn' id='mpSecurityEmailStatus'>● Verificação será conferida pela sessão</span></div>
-      <div class='mp-security-item'><b>🔑 Senha</b><span class='mp-security-ok'>● A senha não é armazenada pelo tema</span></div>
-      <div class='mp-security-item'><b>🛡️ Conteúdo</b><span class='mp-security-ok'>● Conteúdo sensível protegido por confirmação + preferência</span></div>
-    </div>
-    <div class='blocked-content' style='text-align:left'><b>Boas práticas</b>Use uma senha exclusiva, não compartilhe sua conta, mantenha o e-mail verificado e saia da conta em dispositivos públicos. A proteção definitiva dos dados depende também das Rules do MP SCAN configuradas no projeto.</div>
-    <div class='mp-protected-actions'><button class='profile-btn primary-profile' onclick='mpCloseModal("mpSecurityModal");mpNotice("Para alterar sua senha ou encerrar sessões, use os recursos de segurança do MP SCAN.")' type='button'>Gerenciar conta</button><button class='profile-btn' onclick='mpCloseModal("mpSecurityModal");mpOpenTerms()' type='button'>Ver termos</button></div>
-  </div>
 </div>
-
-<div class='profile-modal-backdrop' id='mpTermsModal' onclick='if(event.target.id==="mpTermsModal")mpCloseModal("mpTermsModal")'>
-  <div class='profile-modal'>
-    <div class='modal-head'><div><div class='modal-title'>Termos de Uso</div><div style='font-size:10px;color:#777780;margin-top:4px'>Regras de utilização e proteção da comunidade.</div></div><button class='modal-close' onclick='mpCloseModal("mpTermsModal")' type='button'>×</button></div>
-    <div class='mp-terms'>
-      <h3>1. Aceitação</h3><p>Ao criar uma conta ou utilizar o MP SCAN, você declara que leu e concorda com estes Termos de Uso, com a Política de Privacidade aplicável e com as leis que regulam o seu acesso ao serviço.</p>
-      <h3>2. Conteúdo e classificação</h3><p>O catálogo pode conter obras classificadas como sensíveis ou destinadas a maiores de 18 anos. Esse conteúdo permanece oculto por padrão. O acesso depende da confirmação de maioridade e da ativação voluntária da preferência de conteúdo sensível nas configurações.</p>
-      <h3>3. Responsabilidade do usuário</h3><p>Você é responsável pelas informações fornecidas, pela segurança da sua conta e pelo uso que faz da plataforma. Não utilize o serviço para atividades ilícitas, ameaças, assédio, fraude, invasão de contas ou distribuição de material que viole direitos de terceiros.</p>
-      <h3>4. Direitos autorais</h3><p>Respeitamos direitos autorais e demais direitos de propriedade intelectual. O envio, publicação ou permanência de material não autorizado pode ser removido após análise ou solicitação válida. Os responsáveis pelo projeto podem restringir conteúdo ou contas que violem direitos ou regras da comunidade.</p>
-      <h3>5. Comentários e comunidade</h3><p>Comentários, avaliações e demais conteúdos enviados por usuários devem ser respeitosos e compatíveis com a lei. É proibido discurso de ódio, perseguição, ameaças, spam, fraude, exposição de dados pessoais de terceiros e conteúdo ilegal. Denúncias podem ser analisadas e moderadas.</p>
-      <h3>6. Segurança</h3><p>Utilizamos mecanismos de autenticação e controles técnicos para reduzir riscos, mas nenhum serviço conectado à internet é absolutamente invulnerável. Nunca solicitaremos sua senha por mensagem. Vulnerabilidades devem ser comunicadas ao administrador responsável, sem exploração do problema.</p>
-      <h3>7. Disponibilidade</h3><p>O serviço pode sofrer manutenção, indisponibilidade, alterações de catálogo ou mudanças técnicas. Recursos locais, como preferências e histórico, podem depender do navegador e do dispositivo utilizado.</p>
-      <h3>8. Moderação e encerramento</h3><p>O MP SCAN pode remover conteúdo, limitar funcionalidades ou suspender contas quando houver violação destes termos, risco de segurança, abuso da plataforma ou obrigação legal.</p>
-      <h3>9. Privacidade</h3><p>As informações de conta devem ser tratadas de acordo com a política de privacidade e com as configurações do serviço utilizado. Não publique dados pessoais que você não deseja tornar visíveis.</p>
-      <h3>10. Alterações</h3><p>Estes termos podem ser atualizados para acompanhar mudanças legais, técnicas ou operacionais. A versão vigente será disponibilizada nesta área.</p>
-      <h3>11. Contato e solicitações</h3><p>Solicitações de remoção, denúncias, questões de segurança e dúvidas administrativas devem ser encaminhadas pelo canal oficial disponibilizado pelo administrador do site.</p>
-      <div class='public-note'>Este texto é um modelo de termos para o site e não substitui revisão jurídica profissional, especialmente para regras de direitos autorais, LGPD, classificação etária e operação da plataforma.</div>
-    </div>
-  </div>
 </div>
-
-
-<script type='text/javascript'>
+<div class="profile-modal-backdrop" id="mpSecurityModal" onclick='if(event.target.id==="mpSecurityModal")mpCloseModal("mpSecurityModal")'>
+<div class="profile-modal">
+<div class="modal-head"><div><div class="modal-title">Central de segurança</div><div style="font-size:10px;color:#777780;margin-top:4px">Proteções e informações da sua conta.</div></div><button class="modal-close" onclick='mpCloseModal("mpSecurityModal")' type="button">×</button></div>
+<div class="mp-security-grid">
+<div class="mp-security-item"><b>🔐 Autenticação</b><span class="mp-security-ok">● Conta protegida pelo MP SCAN</span></div>
+<div class="mp-security-item"><b>✉️ E-mail</b><span class="mp-security-warn" id="mpSecurityEmailStatus">● Verificação será conferida pela sessão</span></div>
+<div class="mp-security-item"><b>🔑 Senha</b><span class="mp-security-ok">● A senha não é armazenada pelo tema</span></div>
+<div class="mp-security-item"><b>🛡️ Conteúdo</b><span class="mp-security-ok">● Conteúdo sensível protegido por confirmação + preferência</span></div>
+</div>
+<div class="blocked-content" style="text-align:left"><b>Boas práticas</b>Use uma senha exclusiva, não compartilhe sua conta, mantenha o e-mail verificado e saia da conta em dispositivos públicos. A proteção definitiva dos dados depende também das Rules do MP SCAN configuradas no projeto.</div>
+<div class="mp-protected-actions"><button class="profile-btn primary-profile" onclick='mpCloseModal("mpSecurityModal");mpNotice("Para alterar sua senha ou encerrar sessões, use os recursos de segurança do MP SCAN.")' type="button">Gerenciar conta</button><button class="profile-btn" onclick='mpCloseModal("mpSecurityModal");mpOpenTerms()' type="button">Ver termos</button></div>
+</div>
+</div>
+<div class="profile-modal-backdrop" id="mpTermsModal" onclick='if(event.target.id==="mpTermsModal")mpCloseModal("mpTermsModal")'>
+<div class="profile-modal">
+<div class="modal-head"><div><div class="modal-title">Termos de Uso</div><div style="font-size:10px;color:#777780;margin-top:4px">Regras de utilização e proteção da comunidade.</div></div><button class="modal-close" onclick='mpCloseModal("mpTermsModal")' type="button">×</button></div>
+<div class="mp-terms">
+<h3>1. Aceitação</h3><p>Ao criar uma conta ou utilizar o MP SCAN, você declara que leu e concorda com estes Termos de Uso, com a Política de Privacidade aplicável e com as leis que regulam o seu acesso ao serviço.</p>
+<h3>2. Conteúdo e classificação</h3><p>O catálogo pode conter obras classificadas como sensíveis ou destinadas a maiores de 18 anos. Esse conteúdo permanece oculto por padrão. O acesso depende da confirmação de maioridade e da ativação voluntária da preferência de conteúdo sensível nas configurações.</p>
+<h3>3. Responsabilidade do usuário</h3><p>Você é responsável pelas informações fornecidas, pela segurança da sua conta e pelo uso que faz da plataforma. Não utilize o serviço para atividades ilícitas, ameaças, assédio, fraude, invasão de contas ou distribuição de material que viole direitos de terceiros.</p>
+<h3>4. Direitos autorais</h3><p>Respeitamos direitos autorais e demais direitos de propriedade intelectual. O envio, publicação ou permanência de material não autorizado pode ser removido após análise ou solicitação válida. Os responsáveis pelo projeto podem restringir conteúdo ou contas que violem direitos ou regras da comunidade.</p>
+<h3>5. Comentários e comunidade</h3><p>Comentários, avaliações e demais conteúdos enviados por usuários devem ser respeitosos e compatíveis com a lei. É proibido discurso de ódio, perseguição, ameaças, spam, fraude, exposição de dados pessoais de terceiros e conteúdo ilegal. Denúncias podem ser analisadas e moderadas.</p>
+<h3>6. Segurança</h3><p>Utilizamos mecanismos de autenticação e controles técnicos para reduzir riscos, mas nenhum serviço conectado à internet é absolutamente invulnerável. Nunca solicitaremos sua senha por mensagem. Vulnerabilidades devem ser comunicadas ao administrador responsável, sem exploração do problema.</p>
+<h3>7. Disponibilidade</h3><p>O serviço pode sofrer manutenção, indisponibilidade, alterações de catálogo ou mudanças técnicas. Recursos locais, como preferências e histórico, podem depender do navegador e do dispositivo utilizado.</p>
+<h3>8. Moderação e encerramento</h3><p>O MP SCAN pode remover conteúdo, limitar funcionalidades ou suspender contas quando houver violação destes termos, risco de segurança, abuso da plataforma ou obrigação legal.</p>
+<h3>9. Privacidade</h3><p>As informações de conta devem ser tratadas de acordo com a política de privacidade e com as configurações do serviço utilizado. Não publique dados pessoais que você não deseja tornar visíveis.</p>
+<h3>10. Alterações</h3><p>Estes termos podem ser atualizados para acompanhar mudanças legais, técnicas ou operacionais. A versão vigente será disponibilizada nesta área.</p>
+<h3>11. Contato e solicitações</h3><p>Solicitações de remoção, denúncias, questões de segurança e dúvidas administrativas devem ser encaminhadas pelo canal oficial disponibilizado pelo administrador do site.</p>
+<div class="public-note">Este texto é um modelo de termos para o site e não substitui revisão jurídica profissional, especialmente para regras de direitos autorais, LGPD, classificação etária e operação da plataforma.</div>
+</div>
+</div>
+</div>
+<script type="text/javascript">
 //
 (function(){
   'use strict';
@@ -3456,7 +3382,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 })();
 //
 </script>
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 /* ================================================================
    MP SCAN — ROTAS REALMENTE FUNCIONAIS + SOCIAL FIREBASE ROBUSTO
@@ -3488,7 +3414,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
   var ROUTE_TIMER=null;
 
   function text(v){return String(v==null?'':v).trim();}
-  function escHtml(v){return text(v).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"').replace(/'/g,''');}
+  function escHtml(v){return text(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
   function workId(o){return text(o&&(o._id||o.id||o.key||o.slug));}
   function workTitle(o){return text(o&&(o.titulo||o.nome||o.title||o.nomeObra||o.tituloObra));}
   function workSlug(o){
@@ -3829,7 +3755,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 })();
 //
 </script>
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 /* MP SCAN — CAMADA FINAL DE PERSISTÊNCIA SOCIAL
    Mantém comentários e avaliações visíveis e estáveis.
@@ -3964,8 +3890,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 })();
 //
 </script>
-
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 /* MP SCAN — CORREÇÃO FINAL DE INTERAÇÕES SOCIAIS
    Mantém tudo o que já existe e garante que RESPONDER / EDITAR / APAGAR
@@ -4072,7 +3997,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 })();
 //
 </script>
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 /* ================================================================
    MP SCAN — ROTEADOR CANÔNICO FINAL
@@ -4376,7 +4301,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 })();
 //
 </script>
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 /* MP SCAN — CAMADA SOCIAL FINAL
    Não cria uma segunda sessão Firebase para o usuário logado.
@@ -4694,7 +4619,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 })();
 //
 </script>
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 (function(){
   'use strict';
@@ -4725,8 +4650,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 })();
 //
 </script>
-
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 /* MP SCAN — HOME: AVALIAÇÕES REAIS + RANKING
    Camada isolada: não altera comentários, perfil, leitor ou avaliações dentro da obra.
@@ -4824,8 +4748,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 })();
 //
 </script>
-
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 /* MP SCAN — CONTINUAR LENDO: CAMADA FINAL ROBUSTA
    Não remove nem substitui o leitor existente.
@@ -4993,7 +4916,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 })();
 //
 </script>
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 /* MP SCAN — FOTO DE PERFIL DEFINITIVA NOS COMENTÁRIOS
    A foto usada nos comentários nunca vem de user.photoURL / Google / e-mail.
@@ -5092,9 +5015,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 })();
 //
 </script>
-
-
-<style type='text/css'>
+<style type="text/css">
 /* ===== MP SCAN • ESTATÍSTICAS REAIS DO PERFIL ===== */
 #mpProfileMetricModal{position:fixed;inset:0;z-index:24000;background:rgba(0,0,0,.72);display:none;align-items:flex-end;justify-content:center;padding:0}
 #mpProfileMetricModal.open{display:flex}
@@ -5109,7 +5030,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 #mpProfileMetricModal .mp-profile-metric-row span{display:block;font-size:9px;color:#858591;margin-top:4px}
 #mpProfileMetricModal .mp-profile-metric-empty{padding:25px;text-align:center;color:#777783;font-size:11px}
 </style>
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 /* MP SCAN — ESTATÍSTICAS REAIS DO PERFIL
    Camada isolada: não substitui comentários, avaliações, leitor ou navegação.
@@ -5123,7 +5044,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
   var ratingCache=null,ratingPromise=null,statsTimer=null,timeTimer=null,lastTick=Date.now();
   var activeStart=Date.now(),visible=document.visibilityState!=='hidden';
   var uid=function(){return String(window.MP_AUTH_UID||(window.MP_AUTH_USER&&window.MP_AUTH_USER.uid)||'').trim();};
-  var esc=function(v){return String(v==null?'':v).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"').replace(/'/g,''');};
+  var esc=function(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};
   var num=function(v){var n=Number(v);return isFinite(n)?n:0;};
   var getLocal=function(k,fb){try{var v=localStorage.getItem(k);return v==null?fb:JSON.parse(v);}catch(e){return fb;}};
   var setLocal=function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
@@ -5244,9 +5165,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 })();
 //
 </script>
-
-
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 /* MP SCAN — PERFIL: CAMADA FINAL DE ESTATÍSTICAS / SEM REMOVER NADA
    Corrige as estatísticas do perfil sem substituir os módulos existentes.
@@ -5361,10 +5280,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 })();
 //
 </script>
-
-
-
-<script type='text/javascript'>
+<script type="text/javascript">
 //
 /* MP SCAN — ÚLTIMA CAMADA DE ESTABILIZAÇÃO DO PERFIL
    Não remove os módulos anteriores. Apenas impede valores inválidos,
@@ -5582,9 +5498,8 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 })();
 //
 </script>
-
 <!-- MP SCAN — SOCIAL FINAL: SEGUIDORES E SEGUINDO REAIS, PERSISTENTES E EM TEMPO REAL -->
-<script type='text/javascript'>
+<script type="text/javascript">
 (function(){
   'use strict';
   if(window.__MP_FINAL_SOCIAL_FOLLOW_FIX__)return;
@@ -5597,7 +5512,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
   var timer=null;
 
   function txt(v){return String(v==null?'':v);}
-  function esc(v){return typeof window.mpSafe==='function'?window.mpSafe(v):txt(v).replace(/[&<>"']/g,function(c){return {'&':'&','<':'<','>':'>','"':'"',"'":'''}[c];});}
+  function esc(v){return typeof window.mpSafe==='function'?window.mpSafe(v):txt(v).replace(/[&<>"']/g,function(c){return {'&':'&','<':'<','>':'>','"':'"',"'":'&#39;'}[c];});}
   function currentUid(){
     var p=window.MP_PROFILE||{},u=window.MP_AUTH_USER||{};
     return txt(window.MP_AUTH_UID||u.uid||p.uid||'').trim();
@@ -5817,8 +5732,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
   setTimeout(start,3000);
 })();
 </script>
-
-<script type='text/javascript'>
+<script type="text/javascript">
 (function(){
   'use strict';
   if(window.__MP_COMMENT_PUBLIC_PROFILE_FINAL__)return;
@@ -5836,7 +5750,7 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
   var API=null, target=null, targetCache={};
 
   function t(v){return String(v==null?'':v);}
-  function esc(v){return typeof window.mpSafe==='function'?window.mpSafe(t(v)):t(v).replace(/[&<>"']/g,function(c){return {'&':'&','<':'<','>':'>','"':'"',"'":'''}[c];});}
+  function esc(v){return typeof window.mpSafe==='function'?window.mpSafe(t(v)):t(v).replace(/[&<>"']/g,function(c){return {'&':'&','<':'<','>':'>','"':'"',"'":'&#39;'}[c];});}
   function uid(){
     var u=window.MP_AUTH_USER||{};
     return t(window.MP_AUTH_UID||u.uid||'').trim();
@@ -6035,8 +5949,51 @@ body.mp-theme-light{background:#f2f3f7;color:#171820}body.mp-theme-light .scan,b
 })();
 
 </script>
+</body>
+\n<script type="text/javascript">
+//
+/* MP SCAN — OFFLINE REAL / LEITOR
+   - Pacotes de capítulos em IndexedDB com blobs das imagens.
+   - Cache Storage auxiliar para imagens (quando o navegador permitir).
+   - Leitor nunca tenta Firebase enquanto existir pacote local.
+   - Registro opcional do Service Worker /sw.js para navegação offline.
+*/
+(function(){
+  'use strict';
+  var DB='MP_SCAN_OFFLINE_V4',STORE='chapters',SW='/sw.js';
+  function openDb(){return new Promise(function(ok,no){if(!indexedDB)return no(new Error('IndexedDB indisponível'));var r=indexedDB.open(DB,1);r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'key'});};r.onsuccess=function(){ok(r.result)};r.onerror=function(){no(r.error||new Error('IndexedDB error'));};});}
+  function put(x){return openDb().then(function(d){return new Promise(function(ok,no){var t=d.transaction(STORE,'readwrite');t.objectStore(STORE).put(x);t.oncomplete=ok;t.onerror=function(){no(t.error)};});});}
+  function get(k){return openDb().then(function(d){return new Promise(function(ok,no){var q=d.transaction(STORE).objectStore(STORE).get(k);q.onsuccess=function(){ok(q.result||null)};q.onerror=function(){no(q.error)};});});}
+  function key(w,c,i){var a=String(w&&(w._id||w.id||w.key||w.slug)||'work').replace(/[^a-zA-Z0-9_-]/g,'_');var b=String(c&&(c._id||c.id||c.numero)||i).replace(/[^a-zA-Z0-9_-]/g,'_');return 'chapter_'+a+'_'+b;}
+  async function saveChapter(work,c,i,urls){
+    var k=key(work,c,i), blobs=[], cache=null;
+    if('caches' in window){try{cache=await caches.open('mp-scan-pages-v1')}catch(e){cache=null}}
+    for(var n=0;n<urls.length;n++){
+      var u=String(urls[n]||''); if(!u)continue;
+      if(/^data:|^blob:/.test(u)){blobs.push(u);continue}
+      var res=await fetch(u,{mode:'cors',cache:'force-cache'});
+      if(!res.ok)throw new Error('Imagem '+(n+1)+' não pôde ser baixada ('+res.status+')');
+      var clone=res.clone(); blobs.push(await res.blob());
+      if(cache){try{await cache.put(u,clone)}catch(e){}}
+    }
+    await put({key:k,obraId:String(work&& (work._id||work.id||work.key)||''),chapterId:String(c&&(c._id||c.id||c.numero)||i),numero:c&&c.numero||i+1,titulo:c&&c.titulo||'',urls:urls.slice(),blobs:blobs,createdAt:Date.now(),version:4});
+    try{localStorage.setItem('mp_scan_offline_'+k,JSON.stringify({title:c&&c.titulo||'',numero:c&&c.numero||i+1,pages:blobs.length,updatedAt:Date.now(),ready:true}));}catch(e){}
+    return k;
+  }
+  async function readChapter(work,c,i){
+    var k=key(work,c,i),d=null; try{d=await get(k)}catch(e){}
+    if(!d||!Array.isArray(d.blobs)||!d.blobs.length)return null;
+    var urls=[];for(var n=0;n<d.blobs.length;n++){var b=d.blobs[n];if(typeof b==='string')urls.push(b);else urls.push(URL.createObjectURL(b));}
+    return {key:k,urls:urls,data:d};
+  }
+  window.MP_OFFLINE_REAL={key:key,saveChapter:saveChapter,readChapter:readChapter,get:get};
+  window.addEventListener('online',function(){document.documentElement.classList.remove('mp-offline-real')});
+  window.addEventListener('offline',function(){document.documentElement.classList.add('mp-offline-real')});
+  if(!navigator.onLine)document.documentElement.classList.add('mp-offline-real');
+  // A instalação real de SW só acontece se /sw.js existir no MESMO domínio.
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register(SW,{scope:'/'}).then(function(r){window.MP_OFFLINE_SW_READY=true;console.log('MP SCAN offline: Service Worker ativo',r.scope)}).catch(function(e){console.warn('MP SCAN offline: /sw.js não disponível neste domínio.',e)});});}
+})();
+//
+</script>\n
 
-</body>
-\n<script type='text/javascript'>\n//\n/* MP SCAN — OFFLINE REAL / LEITOR\n   - Pacotes de capítulos em IndexedDB com blobs das imagens.\n   - Cache Storage auxiliar para imagens (quando o navegador permitir).\n   - Leitor nunca tenta Firebase enquanto existir pacote local.\n   - Registro opcional do Service Worker /sw.js para navegação offline.\n*/\n(function(){\n  'use strict';\n  var DB='MP_SCAN_OFFLINE_V4',STORE='chapters',SW='/sw.js';\n  function openDb(){return new Promise(function(ok,no){if(!indexedDB)return no(new Error('IndexedDB indisponível'));var r=indexedDB.open(DB,1);r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'key'});};r.onsuccess=function(){ok(r.result)};r.onerror=function(){no(r.error||new Error('IndexedDB error'));};});}\n  function put(x){return openDb().then(function(d){return new Promise(function(ok,no){var t=d.transaction(STORE,'readwrite');t.objectStore(STORE).put(x);t.oncomplete=ok;t.onerror=function(){no(t.error)};});});}\n  function get(k){return openDb().then(function(d){return new Promise(function(ok,no){var q=d.transaction(STORE).objectStore(STORE).get(k);q.onsuccess=function(){ok(q.result||null)};q.onerror=function(){no(q.error)};});});}\n  function key(w,c,i){var a=String(w&&(w._id||w.id||w.key||w.slug)||'work').replace(/[^a-zA-Z0-9_-]/g,'_');var b=String(c&&(c._id||c.id||c.numero)||i).replace(/[^a-zA-Z0-9_-]/g,'_');return 'chapter_'+a+'_'+b;}\n  async function saveChapter(work,c,i,urls){\n    var k=key(work,c,i), blobs=[], cache=null;\n    if('caches' in window){try{cache=await caches.open('mp-scan-pages-v1')}catch(e){cache=null}}\n    for(var n=0;n<urls.length;n++){\n      var u=String(urls[n]||''); if(!u)continue;\n      if(/^data:|^blob:/.test(u)){blobs.push(u);continue}\n      var res=await fetch(u,{mode:'cors',cache:'force-cache'});\n      if(!res.ok)throw new Error('Imagem '+(n+1)+' não pôde ser baixada ('+res.status+')');\n      var clone=res.clone(); blobs.push(await res.blob());\n      if(cache){try{await cache.put(u,clone)}catch(e){}}\n    }\n    await put({key:k,obraId:String(work&& (work._id||work.id||work.key)||''),chapterId:String(c&&(c._id||c.id||c.numero)||i),numero:c&&c.numero||i+1,titulo:c&&c.titulo||'',urls:urls.slice(),blobs:blobs,createdAt:Date.now(),version:4});\n    try{localStorage.setItem('mp_scan_offline_'+k,JSON.stringify({title:c&&c.titulo||'',numero:c&&c.numero||i+1,pages:blobs.length,updatedAt:Date.now(),ready:true}));}catch(e){}\n    return k;\n  }\n  async function readChapter(work,c,i){\n    var k=key(work,c,i),d=null; try{d=await get(k)}catch(e){}\n    if(!d||!Array.isArray(d.blobs)||!d.blobs.length)return null;\n    var urls=[];for(var n=0;n<d.blobs.length;n++){var b=d.blobs[n];if(typeof b==='string')urls.push(b);else urls.push(URL.createObjectURL(b));}\n    return {key:k,urls:urls,data:d};\n  }\n  window.MP_OFFLINE_REAL={key:key,saveChapter:saveChapter,readChapter:readChapter,get:get};\n  window.addEventListener('online',function(){document.documentElement.classList.remove('mp-offline-real')});\n  window.addEventListener('offline',function(){document.documentElement.classList.add('mp-offline-real')});\n  if(!navigator.onLine)document.documentElement.classList.add('mp-offline-real');\n  // A instalação real de SW só acontece se /sw.js existir no MESMO domínio.\n  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register(SW,{scope:'/'}).then(function(r){window.MP_OFFLINE_SW_READY=true;console.log('MP SCAN offline: Service Worker ativo',r.scope)}).catch(function(e){console.warn('MP SCAN offline: /sw.js não disponível neste domínio.',e)});});}\n})();\n//\n</script>\n
-</body>
 </html>
