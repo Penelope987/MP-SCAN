@@ -1,0 +1,308 @@
+(function () {
+  if (!window.MPScanApp) return;
+
+  const clean = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+  const chapterRoute = () => {
+    const m = (location.hash || '').match(/#\/capitulo\/([^/]+)\/([^/?]+)/);
+    return m ? { work: decodeURIComponent(m[1]), chapter: decodeURIComponent(m[2]) } : null;
+  };
+  const workRoute = () => {
+    const m = (location.hash || '').match(/#\/obra\/([^/?]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  };
+
+  function routeHash(route) {
+    route = String(route || '');
+    const hashAt = route.indexOf('#');
+    if (hashAt >= 0) return route.slice(hashAt);
+    if (route.startsWith('/')) return '#' + route;
+    return '#/' + route.replace(/^\/?/, '');
+  }
+
+  function chapterLabelFromText(value) {
+    const text = clean(value);
+    if (!text) return '';
+    let m = text.match(/(?:cap[ií]tulo|cap\.?)[\s:#-]*([0-9]+(?:[.,][0-9]+)?)/i);
+    if (m) return 'Capítulo ' + m[1].replace(',', '.');
+    if (/\bpr[oó]logo\b/i.test(text)) return 'Prólogo';
+    if (/\bextra\b/i.test(text)) {
+      m = text.match(/extra[\s:#-]*([0-9]+)?/i);
+      return m && m[1] ? 'Extra ' + m[1] : 'Extra';
+    }
+    return '';
+  }
+
+  function findWorkTitle() {
+    const info = chapterRoute();
+    const workId = info ? info.work : workRoute();
+    if (workId) {
+      const remembered = sessionStorage.getItem('mpNativeWorkTitle:' + workId);
+      if (remembered) return remembered;
+    }
+
+    const selectors = [
+      '[data-work-title]', '.reader-work-title', '.reader-book-title',
+      '.chapter-work-title', '.work-title', '.obra-title', '.series-title',
+      '.work-detail-title', '.obra-detail-title'
+    ];
+    for (const selector of selectors) {
+      const el = document.querySelector(selector);
+      if (el && clean(el.textContent)) return clean(el.textContent);
+    }
+
+    const backLink = document.querySelector('a[href*="#/obra/"],a[href*="/obra/"]');
+    if (backLink && clean(backLink.textContent) && !chapterLabelFromText(backLink.textContent)) {
+      return clean(backLink.textContent);
+    }
+
+    if ((location.hash || '').startsWith('#/obra/')) {
+      const heading = document.querySelector('h1,h2');
+      if (heading && clean(heading.textContent)) return clean(heading.textContent);
+    }
+    return 'Obra MP SCAN';
+  }
+
+  function rememberWorkTitle() {
+    const workId = workRoute();
+    if (!workId) return;
+    const title = findWorkTitle();
+    if (title && title !== 'Obra MP SCAN') {
+      sessionStorage.setItem('mpNativeWorkTitle:' + workId, title);
+    }
+  }
+
+  function currentChapterLabel() {
+    const pending = sessionStorage.getItem('mpNativePendingChapterLabel');
+    if (pending) return pending;
+    const selectors = [
+      '[data-chapter-number]', '[data-chapter-title]', '.reader-chapter-title',
+      '.chapter-title', '.reader-title', '.chapter-number', '.reader-chapter-number'
+    ];
+    for (const selector of selectors) {
+      const el = document.querySelector(selector);
+      if (!el) continue;
+      const byAttr = clean(el.getAttribute && (el.getAttribute('data-chapter-number') || el.getAttribute('data-chapter-title')));
+      const label = chapterLabelFromText(byAttr || el.textContent);
+      if (label) return label;
+    }
+    const headings = document.querySelectorAll('#chapterReaderContent h1,#chapterReaderContent h2,h1,h2');
+    for (const h of headings) {
+      const label = chapterLabelFromText(h.textContent);
+      if (label) return label;
+    }
+    return 'Capítulo';
+  }
+
+  function currentChapterTitle() {
+    const selectors = ['[data-chapter-title]', '.reader-chapter-title', '.chapter-title', '.reader-title'];
+    for (const selector of selectors) {
+      const el = document.querySelector(selector);
+      if (el && clean(el.textContent)) return clean(el.textContent);
+    }
+    const heading = document.querySelector('#chapterReaderContent h1,#chapterReaderContent h2,h1,h2');
+    const text = heading && clean(heading.textContent);
+    return text || currentChapterLabel() || document.title || 'Capítulo MP SCAN';
+  }
+
+  function pageSources() {
+    const selectors = [
+      '#chapterReaderContent img', '#readerPages img', '.reader-pages img',
+      '#readerStage img', '.reader-stage img', '.chapter-reader img',
+      '.reader-content img', '.reader-images img', '.reader-view img',
+      '[data-reader-pages] img'
+    ];
+    const images = [];
+    selectors.forEach(selector => document.querySelectorAll(selector).forEach(img => images.push(img)));
+    if (!images.length) {
+      document.querySelectorAll('main img,article img,#app img').forEach(img => {
+        const h = img.naturalHeight || img.height || 0;
+        const w = img.naturalWidth || img.width || 0;
+        const src = img.currentSrc || img.src || '';
+        if ((h > 520 && w > 220) || src.startsWith('data:image/')) images.push(img);
+      });
+    }
+    const seen = new Set();
+    return images.map(img => img.currentSrc || img.src || '').filter(src => src && !seen.has(src) && seen.add(src));
+  }
+
+  function hideWholeWorkDownloads() {
+    document.querySelectorAll('a,button,[role="button"]').forEach(el => {
+      if (el.id === 'mp-native-downloads' || el.id === 'mp-native-chapter-download' || el.classList.contains('mp-native-ch-download')) return;
+      const text = clean(el.textContent).toLowerCase();
+      const whole = text.includes('baixar obra') || text.includes('baixar a obra') ||
+        text.includes('download da obra') || text.includes('download obra') ||
+        text.includes('baixar tudo') || text.includes('baixar todos os capítulos') ||
+        text.includes('baixar todos os capitulos');
+      if (whole) el.style.setProperty('display', 'none', 'important');
+    });
+  }
+
+  function ensureCss() {
+    if (document.getElementById('mp-native-offline-style')) return;
+    const style = document.createElement('style');
+    style.id = 'mp-native-offline-style';
+    style.textContent = `
+      #mp-native-downloads{position:fixed;right:14px;bottom:82px;z-index:2147483000;border:1px solid rgba(255,255,255,.18);background:linear-gradient(135deg,#6f37a7,#c84d9d);color:#fff;border-radius:999px;padding:11px 15px;font:800 12px system-ui;box-shadow:0 14px 36px rgba(0,0,0,.34);cursor:pointer;display:flex;align-items:center;gap:7px}
+      #mp-native-chapter-download{position:fixed;left:14px;bottom:82px;z-index:2147483000;border:1px solid rgba(255,255,255,.18);background:rgba(19,13,27,.96);backdrop-filter:blur(16px);color:#fff;border-radius:999px;padding:11px 15px;font:800 12px system-ui;box-shadow:0 14px 36px rgba(0,0,0,.34);cursor:pointer}
+      #mp-native-chapter-download.downloaded{background:linear-gradient(135deg,#3f2760,#79409d);border-color:rgba(220,180,255,.36)}
+      .mp-native-ch-download{margin-left:8px;border:1px solid rgba(255,255,255,.13);background:linear-gradient(135deg,#713aa5,#bd4d98);color:#fff;border-radius:12px;padding:8px 10px;font:800 11px system-ui;cursor:pointer;white-space:nowrap;box-shadow:0 8px 18px rgba(0,0,0,.16)}
+      .mp-native-ch-download.downloaded{background:rgba(91,56,116,.24);border-color:rgba(194,143,229,.45);color:#e9ccff;box-shadow:none}
+      #mp-native-progress{position:fixed;left:50%;bottom:143px;transform:translateX(-50%);z-index:2147483640;display:none;max-width:88vw;background:rgba(17,11,24,.98);border:1px solid rgba(255,255,255,.16);color:#fff;border-radius:17px;padding:13px 17px;font:750 12px system-ui;box-shadow:0 18px 44px rgba(0,0,0,.4);text-align:center}
+      @media(max-width:520px){#mp-native-downloads,#mp-native-chapter-download{bottom:76px;padding:10px 12px;font-size:11px}.mp-native-ch-download{padding:7px 9px;font-size:10px}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function ensureProgress() {
+    if (document.getElementById('mp-native-progress')) return;
+    const el = document.createElement('div');
+    el.id = 'mp-native-progress';
+    document.body.appendChild(el);
+    window.MPScanNativeUI = {
+      progress(text) { el.textContent = text; el.style.display = 'block'; },
+      done(text) { el.textContent = text || 'Capítulo salvo para leitura offline ✓'; el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 2800); setTimeout(refresh, 120); },
+      fail(text) { el.textContent = text || 'Não foi possível baixar o capítulo.'; el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 3800); }
+    };
+  }
+
+  function startCurrentDownload() {
+    const info = chapterRoute();
+    if (!info) return;
+    const pages = pageSources();
+    if (!pages.length) {
+      window.MPScanNativeUI.fail('As páginas ainda não carregaram. Tente novamente em alguns segundos.');
+      return;
+    }
+    const workTitle = findWorkTitle();
+    const chapterLabel = currentChapterLabel();
+    const chapterTitle = currentChapterTitle();
+    if (workTitle && workTitle !== 'Obra MP SCAN') sessionStorage.setItem('mpNativeWorkTitle:' + info.work, workTitle);
+    window.MPScanNativeUI.progress('Preparando ' + pages.length + ' páginas de ' + chapterLabel + '…');
+    MPScanApp.downloadChapter(info.work, info.chapter, workTitle, chapterLabel, chapterTitle, JSON.stringify(pages));
+  }
+
+  function waitAndDownload(tries) {
+    tries = tries || 0;
+    if (pageSources().length) return startCurrentDownload();
+    if (tries > 40) return window.MPScanNativeUI.fail('Não encontrei as páginas deste capítulo.');
+    setTimeout(() => waitAndDownload(tries + 1), 500);
+  }
+
+  function ensureDownloadsButton() {
+    let button = document.getElementById('mp-native-downloads');
+    if (!button) {
+      button = document.createElement('button');
+      button.id = 'mp-native-downloads';
+      button.type = 'button';
+      button.innerHTML = '<span>📚</span><span>Meus capítulos</span>';
+      button.onclick = () => MPScanApp.openDownloads();
+      document.body.appendChild(button);
+    }
+  }
+
+  function updateCurrentChapterButton() {
+    const info = chapterRoute();
+    let button = document.getElementById('mp-native-chapter-download');
+    if (!info) {
+      if (button) button.remove();
+      return;
+    }
+    const downloaded = MPScanApp.isChapterDownloaded(info.work, info.chapter);
+    if (!button) {
+      button = document.createElement('button');
+      button.id = 'mp-native-chapter-download';
+      button.type = 'button';
+      document.body.appendChild(button);
+    }
+    button.classList.toggle('downloaded', downloaded);
+    if (downloaded) {
+      button.textContent = '✓ Baixado • Ler offline';
+      button.onclick = () => MPScanApp.openChapterOffline(info.work, info.chapter);
+    } else {
+      button.textContent = '⬇ Baixar ' + currentChapterLabel();
+      button.onclick = startCurrentDownload;
+    }
+  }
+
+  function addWorkChapterButtons() {
+    if (!(location.hash || '').startsWith('#/obra/')) return;
+    rememberWorkTitle();
+    const workId = workRoute();
+    const workTitle = findWorkTitle();
+    const used = new Set();
+
+    document.querySelectorAll('a[href*="/capitulo/"],[data-route*="/capitulo/"],[data-chapter-id]').forEach(link => {
+      let route = link.getAttribute('data-route') || link.getAttribute('href') || '';
+      let hash = routeHash(route);
+      if (!hash.startsWith('#/capitulo/')) {
+        const chapterId = link.getAttribute('data-chapter-id');
+        if (chapterId && workId) hash = '#/capitulo/' + encodeURIComponent(workId) + '/' + encodeURIComponent(chapterId);
+      }
+      if (!hash.startsWith('#/capitulo/') || used.has(hash)) return;
+      used.add(hash);
+
+      const match = hash.match(/#\/capitulo\/([^/]+)\/([^/?]+)/);
+      if (!match) return;
+      const targetWork = decodeURIComponent(match[1]);
+      const targetChapter = decodeURIComponent(match[2]);
+      const row = link.closest('li,article,.chapter-item,.chapter-row,.chapter-card,.episode-item') || link.parentElement || link;
+      const rowText = clean(row.textContent || link.textContent);
+      const chapterLabel = chapterLabelFromText(rowText) || chapterLabelFromText(link.textContent) || 'Capítulo';
+      const downloaded = MPScanApp.isChapterDownloaded(targetWork, targetChapter);
+
+      let button = row.querySelector && row.querySelector('.mp-native-ch-download[data-target="' + CSS.escape(hash) + '"]');
+      if (!button) {
+        button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'mp-native-ch-download';
+        button.setAttribute('data-target', hash);
+        if (row && row.appendChild) row.appendChild(button);
+      }
+      button.classList.toggle('downloaded', downloaded);
+      button.textContent = downloaded ? '✓ ' + chapterLabel + ' baixado' : '⬇ Baixar ' + chapterLabel;
+      button.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (downloaded) {
+          MPScanApp.openChapterOffline(targetWork, targetChapter);
+          return;
+        }
+        if (workId && workTitle) sessionStorage.setItem('mpNativeWorkTitle:' + workId, workTitle);
+        sessionStorage.setItem('mpNativePendingChapterLabel', chapterLabel);
+        sessionStorage.setItem('mpNativePendingDownload', hash);
+        location.hash = hash;
+      };
+    });
+  }
+
+  function checkPendingDownload() {
+    const pending = sessionStorage.getItem('mpNativePendingDownload');
+    if (pending && pending === location.hash && chapterRoute()) {
+      sessionStorage.removeItem('mpNativePendingDownload');
+      setTimeout(() => waitAndDownload(0), 700);
+    }
+  }
+
+  function refresh() {
+    hideWholeWorkDownloads();
+    rememberWorkTitle();
+    ensureDownloadsButton();
+    updateCurrentChapterButton();
+    addWorkChapterButtons();
+    checkPendingDownload();
+  }
+
+  if (!window.__mpNativeOfflineInstalledV13) {
+    window.__mpNativeOfflineInstalledV13 = true;
+    ensureCss();
+    ensureProgress();
+    window.addEventListener('hashchange', () => setTimeout(refresh, 130));
+    new MutationObserver(() => {
+      clearTimeout(window.__mpNativeRefreshTimerV13);
+      window.__mpNativeRefreshTimerV13 = setTimeout(refresh, 220);
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  window.MPScanNativeRefresh = refresh;
+  refresh();
+})();
