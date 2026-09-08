@@ -72,6 +72,10 @@
   }
 
   function currentChapterLabel() {
+    const nativeData = window.__readerPages;
+    if (nativeData && nativeData.c && nativeData.c.number !== undefined && nativeData.c.number !== '') {
+      return 'Capítulo ' + clean(nativeData.c.number);
+    }
     const pending = sessionStorage.getItem('mpNativePendingChapterLabel');
     if (pending) return pending;
     const selectors = [
@@ -94,6 +98,8 @@
   }
 
   function currentChapterTitle() {
+    const nativeData = window.__readerPages;
+    if (nativeData && nativeData.c && clean(nativeData.c.title)) return clean(nativeData.c.title);
     const selectors = ['[data-chapter-title]', '.reader-chapter-title', '.chapter-title', '.reader-title'];
     for (const selector of selectors) {
       const el = document.querySelector(selector);
@@ -125,6 +131,24 @@
     return images.map(img => img.currentSrc || img.src || '').filter(src => src && !seen.has(src) && seen.add(src));
   }
 
+  function workMetadata() {
+    const pick = selectors => { for (const s of selectors) { const e = document.querySelector(s); if (e && clean(e.textContent)) return clean(e.textContent); } return ''; };
+    const image = selectors => { for (const s of selectors) { const e = document.querySelector(s); const src = e && (e.currentSrc || e.src); if (src) return src; } return ''; };
+    const info = {};
+    document.querySelectorAll('.work-info-cell').forEach(cell => {
+      const label = clean(cell.querySelector('small')?.textContent).toLowerCase();
+      const value = clean(cell.querySelector('strong')?.textContent);
+      if (label && value) info[label] = value;
+    });
+    return {
+      name: findWorkTitle(),
+      altName: pick(['.work-cinema-alt','[data-work-alt-name]','.work-alt-title','.obra-subtitle']),
+      synopsis: pick(['.work-synopsis-card p','[data-work-synopsis]','.work-synopsis','.obra-sinopse','.synopsis']),
+      cover: image(['.work-poster img','.detail-cover img','[data-work-cover] img','.obra-cover img']),
+      type: info['tipo'] || '', status: info['status'] || '', author: info['autor'] || '', artist: info['artista'] || '', scan: info['scan'] || '', language: info['idioma'] || ''
+    };
+  }
+
   function hideWholeWorkDownloads() {
     document.querySelectorAll('a,button,[role="button"]').forEach(el => {
       if (el.id === 'mp-native-downloads' || el.id === 'mp-native-chapter-download' || el.classList.contains('mp-native-ch-download')) return;
@@ -142,13 +166,13 @@
     const style = document.createElement('style');
     style.id = 'mp-native-offline-style';
     style.textContent = `
-      #mp-native-downloads{position:fixed;right:14px;bottom:82px;z-index:2147483000;border:1px solid rgba(255,255,255,.18);background:linear-gradient(135deg,#6f37a7,#c84d9d);color:#fff;border-radius:999px;padding:11px 15px;font:800 12px system-ui;box-shadow:0 14px 36px rgba(0,0,0,.34);cursor:pointer;display:flex;align-items:center;gap:7px}
-      #mp-native-chapter-download{position:fixed;left:14px;bottom:82px;z-index:2147483000;border:1px solid rgba(255,255,255,.18);background:rgba(19,13,27,.96);backdrop-filter:blur(16px);color:#fff;border-radius:999px;padding:11px 15px;font:800 12px system-ui;box-shadow:0 14px 36px rgba(0,0,0,.34);cursor:pointer}
+      #mp-native-downloads{position:fixed;right:12px;top:74px;z-index:2147483000;border:1px solid rgba(255,255,255,.18);background:rgba(25,16,34,.94);backdrop-filter:blur(16px);color:#fff;border-radius:14px;padding:9px 12px;font:850 11px system-ui;box-shadow:0 12px 30px rgba(0,0,0,.28);cursor:pointer;display:flex;align-items:center;gap:6px}
+      #mp-native-chapter-download{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);width:min(360px,calc(100vw - 28px));z-index:2147483000;border:1px solid rgba(255,255,255,.18);background:linear-gradient(135deg,#5f2d91,#b94391);color:#fff;border-radius:16px;padding:13px 16px;font:900 12px system-ui;box-shadow:0 16px 38px rgba(0,0,0,.36);cursor:pointer}
       #mp-native-chapter-download.downloaded{background:linear-gradient(135deg,#3f2760,#79409d);border-color:rgba(220,180,255,.36)}
       .mp-native-ch-download{margin-left:8px;border:1px solid rgba(255,255,255,.13);background:linear-gradient(135deg,#713aa5,#bd4d98);color:#fff;border-radius:12px;padding:8px 10px;font:800 11px system-ui;cursor:pointer;white-space:nowrap;box-shadow:0 8px 18px rgba(0,0,0,.16)}
       .mp-native-ch-download.downloaded{background:rgba(91,56,116,.24);border-color:rgba(194,143,229,.45);color:#e9ccff;box-shadow:none}
       #mp-native-progress{position:fixed;left:50%;bottom:143px;transform:translateX(-50%);z-index:2147483640;display:none;max-width:88vw;background:rgba(17,11,24,.98);border:1px solid rgba(255,255,255,.16);color:#fff;border-radius:17px;padding:13px 17px;font:750 12px system-ui;box-shadow:0 18px 44px rgba(0,0,0,.4);text-align:center}
-      @media(max-width:520px){#mp-native-downloads,#mp-native-chapter-download{bottom:76px;padding:10px 12px;font-size:11px}.mp-native-ch-download{padding:7px 9px;font-size:10px}}
+      @media(max-width:520px){#mp-native-downloads{top:68px;padding:8px 10px}#mp-native-chapter-download{bottom:74px}.mp-native-ch-download{padding:7px 9px;font-size:10px}}
     `;
     document.head.appendChild(style);
   }
@@ -178,7 +202,7 @@
     const chapterTitle = currentChapterTitle();
     if (workTitle && workTitle !== 'Obra MP SCAN') sessionStorage.setItem('mpNativeWorkTitle:' + info.work, workTitle);
     window.MPScanNativeUI.progress('Preparando ' + pages.length + ' páginas de ' + chapterLabel + '…');
-    MPScanApp.downloadChapter(info.work, info.chapter, workTitle, chapterLabel, chapterTitle, JSON.stringify(pages));
+    MPScanApp.downloadChapter(info.work, info.chapter, workTitle, chapterLabel, chapterTitle, JSON.stringify(pages), JSON.stringify(workMetadata()));
   }
 
   function waitAndDownload(tries) {
@@ -194,7 +218,7 @@
       button = document.createElement('button');
       button.id = 'mp-native-downloads';
       button.type = 'button';
-      button.innerHTML = '<span>📚</span><span>Meus capítulos</span>';
+      button.innerHTML = '<span>↓</span><span>Downloads</span>';
       button.onclick = () => MPScanApp.openDownloads();
       document.body.appendChild(button);
     }
