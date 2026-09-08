@@ -1,10 +1,17 @@
 package online.mpscan.app;
 
+import android.Manifest;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.DownloadManager;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
 import android.os.Environment;
 import android.util.Base64;
 import android.view.Gravity;
@@ -29,6 +36,8 @@ import android.widget.Toast;
 import androidx.activity.ComponentActivity;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -58,6 +67,7 @@ import java.util.regex.Pattern;
 public class MainActivityV3 extends ComponentActivity {
     private static final String HOME = "https://www.mpscan.online/";
     private static final String OFFLINE_DIR = "mp_scan_offline";
+    private static final String NOTIFICATION_CHANNEL = "mp_scan_updates";
 
     private WebView web;
     private View loadingOverlay;
@@ -126,6 +136,7 @@ public class MainActivityV3 extends ComponentActivity {
         loadingOverlay = loading;
         root.addView(loading, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
+        createNotificationChannel();
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -168,7 +179,10 @@ public class MainActivityV3 extends ComponentActivity {
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame() && hasOfflineDownloads()) showOfflineLibrary();
+                if (request.isForMainFrame()) {
+                    Toast.makeText(MainActivityV3.this, "O site não respondeu. Abrimos sua biblioteca offline.", Toast.LENGTH_SHORT).show();
+                    showOfflineLibrary();
+                }
             }
         });
 
@@ -204,7 +218,7 @@ public class MainActivityV3 extends ComponentActivity {
         });
 
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
-        else web.loadUrl(HOME);
+        else showOfflineLibrary();
     }
 
     private boolean handleUri(Uri uri) {
@@ -215,6 +229,18 @@ public class MainActivityV3 extends ComponentActivity {
 
             if ("library".equals(host)) {
                 showOfflineLibrary();
+                return true;
+            }
+            if ("history".equals(host)) {
+                showHistory();
+                return true;
+            }
+            if ("more".equals(host)) {
+                showMore();
+                return true;
+            }
+            if ("notifications".equals(host)) {
+                requestNotificationPermission();
                 return true;
             }
             if ("work".equals(host) && seg.size() >= 1) {
@@ -251,6 +277,41 @@ public class MainActivityV3 extends ComponentActivity {
         if (loadingOverlay == null || loadingOverlay.getVisibility() == View.GONE) return;
         loadingOverlay.animate().alpha(0f).setDuration(250)
             .withEndAction(() -> loadingOverlay.setVisibility(View.GONE)).start();
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        NotificationChannel channel = new NotificationChannel(
+            NOTIFICATION_CHANNEL,
+            "Atualizações do MP SCAN",
+            NotificationManager.IMPORTANCE_DEFAULT
+        );
+        channel.setDescription("Novos capítulos, respostas e avisos importantes.");
+        getSystemService(NotificationManager.class).createNotificationChannel(channel);
+    }
+
+    private boolean notificationsAllowed() {
+        return Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33 && !notificationsAllowed()) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1407);
+        } else {
+            Toast.makeText(this, "Notificações já estão permitidas.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void notifyDownloadReady(String workTitle, String chapterLabel) {
+        if (!notificationsAllowed()) return;
+        Intent open = new Intent(this, MainActivityV3.class);
+        PendingIntent pending = PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        NotificationCompat.Builder notification = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL)
+            .setSmallIcon(R.drawable.mp_scan_icon)
+            .setContentTitle("Capítulo disponível offline")
+            .setContentText(emptyTo(workTitle, "MP SCAN") + " • " + emptyTo(chapterLabel, "Capítulo"))
+            .setContentIntent(pending).setAutoCancel(true).setPriority(NotificationCompat.PRIORITY_DEFAULT);
+        ((NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE)).notify((workTitle + chapterLabel).hashCode(), notification.build());
     }
 
     private File offlineRoot() {
@@ -407,6 +468,7 @@ public class MainActivityV3 extends ComponentActivity {
                 deleteRecursive(tmp);
             }
             sendJsDone(normalizedLabel + " baixado! Agora ele aparece dentro da página da obra. ✓");
+            notifyDownloadReady(workTitle, normalizedLabel);
         } catch (Exception e) {
             if (tmp != null) deleteRecursive(tmp);
             sendJsFail("Erro ao baixar: " + cleanError(e));
@@ -639,6 +701,45 @@ public class MainActivityV3 extends ComponentActivity {
         return "*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#0b0810;color:#fff;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}body{padding:18px 14px 44px;background:radial-gradient(circle at 80% -10%,rgba(133,64,174,.18),transparent 36%),radial-gradient(circle at -10% 30%,rgba(202,69,151,.11),transparent 32%),#0b0810}.shell{max-width:850px;margin:auto}.eyebrow{font-size:10px;font-weight:950;letter-spacing:.15em;color:#c890ee;text-transform:uppercase}.hero{padding:20px;border:1px solid #2f213a;border-radius:27px;background:linear-gradient(145deg,rgba(31,20,42,.96),rgba(17,12,24,.96));box-shadow:0 20px 55px rgba(0,0,0,.28)}h1{font-size:28px;line-height:1.08;margin:6px 0 8px}.muted{color:#ab9bb8;line-height:1.5;font-size:13px}.top-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px}.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;border-radius:14px;padding:10px 13px;font-size:12px;font-weight:900}.btn-soft{background:#1e1527;border:1px solid #392849;color:#eee1f7}.btn-main{background:linear-gradient(135deg,#773fa9,#c94c9d);color:#fff}.stats{display:flex;gap:8px;margin-top:15px;overflow:auto}.stat{min-width:96px;padding:10px 12px;border-radius:15px;background:rgba(255,255,255,.035);border:1px solid #30223a}.stat b{display:block;font-size:18px}.stat span{font-size:10px;color:#a594b3}.section-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:20px 2px 11px}.section-title h2{font-size:16px;margin:0}.section-title span{font-size:11px;color:#9e8cab}.badge{display:inline-flex;align-items:center;gap:5px;padding:6px 9px;border-radius:999px;background:rgba(127,71,167,.18);border:1px solid rgba(183,120,226,.3);color:#dfb9fb;font-size:10px;font-weight:900}.downloaded{color:#dcb8f7}.empty{text-align:center;margin:48px auto;max-width:560px;padding:28px 20px;border-radius:24px;background:#15101b;border:1px solid #2c2035}.empty .emoji{font-size:40px}.empty p{color:#a998b6;line-height:1.5}.footer-note{text-align:center;color:#766b7d;font-size:10px;margin-top:24px}@media(max-width:520px){body{padding:14px 11px 34px}.hero{padding:17px;border-radius:23px}h1{font-size:24px}.btn{padding:9px 11px}}";
     }
 
+    private String appNavCss() {
+        return "body{padding-bottom:104px}.app-head{display:flex;align-items:center;gap:12px;margin:2px 2px 16px}.app-logo{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(145deg,#713aa5,#d1539f);font-weight:1000;box-shadow:0 10px 28px rgba(154,66,174,.3)}.app-brand b{display:block;font-size:17px}.app-brand span{display:block;color:#9988a5;font-size:10px;margin-top:2px}.bottom-nav{position:fixed;z-index:30;left:50%;bottom:max(10px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(620px,calc(100% - 20px));display:grid;grid-template-columns:repeat(4,1fr);padding:7px;border:1px solid rgba(255,255,255,.12);border-radius:23px;background:rgba(18,12,25,.94);backdrop-filter:blur(22px);box-shadow:0 18px 48px rgba(0,0,0,.48)}.bottom-nav a{color:#887990;text-decoration:none;text-align:center;border-radius:17px;padding:8px 3px 7px;font-size:9px;font-weight:850}.bottom-nav a i{display:block;font-style:normal;font-size:19px;line-height:20px;margin-bottom:3px}.bottom-nav a.on{color:#fff;background:linear-gradient(145deg,rgba(117,61,161,.8),rgba(187,70,148,.72))}.option-list{display:grid;gap:10px;margin-top:16px}.option{display:flex;align-items:center;gap:12px;padding:15px;border:1px solid #30213b;border-radius:19px;background:#15101b;color:#fff;text-decoration:none}.option-icon{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:#25182f;font-size:19px}.option-copy{flex:1;min-width:0}.option-copy b{display:block;font-size:13px}.option-copy span{display:block;color:#9f8fab;font-size:10px;margin-top:3px;line-height:1.4}.option em{color:#be91db;font-style:normal;font-size:20px}";
+    }
+
+    private String appHeader() {
+        return "<header class='app-head'><div class='app-logo'>MP</div><div class='app-brand'><b>MP SCAN</b><span>Sua biblioteca de leitura</span></div></header>";
+    }
+
+    private String bottomNav(String active) {
+        return "<nav class='bottom-nav'><a class='" + ("library".equals(active) ? "on" : "") + "' href='mpscan-offline://library'><i>▦</i>Biblioteca</a><a class='" + ("history".equals(active) ? "on" : "") + "' href='mpscan-offline://history'><i>◷</i>Histórico</a><a href='mpscan-offline://online'><i>⌂</i>Site</a><a class='" + ("more".equals(active) ? "on" : "") + "' href='mpscan-offline://more'><i>•••</i>Mais</a></nav>";
+    }
+
+    private void showHistory() {
+        nativeScreen = "history";
+        nativeWorkKey = "";
+        List<OfflineItem> items = listOfflineChapters();
+        items.sort((a,b) -> Long.compare(b.meta.optLong("lastReadAt", 0), a.meta.optLong("lastReadAt", 0)));
+        StringBuilder rows = new StringBuilder();
+        for (OfflineItem item : items) {
+            long readAt = item.meta.optLong("lastReadAt", 0);
+            if (readAt <= 0) continue;
+            String work = Uri.encode(item.workDir.getName()), chapter = Uri.encode(item.chapterDir.getName());
+            rows.append("<a class='option' href='mpscan-offline://read/").append(work).append("/").append(chapter).append("'><span class='option-icon'>▶</span><span class='option-copy'><b>").append(html(item.meta.optString("workTitle", "Obra MP SCAN"))).append("</b><span>").append(html(item.meta.optString("chapterLabel", "Capítulo"))).append(" • lido em ").append(html(DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.SHORT).format(new Date(readAt)))).append("</span></span><em>›</em></a>");
+        }
+        String content = rows.length() == 0 ? "<div class='empty'><div class='emoji'>◷</div><h2>Seu histórico está vazio</h2><p>Os capítulos offline que você abrir aparecerão aqui automaticamente.</p></div>" : "<div class='option-list'>" + rows + "</div>";
+        String page = "<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'><style>" + commonCss() + appNavCss() + "</style></head><body><main class='shell'>" + appHeader() + "<section class='hero'><div class='eyebrow'>CONTINUE DE ONDE PAROU</div><h1>Histórico</h1><p class='muted'>Suas leituras recentes ficam organizadas aqui, inclusive sem internet.</p></section>" + content + "</main>" + bottomNav("history") + "</body></html>";
+        web.loadDataWithBaseURL("https://app.mpscan.local/", page, "text/html", "UTF-8", null);
+        hideLoading();
+    }
+
+    private void showMore() {
+        nativeScreen = "more";
+        nativeWorkKey = "";
+        String permission = notificationsAllowed() ? "Permitidas neste aparelho" : "Toque para permitir";
+        String page = "<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'><style>" + commonCss() + appNavCss() + "</style></head><body><main class='shell'>" + appHeader() + "<section class='hero'><div class='eyebrow'>AJUSTES DO APLICATIVO</div><h1>Mais</h1><p class='muted'>Controle permissões e acesse as funções principais do MP SCAN.</p><div class='option-list'><a class='option' href='mpscan-offline://notifications'><span class='option-icon'>🔔</span><span class='option-copy'><b>Notificações</b><span>" + permission + ". Receba avisos do aplicativo.</span></span><em>›</em></a><a class='option' href='mpscan-offline://online'><span class='option-icon'>⌂</span><span class='option-copy'><b>Abrir o site MP SCAN</b><span>Buscar obras, comentar e baixar novos capítulos.</span></span><em>›</em></a><a class='option' href='mpscan-offline://library'><span class='option-icon'>↓</span><span class='option-copy'><b>Downloads offline</b><span>Veja tudo que está guardado neste aparelho.</span></span><em>›</em></a></div></section></main>" + bottomNav("more") + "</body></html>";
+        web.loadDataWithBaseURL("https://app.mpscan.local/", page, "text/html", "UTF-8", null);
+        hideLoading();
+    }
+
     private void showOfflineLibrary() {
         nativeScreen = "library";
         nativeWorkKey = "";
@@ -678,14 +779,14 @@ public class MainActivityV3 extends ComponentActivity {
             ? "<div class='empty'><div class='emoji'>📥</div><h2>Nenhum capítulo baixado</h2><p>Abra uma obra no aplicativo e toque em <b>Baixar capítulo</b>. Aqui aparecerá uma pasta separada para cada obra.</p></div>"
             : "<div class='work-grid'>" + cards + "</div>";
 
-        String css = commonCss() + ".work-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.work-card{text-decoration:none;color:#fff;padding:13px;border-radius:22px;background:linear-gradient(145deg,#191121,#120d18);border:1px solid #30213b;display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;box-shadow:0 14px 35px rgba(0,0,0,.18)}.work-mark{width:72px;aspect-ratio:2/3;border-radius:15px;background:linear-gradient(145deg,#6d379d,#b64b91);display:grid;place-items:center;overflow:hidden;font-weight:950;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}.work-mark img{width:100%;height:100%;object-fit:cover}.work-copy{min-width:0}.row{display:flex;align-items:flex-start;gap:8px}.row strong{font-size:14px;line-height:1.3;flex:1}.alt{font-size:10px;color:#9f8bad;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}.arrow{font-size:24px;line-height:17px;color:#be91db}.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.chips span{font-size:9px;font-weight:850;color:#cdb8db;background:#21162b;border:1px solid #342443;border-radius:999px;padding:5px 7px}.work-copy p{font-size:10px;color:#a996b6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:8px 0 5px}.work-copy small{font-size:9px;color:#756b7a}@media(max-width:620px){.work-grid{grid-template-columns:1fr}}";
+        String css = commonCss() + appNavCss() + ".work-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.work-card{text-decoration:none;color:#fff;padding:13px;border-radius:22px;background:linear-gradient(145deg,#191121,#120d18);border:1px solid #30213b;display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;box-shadow:0 14px 35px rgba(0,0,0,.18)}.work-mark{width:72px;aspect-ratio:2/3;border-radius:15px;background:linear-gradient(145deg,#6d379d,#b64b91);display:grid;place-items:center;overflow:hidden;font-weight:950;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}.work-mark img{width:100%;height:100%;object-fit:cover}.work-copy{min-width:0}.row{display:flex;align-items:flex-start;gap:8px}.row strong{font-size:14px;line-height:1.3;flex:1}.alt{font-size:10px;color:#9f8bad;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}.arrow{font-size:24px;line-height:17px;color:#be91db}.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.chips span{font-size:9px;font-weight:850;color:#cdb8db;background:#21162b;border:1px solid #342443;border-radius:999px;padding:5px 7px}.work-copy p{font-size:10px;color:#a996b6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:8px 0 5px}.work-copy small{font-size:9px;color:#756b7a}@media(max-width:620px){.work-grid{grid-template-columns:1fr}}";
 
-        String page = "<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'><style>" + css + "</style></head><body><main class='shell'>"
-            + "<section class='hero'><div class='eyebrow'>MP SCAN • LEITURA OFFLINE</div><h1>Meus capítulos</h1><p class='muted'>Tudo separado por obra. Toque em uma obra para ver exatamente quais capítulos estão baixados no seu celular.</p>"
+        String page = "<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'><style>" + css + "</style></head><body><main class='shell'>" + appHeader()
+            + "<section class='hero'><div class='eyebrow'>BIBLIOTECA OFFLINE</div><h1>Minha biblioteca</h1><p class='muted'>Suas obras e capítulos baixados ficam disponíveis mesmo quando você sair do aplicativo ou estiver sem internet.</p>"
             + "<div class='stats'><div class='stat'><b>" + groups.size() + "</b><span>obras</span></div><div class='stat'><b>" + totalChapters + "</b><span>capítulos</span></div><div class='stat'><b>" + totalPages + "</b><span>páginas salvas</span></div></div>"
             + "<div class='top-actions'><a class='btn btn-soft' href='mpscan-offline://online'>← Voltar para o MP SCAN</a></div></section>"
             + "<div class='section-title'><h2>Obras com downloads</h2><span>Somente capítulos salvos</span></div>" + content
-            + "<div class='footer-note'>Os downloads ficam armazenados no aplicativo.</div></main></body></html>";
+            + "<div class='footer-note'>Os downloads ficam armazenados no aplicativo.</div></main>" + bottomNav("library") + "</body></html>";
         web.loadDataWithBaseURL("https://app.mpscan.local/", page, "text/html", "UTF-8", null);
         hideLoading();
     }
@@ -742,6 +843,10 @@ public class MainActivityV3 extends ComponentActivity {
             JSONObject meta = new JSONObject(readText(metaFile));
             JSONArray files = meta.optJSONArray("files");
             if (files == null || files.length() == 0) { showOfflineLibrary(); return; }
+            meta.put("lastReadAt", System.currentTimeMillis());
+            try (OutputStream historyOut = new FileOutputStream(metaFile)) {
+                historyOut.write(meta.toString().getBytes(StandardCharsets.UTF_8));
+            }
             nativeScreen = "reader";
             nativeWorkKey = workKey;
             StringBuilder imgs = new StringBuilder();
@@ -796,6 +901,7 @@ public class MainActivityV3 extends ComponentActivity {
             return;
         }
         if ("work".equals(nativeScreen)) { showOfflineLibrary(); return; }
+        if ("history".equals(nativeScreen) || "more".equals(nativeScreen)) { showOfflineLibrary(); return; }
         if ("library".equals(nativeScreen)) {
             nativeScreen = "";
             nativeWorkKey = "";
