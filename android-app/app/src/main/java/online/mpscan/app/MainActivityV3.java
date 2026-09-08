@@ -66,6 +66,7 @@ import java.util.regex.Pattern;
 
 public class MainActivityV3 extends ComponentActivity {
     private static final String HOME = "https://www.mpscan.online/";
+    private static final String APP_HOME = "file:///android_asset/native_app.html#home";
     private static final String OFFLINE_DIR = "mp_scan_offline";
     private static final String NOTIFICATION_CHANNEL = "mp_scan_updates";
 
@@ -167,7 +168,7 @@ public class MainActivityV3 extends ComponentActivity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
-                if (url != null && url.startsWith("https://app.mpscan.local/")) {
+                if (url != null && (url.startsWith("https://app.mpscan.local/") || url.startsWith("file:///android_asset/native_app.html"))) {
                     hideLoading();
                     return;
                 }
@@ -218,7 +219,7 @@ public class MainActivityV3 extends ComponentActivity {
         });
 
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
-        else showOfflineLibrary();
+        else showNativeApp();
     }
 
     private boolean handleUri(Uri uri) {
@@ -248,9 +249,7 @@ public class MainActivityV3 extends ComponentActivity {
                 return true;
             }
             if ("online".equals(host)) {
-                nativeScreen = "";
-                nativeWorkKey = "";
-                web.loadUrl(HOME);
+                showNativeApp();
                 return true;
             }
             if ("read".equals(host) && seg.size() >= 2) {
@@ -277,6 +276,12 @@ public class MainActivityV3 extends ComponentActivity {
         if (loadingOverlay == null || loadingOverlay.getVisibility() == View.GONE) return;
         loadingOverlay.animate().alpha(0f).setDuration(250)
             .withEndAction(() -> loadingOverlay.setVisibility(View.GONE)).start();
+    }
+
+    private void showNativeApp() {
+        nativeScreen = "app";
+        nativeWorkKey = "";
+        web.loadUrl(APP_HOME);
     }
 
     private void createNotificationChannel() {
@@ -710,7 +715,7 @@ public class MainActivityV3 extends ComponentActivity {
     }
 
     private String bottomNav(String active) {
-        return "<nav class='bottom-nav'><a class='" + ("library".equals(active) ? "on" : "") + "' href='mpscan-offline://library'><i>▦</i>Biblioteca</a><a class='" + ("history".equals(active) ? "on" : "") + "' href='mpscan-offline://history'><i>◷</i>Histórico</a><a href='mpscan-offline://online'><i>⌂</i>Site</a><a class='" + ("more".equals(active) ? "on" : "") + "' href='mpscan-offline://more'><i>•••</i>Mais</a></nav>";
+        return "<nav class='bottom-nav'><a href='mpscan-offline://online'><i>⌂</i>Início</a><a class='" + ("library".equals(active) ? "on" : "") + "' href='mpscan-offline://library'><i>▦</i>Biblioteca</a><a href='mpscan-offline://online'><i>◫</i>App</a><a class='" + ("more".equals(active) ? "on" : "") + "' href='mpscan-offline://more'><i>•••</i>Mais</a></nav>";
     }
 
     private void showHistory() {
@@ -901,11 +906,11 @@ public class MainActivityV3 extends ComponentActivity {
             return;
         }
         if ("work".equals(nativeScreen)) { showOfflineLibrary(); return; }
-        if ("history".equals(nativeScreen) || "more".equals(nativeScreen)) { showOfflineLibrary(); return; }
+        if ("history".equals(nativeScreen) || "more".equals(nativeScreen)) { showNativeApp(); return; }
         if ("library".equals(nativeScreen)) {
             nativeScreen = "";
             nativeWorkKey = "";
-            web.loadUrl(HOME);
+            showNativeApp();
             return;
         }
         if (web != null && web.canGoBack()) web.goBack();
