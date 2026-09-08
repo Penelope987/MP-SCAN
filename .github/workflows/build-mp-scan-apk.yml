@@ -8,6 +8,9 @@ on:
       - 'android-app/**'
       - '.github/workflows/build-mp-scan-apk.yml'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -37,11 +40,26 @@ jobs:
         run: gradle :app:assembleDebug
 
       - name: Prepare APK
-        run: cp android-app/app/build/outputs/apk/debug/app-debug.apk mp-scan.apk
+        run: |
+          mkdir -p downloads
+          cp android-app/app/build/outputs/apk/debug/app-debug.apk mp-scan.apk
+          cp mp-scan.apk downloads/mp-scan.apk
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: mp-scan-apk
           path: mp-scan.apk
           if-no-files-found: error
+
+      - name: Publish APK in repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add downloads/mp-scan.apk
+          if git diff --cached --quiet; then
+            echo "APK unchanged"
+          else
+            git commit -m "Update downloadable MP SCAN APK"
+            git push origin main
+          fi
