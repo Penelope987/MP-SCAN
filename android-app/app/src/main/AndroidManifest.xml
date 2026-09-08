@@ -8,7 +8,7 @@
       android:theme="@style/Theme.MPScan"
       android:usesCleartextTraffic="false">
     <activity
-        android:name=".MainActivity"
+        android:name=".MainActivityV2"
         android:exported="true"
         android:configChanges="orientation|screenSize|keyboardHidden">
       <intent-filter>
