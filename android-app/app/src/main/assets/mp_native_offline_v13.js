@@ -167,12 +167,15 @@
     style.id = 'mp-native-offline-style';
     style.textContent = `
       #mp-native-downloads{position:fixed;right:12px;top:74px;z-index:2147483000;border:1px solid rgba(255,255,255,.18);background:rgba(25,16,34,.94);backdrop-filter:blur(16px);color:#fff;border-radius:14px;padding:9px 12px;font:850 11px system-ui;box-shadow:0 12px 30px rgba(0,0,0,.28);cursor:pointer;display:flex;align-items:center;gap:6px}
-      #mp-native-chapter-download{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);width:min(360px,calc(100vw - 28px));z-index:2147483000;border:1px solid rgba(255,255,255,.18);background:linear-gradient(135deg,#5f2d91,#b94391);color:#fff;border-radius:16px;padding:13px 16px;font:900 12px system-ui;box-shadow:0 16px 38px rgba(0,0,0,.36);cursor:pointer}
+      #mp-native-chapter-download{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);width:min(360px,calc(100vw - 28px));z-index:2147483000;border:1px solid rgba(255,255,255,.18);background:linear-gradient(135deg,#5f2d91,#b94391);color:#fff;border-radius:16px;padding:13px 48px 13px 16px;font:900 12px system-ui;box-shadow:0 16px 38px rgba(0,0,0,.36);cursor:pointer}
       #mp-native-chapter-download.downloaded{background:linear-gradient(135deg,#3f2760,#79409d);border-color:rgba(220,180,255,.36)}
+      #mp-native-download-close{position:fixed;right:max(18px,calc(50% - 174px));bottom:84px;width:32px;height:32px;z-index:2147483010;border:0;background:rgba(20,11,28,.52);color:#fff;border-radius:10px;font:800 20px/32px system-ui;text-align:center;cursor:pointer;backdrop-filter:blur(8px)}
+      #mp-native-download-reopen{position:fixed;right:0;top:46%;width:34px;height:48px;z-index:2147483000;border:1px solid rgba(255,255,255,.16);border-right:0;background:rgba(55,28,75,.48);color:#fff;border-radius:14px 0 0 14px;font:900 18px system-ui;box-shadow:0 8px 22px rgba(0,0,0,.2);backdrop-filter:blur(10px);cursor:pointer;opacity:.58;transition:opacity .2s,background .2s;display:none}
+      #mp-native-download-reopen:active,#mp-native-download-reopen:focus{opacity:1;background:rgba(102,48,139,.92)}
       .mp-native-ch-download{margin-left:8px;border:1px solid rgba(255,255,255,.13);background:linear-gradient(135deg,#713aa5,#bd4d98);color:#fff;border-radius:12px;padding:8px 10px;font:800 11px system-ui;cursor:pointer;white-space:nowrap;box-shadow:0 8px 18px rgba(0,0,0,.16)}
       .mp-native-ch-download.downloaded{background:rgba(91,56,116,.24);border-color:rgba(194,143,229,.45);color:#e9ccff;box-shadow:none}
       #mp-native-progress{position:fixed;left:50%;bottom:143px;transform:translateX(-50%);z-index:2147483640;display:none;max-width:88vw;background:rgba(17,11,24,.98);border:1px solid rgba(255,255,255,.16);color:#fff;border-radius:17px;padding:13px 17px;font:750 12px system-ui;box-shadow:0 18px 44px rgba(0,0,0,.4);text-align:center}
-      @media(max-width:520px){#mp-native-downloads{top:68px;padding:8px 10px}#mp-native-chapter-download{bottom:74px}.mp-native-ch-download{padding:7px 9px;font-size:10px}}
+      @media(max-width:520px){#mp-native-downloads{top:68px;padding:8px 10px}#mp-native-chapter-download{bottom:74px}#mp-native-download-close{right:20px;bottom:80px}.mp-native-ch-download{padding:7px 9px;font-size:10px}}
     `;
     document.head.appendChild(style);
   }
@@ -227,8 +230,12 @@
   function updateCurrentChapterButton() {
     const info = chapterRoute();
     let button = document.getElementById('mp-native-chapter-download');
+    let close = document.getElementById('mp-native-download-close');
+    let reopen = document.getElementById('mp-native-download-reopen');
     if (!info) {
       if (button) button.remove();
+      if (close) close.remove();
+      if (reopen) reopen.remove();
       return;
     }
     const downloaded = MPScanApp.isChapterDownloaded(info.work, info.chapter);
@@ -238,6 +245,24 @@
       button.type = 'button';
       document.body.appendChild(button);
     }
+    if (!close) {
+      close = document.createElement('button');
+      close.id = 'mp-native-download-close';
+      close.type = 'button';
+      close.textContent = '×';
+      close.setAttribute('aria-label', 'Esconder botão de download');
+      close.onclick = () => setChapterDownloadHidden(true);
+      document.body.appendChild(close);
+    }
+    if (!reopen) {
+      reopen = document.createElement('button');
+      reopen.id = 'mp-native-download-reopen';
+      reopen.type = 'button';
+      reopen.textContent = '↓';
+      reopen.setAttribute('aria-label', 'Mostrar botão de download');
+      reopen.onclick = () => setChapterDownloadHidden(false);
+      document.body.appendChild(reopen);
+    }
     button.classList.toggle('downloaded', downloaded);
     if (downloaded) {
       button.textContent = '✓ Baixado • Ler offline';
@@ -246,6 +271,22 @@
       button.textContent = '⬇ Baixar ' + currentChapterLabel();
       button.onclick = startCurrentDownload;
     }
+    applyChapterDownloadVisibility();
+  }
+
+  function setChapterDownloadHidden(hidden) {
+    sessionStorage.setItem('mpNativeChapterDownloadHidden', hidden ? '1' : '0');
+    applyChapterDownloadVisibility();
+  }
+
+  function applyChapterDownloadVisibility() {
+    const hidden = sessionStorage.getItem('mpNativeChapterDownloadHidden') === '1';
+    const button = document.getElementById('mp-native-chapter-download');
+    const close = document.getElementById('mp-native-download-close');
+    const reopen = document.getElementById('mp-native-download-reopen');
+    if (button) button.style.display = hidden ? 'none' : 'block';
+    if (close) close.style.display = hidden ? 'none' : 'block';
+    if (reopen) reopen.style.display = hidden ? 'block' : 'none';
   }
 
   function addWorkChapterButtons() {
