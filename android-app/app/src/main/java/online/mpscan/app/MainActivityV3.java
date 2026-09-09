@@ -398,6 +398,11 @@ public class MainActivityV3 extends ComponentActivity {
         }
 
         @JavascriptInterface
+        public void saveOfflineProgress(String workId, String chapterId, double progress) {
+            saveChapterProgress(workId, chapterId, progress);
+        }
+
+        @JavascriptInterface
         public void openChapterOffline(String workId, String chapterId) {
             runOnUiThread(() -> {
                 File dir = chapterDir(workId, chapterId);
@@ -508,6 +513,19 @@ public class MainActivityV3 extends ComponentActivity {
 
     private String emptyTo(String value, String fallback) {
         return value == null || value.trim().isEmpty() ? fallback : value.trim();
+    }
+
+    private synchronized void saveChapterProgress(String workId, String chapterId, double progress) {
+        File metaFile = new File(chapterDir(workId, chapterId), "meta.json");
+        if (!metaFile.exists()) return;
+        try {
+            JSONObject meta = new JSONObject(readText(metaFile));
+            meta.put("progress", Math.max(0d, Math.min(1d, progress)));
+            meta.put("lastReadAt", System.currentTimeMillis());
+            try (OutputStream out = new FileOutputStream(metaFile)) {
+                out.write(meta.toString().getBytes(StandardCharsets.UTF_8));
+            }
+        } catch (Exception ignored) {}
     }
 
     private String normalizeChapterLabel(String label, String title, String chapterId) {
@@ -907,6 +925,7 @@ public class MainActivityV3 extends ComponentActivity {
             String label = meta.optString("chapterLabel", normalizeChapterLabel("", meta.optString("title", ""), meta.optString("chapterId", "")));
             String workTitle = meta.optString("workTitle", "Obra MP SCAN");
             String title = meta.optString("title", label);
+            double savedProgress = Math.max(0d, Math.min(1d, meta.optDouble("progress", 0d)));
             OfflineGroup group = findGroup(workKey);
             OfflineItem previous = null, next = null;
             if (group != null) {
@@ -923,7 +942,8 @@ public class MainActivityV3 extends ComponentActivity {
             String nextHref = next == null ? "" : "mpscan-offline://read/" + Uri.encode(workKey) + "/" + Uri.encode(next.chapterDir.getName());
             String nextButton = next == null ? "<span></span>" : "<a class='primary' href='" + nextHref + "'>" + html(next.meta.optString("chapterLabel", "Próximo")) + " →</a>";
             String navigation = "<nav>" + previousButton + "<a href='" + workHref + "'>☰ Obra</a>" + nextButton + "</nav>";
-            String page = "<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=yes'><style>*{box-sizing:border-box}html,body{margin:0;background:#08060b;color:#fff;font-family:system-ui,-apple-system,sans-serif}.bar{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;padding:11px 12px;background:rgba(12,8,16,.95);backdrop-filter:blur(16px);border-bottom:1px solid #2c2035}.bar a,nav a{color:#fff;text-decoration:none;background:#1d1425;border:1px solid #392747;border-radius:12px;padding:9px 10px;font-weight:900;font-size:11px}.copy{min-width:0}.copy b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}.copy span{display:block;font-size:10px;color:#aa98b7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}nav{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;padding:11px 12px;background:#0d0912}nav>*:last-child{justify-self:end}nav .primary{background:linear-gradient(135deg,#713da5,#bd4994)}.pages{width:100%;margin:0 auto}.pages img{display:block;width:100%;max-width:100%;height:auto;margin:0 auto;background:#130d18}</style></head><body><header class='bar'><a href='" + workHref + "'>← Obra</a><div class='copy'><b>" + html(label) + (title.equalsIgnoreCase(label) ? "" : " • " + html(title)) + "</b><span>" + html(workTitle) + " • ✓ baixado • " + files.length() + " páginas</span></div></header>" + navigation + "<main class='pages'>" + imgs + "</main></body></html>";
+            String progressScript = "<script>(function(){var saved=" + savedProgress + ",timer;function restore(){var max=document.documentElement.scrollHeight-innerHeight;if(max>0&&saved>0)scrollTo(0,Math.round(max*saved));}addEventListener('load',function(){setTimeout(restore,120)});addEventListener('scroll',function(){clearTimeout(timer);timer=setTimeout(function(){var max=document.documentElement.scrollHeight-innerHeight;var p=max>0?scrollY/max:0;MPScanApp.saveOfflineProgress('" + workKey + "','" + chapterKey + "',p)},300)},{passive:true})})();</script>";
+            String page = "<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=yes'><style>*{box-sizing:border-box}html,body{margin:0;background:#08060b;color:#fff;font-family:system-ui,-apple-system,sans-serif}.bar{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;padding:11px 12px;background:rgba(12,8,16,.95);backdrop-filter:blur(16px);border-bottom:1px solid #2c2035}.bar a,nav a{color:#fff;text-decoration:none;background:#1d1425;border:1px solid #392747;border-radius:12px;padding:9px 10px;font-weight:900;font-size:11px}.copy{min-width:0}.copy b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}.copy span{display:block;font-size:10px;color:#aa98b7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}nav{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;padding:11px 12px;background:#0d0912}nav>*:last-child{justify-self:end}nav .primary{background:linear-gradient(135deg,#713da5,#bd4994)}.pages{width:100%;margin:0 auto}.pages img{display:block;width:100%;max-width:100%;height:auto;margin:0 auto;background:#130d18}</style></head><body><header class='bar'><a href='" + workHref + "'>← Obra</a><div class='copy'><b>" + html(label) + (title.equalsIgnoreCase(label) ? "" : " • " + html(title)) + "</b><span>" + html(workTitle) + " • ✓ baixado • " + files.length() + " páginas</span></div></header>" + navigation + "<main class='pages'>" + imgs + "</main>" + progressScript + "</body></html>";
             String base = Uri.fromFile(ch).toString();
             if (!base.endsWith("/")) base += "/";
             web.loadDataWithBaseURL(base, page, "text/html", "UTF-8", null);
