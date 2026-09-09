@@ -279,10 +279,10 @@ public class MainActivityV3 extends ComponentActivity {
     }
 
     private void showNativeApp() {
-        nativeScreen = "app";
+        nativeScreen = "online";
         nativeWorkKey = "";
         try {
-            web.loadDataWithBaseURL(APP_HOME, readAsset("native_app.html"), "text/html", "UTF-8", null);
+            web.loadUrl(HOME);
         } catch (Exception e) {
             Toast.makeText(this, "Não foi possível abrir a tela inicial.", Toast.LENGTH_SHORT).show();
             showOfflineLibrary();
