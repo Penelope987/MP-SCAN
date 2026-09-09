@@ -175,6 +175,7 @@
       .mp-native-ch-download{margin-left:8px;border:1px solid rgba(255,255,255,.13);background:linear-gradient(135deg,#713aa5,#bd4d98);color:#fff;border-radius:12px;padding:8px 10px;font:800 11px system-ui;cursor:pointer;white-space:nowrap;box-shadow:0 8px 18px rgba(0,0,0,.16)}
       .mp-native-ch-download.downloaded{background:rgba(91,56,116,.24);border-color:rgba(194,143,229,.45);color:#e9ccff;box-shadow:none}
       #mp-native-progress{position:fixed;left:50%;bottom:143px;transform:translateX(-50%);z-index:2147483640;display:none;max-width:88vw;background:rgba(17,11,24,.98);border:1px solid rgba(255,255,255,.16);color:#fff;border-radius:17px;padding:13px 17px;font:750 12px system-ui;box-shadow:0 18px 44px rgba(0,0,0,.4);text-align:center}
+      .mp-native-library-card{grid-column:1/-1;padding:22px;border:1px solid rgba(255,255,255,.13);border-radius:20px;background:linear-gradient(145deg,rgba(74,39,96,.34),rgba(23,15,30,.94));text-align:center}.mp-native-library-card strong,.mp-native-library-card span{display:block}.mp-native-library-card strong{font:900 17px system-ui;color:#fff}.mp-native-library-card span{margin:7px 0 15px;color:#bdaec7;font:500 12px/1.5 system-ui}.mp-native-library-open{min-height:44px;padding:0 18px;border:0;border-radius:14px;background:linear-gradient(135deg,#713aa5,#bd4d98);color:#fff;font:900 12px system-ui}
       @media(max-width:520px){#mp-native-downloads{top:68px;padding:8px 10px}#mp-native-chapter-download{bottom:74px}#mp-native-download-close{right:20px;bottom:80px}.mp-native-ch-download{padding:7px 9px;font-size:10px}}
     `;
     document.head.appendChild(style);
@@ -225,6 +226,16 @@
       button.onclick = () => MPScanApp.openDownloads();
       document.body.appendChild(button);
     }
+  }
+
+  function syncNativeDownloadsPanel() {
+    if (!(location.hash || '').startsWith('#/biblioteca/downloads')) return;
+    const panel = document.getElementById('libraryDownloads');
+    if (!panel || panel.dataset.nativeAndroid === '1') return;
+    const count = Number(MPScanApp.downloadedChapterCount()) || 0;
+    panel.dataset.nativeAndroid = '1';
+    panel.innerHTML = '<div class="mp-native-library-card"><strong>' + count + (count === 1 ? ' capítulo disponível offline' : ' capítulos disponíveis offline') + '</strong><span>Os downloads ficam protegidos no armazenamento do aplicativo e continuam disponíveis sem internet.</span><button type="button" class="mp-native-library-open">Abrir biblioteca offline</button></div>';
+    panel.querySelector('.mp-native-library-open').onclick = () => MPScanApp.openDownloads();
   }
 
   function updateCurrentChapterButton() {
@@ -352,6 +363,7 @@
     hideWholeWorkDownloads();
     rememberWorkTitle();
     ensureDownloadsButton();
+    syncNativeDownloadsPanel();
     updateCurrentChapterButton();
     addWorkChapterButtons();
     checkPendingDownload();
