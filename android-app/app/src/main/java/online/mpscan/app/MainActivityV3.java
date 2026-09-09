@@ -412,7 +412,7 @@ public class MainActivityV3 extends ComponentActivity {
         }
     }
 
-    private void downloadChapterInternal(String workId, String chapterId, String workTitle, String chapterLabel, String chapterTitle, String pagesJson, String workMetaJson) {
+    private synchronized void downloadChapterInternal(String workId, String chapterId, String workTitle, String chapterLabel, String chapterTitle, String pagesJson, String workMetaJson) {
         File tmp = null;
         try {
             JSONArray pages = new JSONArray(pagesJson);
@@ -609,14 +609,16 @@ public class MainActivityV3 extends ComponentActivity {
         OfflineGroup(String key, String title, long latest) { this.key = key; this.title = title; this.latest = latest; }
     }
 
-    private List<OfflineItem> listOfflineChapters() {
+    private synchronized List<OfflineItem> listOfflineChapters() {
         List<OfflineItem> items = new ArrayList<>();
         File[] works = offlineRoot().listFiles(File::isDirectory);
         if (works == null) return items;
         for (File workDir : works) {
+            recoverInterruptedDownloads(workDir);
             File[] chapters = workDir.listFiles(File::isDirectory);
             if (chapters == null) continue;
             for (File ch : chapters) {
+                if (ch.getName().contains("_tmp_") || ch.getName().endsWith("_backup")) continue;
                 File metaFile = new File(ch, "meta.json");
                 if (!metaFile.exists()) continue;
                 try { items.add(new OfflineItem(workDir, ch, new JSONObject(readText(metaFile)))); } catch (Exception ignored) {}
@@ -624,6 +626,23 @@ public class MainActivityV3 extends ComponentActivity {
         }
         Collections.sort(items, (a, b) -> Long.compare(b.meta.optLong("savedAt", 0), a.meta.optLong("savedAt", 0)));
         return items;
+    }
+
+    private void recoverInterruptedDownloads(File workDir) {
+        File[] dirs = workDir.listFiles(File::isDirectory);
+        if (dirs == null) return;
+        for (File dir : dirs) {
+            String name = dir.getName();
+            if (name.contains("_tmp_")) {
+                deleteRecursive(dir);
+                continue;
+            }
+            if (!name.endsWith("_backup")) continue;
+            String originalName = name.substring(0, name.length() - "_backup".length());
+            File original = new File(workDir, originalName);
+            if (original.exists()) deleteRecursive(dir);
+            else dir.renameTo(original);
+        }
     }
 
     private List<OfflineGroup> listOfflineGroups() {
