@@ -393,6 +393,11 @@ public class MainActivityV3 extends ComponentActivity {
         }
 
         @JavascriptInterface
+        public int downloadedChapterCount() {
+            return listOfflineChapters().size();
+        }
+
+        @JavascriptInterface
         public void openChapterOffline(String workId, String chapterId) {
             runOnUiThread(() -> {
                 File dir = chapterDir(workId, chapterId);
