@@ -472,10 +472,26 @@ public class MainActivityV3 extends ComponentActivity {
                 os.write(meta.toString().getBytes(StandardCharsets.UTF_8));
             }
 
-            if (finalDir.exists()) deleteRecursive(finalDir);
-            if (!tmp.renameTo(finalDir)) {
-                copyDirectory(tmp, finalDir);
-                deleteRecursive(tmp);
+            File backupDir = new File(parent, finalDir.getName() + "_backup");
+            deleteRecursive(backupDir);
+            if (finalDir.exists() && !finalDir.renameTo(backupDir)) {
+                throw new Exception("Não foi possível preservar o download anterior.");
+            }
+            try {
+                if (!tmp.renameTo(finalDir)) {
+                    copyDirectory(tmp, finalDir);
+                    if (!new File(finalDir, "meta.json").exists()) {
+                        throw new Exception("O download não foi concluído corretamente.");
+                    }
+                    deleteRecursive(tmp);
+                }
+                deleteRecursive(backupDir);
+            } catch (Exception installError) {
+                deleteRecursive(finalDir);
+                if (backupDir.exists() && !backupDir.renameTo(finalDir)) {
+                    throw new Exception("Falha ao restaurar o download anterior.");
+                }
+                throw installError;
             }
             sendJsDone(normalizedLabel + " baixado! Agora ele aparece dentro da página da obra. ✓");
             notifyDownloadReady(workTitle, normalizedLabel);
