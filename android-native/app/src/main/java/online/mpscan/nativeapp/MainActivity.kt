@@ -26,12 +26,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
 import online.mpscan.nativeapp.data.FirebaseCatalogRepository
+import online.mpscan.nativeapp.data.FirebaseAuthRepository
 import online.mpscan.nativeapp.model.Chapter
 import online.mpscan.nativeapp.model.Work
 
@@ -102,12 +105,17 @@ private enum class Tab(val label: String, val icon: String) {
     Home("Início", "⌂"), Search("Busca", "⌕"), Library("Biblioteca", "▣"), More("Mais", "•••")
 }
 
+private enum class MorePage { Menu, Settings, Profile }
+
 @Composable
 private fun MpScanApp(vm: CatalogViewModel = viewModel()) {
     var tab by remember { mutableStateOf(Tab.Home) }
     var query by remember { mutableStateOf("") }
+    var morePage by rememberSaveable { mutableStateOf(MorePage.Menu) }
     val state = vm.state
-    BackHandler(state.selected != null) { vm.closeWork() }
+    BackHandler(state.selected != null || (tab == Tab.More && morePage != MorePage.Menu)) {
+        if (state.selected != null) vm.closeWork() else morePage = MorePage.Menu
+    }
 
     Scaffold(
         containerColor = Bg,
@@ -130,12 +138,130 @@ private fun MpScanApp(vm: CatalogViewModel = viewModel()) {
                 tab == Tab.Home -> HomeScreen(state, vm::open, vm::refresh)
                 tab == Tab.Search -> SearchScreen(state.works, query, { query = it }, vm::open)
                 tab == Tab.Library -> PlaceholderScreen("Sua biblioteca", "Downloads e progresso offline entrarão na próxima etapa.", "▣")
-                else -> PlaceholderScreen("Mais", "Conta, notificações e preferências serão conectadas aqui.", "⚙")
+                else -> when (morePage) {
+                    MorePage.Menu -> MoreScreen(
+                        openSettings = { morePage = MorePage.Settings },
+                        openProfile = { morePage = MorePage.Profile }
+                    )
+                    MorePage.Settings -> SettingsScreen { morePage = MorePage.Menu }
+                    MorePage.Profile -> ProfileScreen { morePage = MorePage.Menu }
+                }
             }
             state.error?.let { message ->
                 Snackbar(Modifier.align(Alignment.BottomCenter).padding(12.dp)) { Text(message) }
             }
         }
+    }
+}
+
+@Composable
+private fun MoreScreen(openSettings: () -> Unit, openProfile: () -> Unit) {
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(top = 18.dp, bottom = 30.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item { AppHeader("Sua conta e preferências") }
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth().clickable(onClick = openProfile),
+                color = Card,
+                shape = RoundedCornerShape(24.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Line)
+            ) {
+                Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(58.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Purple, Pink))), contentAlignment = Alignment.Center) { Text("👤", style = MaterialTheme.typography.headlineSmall) }
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) { Text("Perfil", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium); Text("Entre para comentar e sincronizar sua conta", color = Muted) }
+                    Text("›", style = MaterialTheme.typography.headlineSmall)
+                }
+            }
+        }
+        item { MenuCard("⚙", "Configurações", "Conta, conteúdo, downloads e documentos", openSettings) }
+        item { MenuCard("🔔", "Notificações", "Capítulos novos, respostas e avisos", {}) }
+        item { MenuCard("?", "Ajuda", "Dúvidas e suporte do MP SCAN", {}) }
+    }
+}
+
+@Composable
+private fun MenuCard(icon: String, title: String, subtitle: String, onClick: () -> Unit) {
+    Surface(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), color = Card, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF2A1936)), contentAlignment = Alignment.Center) { Text(icon) }
+            Spacer(Modifier.width(13.dp)); Column(Modifier.weight(1f)) { Text(title, fontWeight = FontWeight.Bold); Text(subtitle, color = Muted, style = MaterialTheme.typography.bodySmall) }; Text("›", color = Muted)
+        }
+    }
+}
+
+@Composable
+private fun SettingsScreen(back: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("mp_scan_settings", android.content.Context.MODE_PRIVATE) }
+    var sensitive by rememberSaveable { mutableStateOf(prefs.getBoolean("sensitive_non_adult", false)) }
+    var wifiOnly by rememberSaveable { mutableStateOf(prefs.getBoolean("wifi_only", true)) }
+    var notifications by rememberSaveable { mutableStateOf(prefs.getBoolean("notifications", true)) }
+    var dialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    fun setBool(key: String, value: Boolean) { prefs.edit().putBoolean(key, value).apply() }
+
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), contentPadding = PaddingValues(top = 14.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+        item { Row(verticalAlignment = Alignment.CenterVertically) { FilledTonalButton(onClick = back) { Text("←") }; Spacer(Modifier.width(12.dp)); Column { Text("Configurações", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black); Text("Tudo organizado em um só lugar", color = Muted) } } }
+        item { SettingsTitle("Conta e proteção") }
+        item { SettingsLink("👤", "Conta e segurança", "Login, senha, confirmação e sessão") { dialog = "Conta e segurança" to "O acesso por e-mail será conectado ao Firebase na próxima compilação. Aqui também ficarão recuperação de senha, confirmação do e-mail e saída segura." } }
+        item { SettingsLink("🎂", "Verificação etária", "Status da idade e proteção de conteúdo") { dialog = "Verificação etária" to "A data de nascimento será validada pela conta e não poderá liberar conteúdo adulto para menores. O app mostrará apenas o status confirmado pelo Firebase." } }
+        item { SettingsToggle("◈", "Conteúdo sensível", "Avisos e obras não adultas marcadas como sensíveis", sensitive) { sensitive = it; setBool("sensitive_non_adult", it) } }
+        item { SettingsTitle("Aplicativo") }
+        item { SettingsToggle("⇩", "Downloads somente no Wi-Fi", "Evita gastar dados móveis sem querer", wifiOnly) { wifiOnly = it; setBool("wifi_only", it) } }
+        item { SettingsLink("▣", "Downloads", "Armazenamento, capítulos e limpeza") { dialog = "Downloads" to "Esta área mostrará espaço usado, capítulos salvos e a opção de remover arquivos individualmente." } }
+        item { SettingsToggle("🔔", "Notificações", "Capítulos novos, comentários e respostas", notifications) { notifications = it; setBool("notifications", it) } }
+        item { SettingsTitle("Documentos e informações") }
+        item { SettingsLink("≡", "Política de uso", "Regras de utilização do MP SCAN") { dialog = "Política de uso" to "O texto publicado pela administração em config/termos/termos será exibido aqui." } }
+        item { SettingsLink("▤", "Política de privacidade", "Como seus dados são tratados") { dialog = "Política de privacidade" to "O texto publicado pela administração em config/termos/privacidade será exibido aqui." } }
+        item { SettingsLink("🛡", "Política de segurança", "Proteção da conta e denúncias") { dialog = "Política de segurança" to "O texto publicado pela administração em config/termos/seguranca será exibido aqui." } }
+        item { SettingsLink("MP", "Sobre o MP SCAN", "Versão 3.0 nativa • informações do aplicativo") { dialog = "Sobre o MP SCAN" to "Aplicativo nativo do MP SCAN, criado para leitura, biblioteca e downloads com sincronização pelo Firebase." } }
+    }
+    dialog?.let { (title, text) -> AlertDialog(onDismissRequest = { dialog = null }, confirmButton = { TextButton(onClick = { dialog = null }) { Text("Entendi") } }, title = { Text(title) }, text = { Text(text) }) }
+}
+
+@Composable private fun SettingsTitle(text: String) { Text(text.uppercase(), color = Color(0xFFE1BCF4), fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 7.dp, start = 4.dp)) }
+
+@Composable
+private fun SettingsLink(icon: String, title: String, subtitle: String, onClick: () -> Unit) = MenuCard(icon, title, subtitle, onClick)
+
+@Composable
+private fun SettingsToggle(icon: String, title: String, subtitle: String, checked: Boolean, change: (Boolean) -> Unit) {
+    Surface(color = Card, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF2A1936)), contentAlignment = Alignment.Center) { Text(icon) }
+            Spacer(Modifier.width(13.dp)); Column(Modifier.weight(1f)) { Text(title, fontWeight = FontWeight.Bold); Text(subtitle, color = Muted, style = MaterialTheme.typography.bodySmall) }
+            Switch(checked = checked, onCheckedChange = change)
+        }
+    }
+}
+
+@Composable
+private fun ProfileScreen(back: () -> Unit) {
+    val context = LocalContext.current
+    val auth = remember { FirebaseAuthRepository() }
+    val scope = rememberCoroutineScope()
+    var session by remember { mutableStateOf(auth.current(context)) }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    LazyColumn(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 32.dp)) {
+        item { Row(verticalAlignment = Alignment.CenterVertically) { FilledTonalButton(onClick = back) { Text("←") }; Spacer(Modifier.width(12.dp)); Text("Perfil", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black) } }
+        item { Box(Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(28.dp)).background(Brush.linearGradient(listOf(Color(0xFF4A285E), Color(0xFF211329)))), contentAlignment = Alignment.Center) { Box(Modifier.size(82.dp).clip(RoundedCornerShape(28.dp)).background(Brush.linearGradient(listOf(Purple, Pink))), contentAlignment = Alignment.Center) { Text("👤", style = MaterialTheme.typography.headlineLarge) } } }
+        if (session != null) {
+            item { Text("Conta conectada", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black); Text(session?.email.orEmpty(), color = Muted) }
+            item { Button(onClick = { auth.signOut(context); session = null; message = "Você saiu da conta com segurança." }, modifier = Modifier.fillMaxWidth()) { Text("Sair da conta") } }
+        } else {
+            item { Text("Entre na sua conta", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black); Text("O perfil será usado nos comentários, reações e sincronização da biblioteca.", color = Muted) }
+            item { OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), singleLine = true, enabled = !busy, label = { Text("E-mail") }) }
+            item { OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), singleLine = true, enabled = !busy, label = { Text("Senha") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()) }
+            item { Button(onClick = { scope.launch { busy = true; message = "Entrando…"; runCatching { auth.signIn(email, password) }.onSuccess { auth.save(context, it); session = it; password = ""; message = "Conta conectada." }.onFailure { message = it.message.orEmpty() }; busy = false } }, modifier = Modifier.fillMaxWidth(), enabled = !busy && email.isNotBlank() && password.length >= 6) { if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Text("Entrar") } }
+            item { OutlinedButton(onClick = { scope.launch { busy = true; message = "Criando conta…"; runCatching { auth.createAccount(email, password) }.onSuccess { auth.save(context, it); session = it; password = ""; message = "Conta criada e conectada." }.onFailure { message = it.message.orEmpty() }; busy = false } }, modifier = Modifier.fillMaxWidth(), enabled = !busy && email.isNotBlank() && password.length >= 6) { Text("Criar conta") } }
+        }
+        if (message.isNotBlank()) item { Text(message, color = Color(0xFFE1BCF4)) }
     }
 }
 
