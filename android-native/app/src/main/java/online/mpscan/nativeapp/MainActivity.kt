@@ -35,6 +35,7 @@ import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
 import online.mpscan.nativeapp.data.FirebaseCatalogRepository
 import online.mpscan.nativeapp.data.FirebaseAuthRepository
+import online.mpscan.nativeapp.data.AccountProfile
 import online.mpscan.nativeapp.model.Chapter
 import online.mpscan.nativeapp.model.Work
 
@@ -156,6 +157,8 @@ private fun MpScanApp(vm: CatalogViewModel = viewModel()) {
 
 @Composable
 private fun MoreScreen(openSettings: () -> Unit, openProfile: () -> Unit) {
+    val context = LocalContext.current
+    val session = remember { FirebaseAuthRepository().current(context) }
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 16.dp),
         contentPadding = PaddingValues(top = 18.dp, bottom = 30.dp),
@@ -172,7 +175,10 @@ private fun MoreScreen(openSettings: () -> Unit, openProfile: () -> Unit) {
                 Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(58.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Purple, Pink))), contentAlignment = Alignment.Center) { Text("👤", style = MaterialTheme.typography.headlineSmall) }
                     Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) { Text("Perfil", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium); Text("Entre para comentar e sincronizar sua conta", color = Muted) }
+                    Column(Modifier.weight(1f)) {
+                        Text(if (session == null) "Perfil" else "Conta conectada", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium)
+                        Text(if (session == null) "Entre para comentar e sincronizar sua conta" else session.email, color = Muted)
+                    }
                     Text("›", style = MaterialTheme.typography.headlineSmall)
                 }
             }
@@ -196,6 +202,17 @@ private fun MenuCard(icon: String, title: String, subtitle: String, onClick: () 
 @Composable
 private fun SettingsScreen(back: () -> Unit) {
     val context = LocalContext.current
+    val auth = remember { FirebaseAuthRepository() }
+    val session = remember { auth.current(context) }
+    var profile by remember { mutableStateOf<AccountProfile?>(null) }
+    var profileLoading by remember { mutableStateOf(session != null) }
+    var profileError by remember { mutableStateOf("") }
+    LaunchedEffect(session?.idToken) {
+        if (session != null) runCatching { auth.loadProfile(session) }
+            .onSuccess { profile = it }
+            .onFailure { profileError = it.message.orEmpty() }
+        profileLoading = false
+    }
     val prefs = remember { context.getSharedPreferences("mp_scan_settings", android.content.Context.MODE_PRIVATE) }
     var sensitive by rememberSaveable { mutableStateOf(prefs.getBoolean("sensitive_non_adult", false)) }
     var wifiOnly by rememberSaveable { mutableStateOf(prefs.getBoolean("wifi_only", true)) }
@@ -206,9 +223,37 @@ private fun SettingsScreen(back: () -> Unit) {
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), contentPadding = PaddingValues(top = 14.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
         item { Row(verticalAlignment = Alignment.CenterVertically) { FilledTonalButton(onClick = back) { Text("←") }; Spacer(Modifier.width(12.dp)); Column { Text("Configurações", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black); Text("Tudo organizado em um só lugar", color = Muted) } } }
         item { SettingsTitle("Conta e proteção") }
-        item { SettingsLink("👤", "Conta e segurança", "Login, senha, confirmação e sessão") { dialog = "Conta e segurança" to "O acesso por e-mail será conectado ao Firebase na próxima compilação. Aqui também ficarão recuperação de senha, confirmação do e-mail e saída segura." } }
-        item { SettingsLink("🎂", "Verificação etária", "Status da idade e proteção de conteúdo") { dialog = "Verificação etária" to "A data de nascimento será validada pela conta e não poderá liberar conteúdo adulto para menores. O app mostrará apenas o status confirmado pelo Firebase." } }
-        item { SettingsToggle("◈", "Conteúdo sensível", "Avisos e obras não adultas marcadas como sensíveis", sensitive) { sensitive = it; setBool("sensitive_non_adult", it) } }
+        item { SettingsLink("👤", "Conta e segurança", if (session == null) "Você está como visitante" else "Conectada: ${session.email}") { dialog = "Conta e segurança" to if (session == null) "Entre pelo Perfil para sincronizar suas informações." else "Sua conta está conectada. Em breve esta página também terá confirmação do e-mail e recuperação de senha." } }
+        item {
+            val ageLabel = when {
+                session == null -> "Entre para consultar sua verificação"
+                profileLoading -> "Consultando sua conta…"
+                profileError.isNotBlank() -> profileError
+                profile?.ageVerified == true -> "Maioridade confirmada na conta"
+                profile?.ageStatus.equals("minor", true) -> "Conta protegida para menor de 18 anos"
+                else -> "Data de nascimento ainda não confirmada"
+            }
+            SettingsLink("🎂", "Verificação etária", ageLabel) {
+                dialog = "Verificação etária" to when {
+                    session == null -> "Entre na conta para consultar o status salvo no Firebase."
+                    profile?.ageVerified == true -> "Sua maioridade já está confirmada no Firebase. O aplicativo reconheceu essa informação corretamente."
+                    profile?.ageStatus.equals("minor", true) -> "A conta está identificada como menor de 18 anos e permanece protegida contra conteúdo adulto."
+                    else -> "A conta ainda não possui uma verificação etária confirmada no Firebase."
+                }
+            }
+        }
+        item {
+            val allowed = profile?.sensitiveAllowed == true || profile?.minorSensitiveApproved == true
+            SettingsToggle("◈", "Conteúdo sensível", when {
+                session == null -> "Entre na conta para consultar a permissão"
+                profileLoading -> "Consultando sua conta…"
+                allowed -> "Permitido pela sua conta"
+                else -> "Não permitido pela sua conta"
+            }, allowed && sensitive) {
+                if (allowed) { sensitive = it; setBool("sensitive_non_adult", it) }
+                else dialog = "Conteúdo sensível" to "Esta opção depende da permissão salva na sua conta e não pode ser liberada somente pelo aparelho."
+            }
+        }
         item { SettingsTitle("Aplicativo") }
         item { SettingsToggle("⇩", "Downloads somente no Wi-Fi", "Evita gastar dados móveis sem querer", wifiOnly) { wifiOnly = it; setBool("wifi_only", it) } }
         item { SettingsLink("▣", "Downloads", "Armazenamento, capítulos e limpeza") { dialog = "Downloads" to "Esta área mostrará espaço usado, capítulos salvos e a opção de remover arquivos individualmente." } }
