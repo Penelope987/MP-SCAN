@@ -66,7 +66,7 @@ import java.util.regex.Pattern;
 
 public class MainActivityV3 extends ComponentActivity {
     private static final String HOME = "https://www.mpscan.online/";
-    private static final String APP_HOME = "file:///android_asset/native_app.html#home";
+    private static final String APP_HOME = "https://www.mpscan.online/app/";
     private static final String OFFLINE_DIR = "mp_scan_offline";
     private static final String NOTIFICATION_CHANNEL = "mp_scan_updates";
 
@@ -168,7 +168,7 @@ public class MainActivityV3 extends ComponentActivity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
-                if (url != null && (url.startsWith("https://app.mpscan.local/") || url.startsWith("file:///android_asset/native_app.html"))) {
+                if (url != null && (url.startsWith("https://app.mpscan.local/") || url.startsWith(APP_HOME))) {
                     hideLoading();
                     return;
                 }
@@ -281,7 +281,12 @@ public class MainActivityV3 extends ComponentActivity {
     private void showNativeApp() {
         nativeScreen = "app";
         nativeWorkKey = "";
-        web.loadUrl(APP_HOME);
+        try {
+            web.loadDataWithBaseURL(APP_HOME, readAsset("native_app.html"), "text/html", "UTF-8", null);
+        } catch (Exception e) {
+            Toast.makeText(this, "Não foi possível abrir a tela inicial.", Toast.LENGTH_SHORT).show();
+            showOfflineLibrary();
+        }
     }
 
     private void createNotificationChannel() {
@@ -715,7 +720,7 @@ public class MainActivityV3 extends ComponentActivity {
     }
 
     private String bottomNav(String active) {
-        return "<nav class='bottom-nav'><a href='mpscan-offline://online'><i>⌂</i>Início</a><a class='" + ("library".equals(active) ? "on" : "") + "' href='mpscan-offline://library'><i>▦</i>Biblioteca</a><a href='mpscan-offline://online'><i>◫</i>App</a><a class='" + ("more".equals(active) ? "on" : "") + "' href='mpscan-offline://more'><i>•••</i>Mais</a></nav>";
+        return "<nav class='bottom-nav'><a href='mpscan-offline://online'><i>⌂</i>Início</a><a class='" + ("library".equals(active) ? "on" : "") + "' href='mpscan-offline://library'><i>▦</i>Biblioteca</a><a href='mpscan-offline://online'><i>⌕</i>Busca</a><a class='" + ("more".equals(active) ? "on" : "") + "' href='mpscan-offline://more'><i>•••</i>Mais</a></nav>";
     }
 
     private void showHistory() {
