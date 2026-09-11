@@ -67,7 +67,8 @@ data class CatalogState(
     val reader: ReaderState? = null,
     val downloads: List<OfflineChapter> = emptyList(),
     val downloadProgress: Map<String, Int> = emptyMap(),
-    val offline: Boolean = false
+    val offline: Boolean = false,
+    val libraryIds: Set<String> = emptySet()
 )
 
 data class ReaderState(val work: Work, val chapter: Chapter, val pages: List<String>, val downloaded: Boolean)
@@ -76,7 +77,8 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
     private val repository = FirebaseCatalogRepository()
     private val offline = OfflineLibrary(application)
     private val auth = FirebaseAuthRepository()
-    var state by mutableStateOf(CatalogState())
+    private val preferences = application.getSharedPreferences("mp_scan_library", android.content.Context.MODE_PRIVATE)
+    var state by mutableStateOf(CatalogState(libraryIds = preferences.getStringSet("works", emptySet())?.toSet() ?: emptySet()))
         private set
 
     init { refresh() }
@@ -121,6 +123,11 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
          .onFailure { state = state.copy(downloadProgress = state.downloadProgress - key, error = "Não foi possível baixar o capítulo.") }
     }
     fun removeDownload(item: OfflineChapter) = viewModelScope.launch { offline.remove(item.work.id, item.chapter.id); loadDownloads() }
+    fun toggleLibrary(work: Work) {
+        val next = state.libraryIds.toMutableSet().apply { if (!add(work.id)) remove(work.id) }.toSet()
+        preferences.edit().putStringSet("works", next).apply()
+        state = state.copy(libraryIds = next)
+    }
 }
 
 @Composable
@@ -173,17 +180,17 @@ private fun MpScanApp(vm: CatalogViewModel = viewModel()) {
         Box(Modifier.fillMaxSize().padding(padding)) {
             when {
                 state.reader != null -> ReaderScreen(state.reader, vm::closeReader, { vm.download(state.reader.work, state.reader.chapter) }, state.downloadProgress["${state.reader.work.id}__${state.reader.chapter.id}"])
-                state.selected != null -> WorkScreen(state.selected, state.chapters, state.loading, state.downloadProgress, vm::closeWork, { vm.openChapter(state.selected, it) }, { vm.download(state.selected, it) })
+                state.selected != null -> WorkScreen(state.selected, state.chapters, state.loading, state.downloadProgress, state.selected.id in state.libraryIds, vm::closeWork, { vm.openChapter(state.selected, it) }, { vm.download(state.selected, it) }, { vm.toggleLibrary(state.selected) })
                 tab == Tab.Home -> HomeScreen(state, vm::open, vm::refresh)
                 tab == Tab.Search -> SearchScreen(state.works, query, { query = it }, vm::open)
-                tab == Tab.Library -> DownloadsScreen(state.downloads, vm::loadDownloads, { vm.openChapter(it.work, it.chapter) }, vm::removeDownload)
+                tab == Tab.Library -> LibraryScreen(state.works.filter { it.id in state.libraryIds }, state.downloads, vm::loadDownloads, vm::open, { vm.openChapter(it.work, it.chapter) }, vm::removeDownload)
                 else -> when (morePage) {
                     MorePage.Menu -> MoreScreen(
                         openSettings = { morePage = MorePage.Settings },
                         openProfile = { morePage = MorePage.Profile }
                     )
                     MorePage.Settings -> SettingsScreen { morePage = MorePage.Menu }
-                    MorePage.Profile -> ProfileScreen { morePage = MorePage.Menu }
+                    MorePage.Profile -> ProfileScreen({ morePage = MorePage.Menu }, vm::refresh)
                 }
             }
             state.error?.let { message ->
@@ -322,7 +329,7 @@ private fun SettingsToggle(icon: String, title: String, subtitle: String, checke
 }
 
 @Composable
-private fun ProfileScreen(back: () -> Unit) {
+private fun ProfileScreen(back: () -> Unit, signedIn: () -> Unit) {
     val context = LocalContext.current
     val auth = remember { FirebaseAuthRepository() }
     val scope = rememberCoroutineScope()
@@ -341,7 +348,7 @@ private fun ProfileScreen(back: () -> Unit) {
             item { Text("Entre na sua conta", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black); Text("O perfil será usado nos comentários, reações e sincronização da biblioteca.", color = Muted) }
             item { OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), singleLine = true, enabled = !busy, label = { Text("E-mail") }) }
             item { OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), singleLine = true, enabled = !busy, label = { Text("Senha") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()) }
-            item { Button(onClick = { scope.launch { busy = true; message = "Entrando…"; runCatching { auth.signIn(email, password) }.onSuccess { auth.save(context, it); session = it; password = ""; message = "Conta conectada." }.onFailure { message = it.message.orEmpty() }; busy = false } }, modifier = Modifier.fillMaxWidth(), enabled = !busy && email.isNotBlank() && password.length >= 6) { if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Text("Entrar") } }
+            item { Button(onClick = { scope.launch { busy = true; message = "Entrando…"; runCatching { auth.signIn(email, password) }.onSuccess { auth.save(context, it); session = it; password = ""; message = "Conta conectada."; signedIn() }.onFailure { message = it.message.orEmpty() }; busy = false } }, modifier = Modifier.fillMaxWidth(), enabled = !busy && email.isNotBlank() && password.length >= 6) { if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Text("Entrar") } }
             item { OutlinedButton(onClick = { scope.launch { busy = true; message = "Criando conta…"; runCatching { auth.createAccount(email, password) }.onSuccess { auth.save(context, it); session = it; password = ""; message = "Conta criada e conectada." }.onFailure { message = it.message.orEmpty() }; busy = false } }, modifier = Modifier.fillMaxWidth(), enabled = !busy && email.isNotBlank() && password.length >= 6) { Text("Criar conta") } }
         }
         if (message.isNotBlank()) item { Text(message, color = Color(0xFFE1BCF4)) }
@@ -424,7 +431,7 @@ private fun SearchScreen(works: List<Work>, query: String, change: (String) -> U
 }
 
 @Composable
-private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, progress: Map<String, Int>, close: () -> Unit, openChapter: (Chapter) -> Unit, download: (Chapter) -> Unit) {
+private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, progress: Map<String, Int>, inLibrary: Boolean, close: () -> Unit, openChapter: (Chapter) -> Unit, download: (Chapter) -> Unit, toggleLibrary: () -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 30.dp)) {
         item {
             Box(Modifier.fillMaxWidth().height(230.dp)) {
@@ -440,6 +447,7 @@ private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, pr
             }
         }
         item { Text(work.synopsis.ifBlank { "Sinopse ainda não informada." }, color = Muted, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge) }
+        item { Button(onClick = toggleLibrary, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { Text(if (inLibrary) "✓ Na biblioteca" else "+ Adicionar à biblioteca") } }
         item { Text("Capítulos", modifier = Modifier.padding(16.dp, 8.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
         if (loading) item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
         items(chapters, key = { it.id }) { chapter ->
@@ -473,11 +481,13 @@ private fun ReaderScreen(reader: ReaderState, close: () -> Unit, download: () ->
 }
 
 @Composable
-private fun DownloadsScreen(items: List<OfflineChapter>, load: () -> Unit, open: (OfflineChapter) -> Unit, remove: (OfflineChapter) -> Unit) {
+private fun LibraryScreen(works: List<Work>, items: List<OfflineChapter>, load: () -> Unit, openWork: (Work) -> Unit, open: (OfflineChapter) -> Unit, remove: (OfflineChapter) -> Unit) {
     LaunchedEffect(Unit) { load() }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 14.dp), contentPadding = PaddingValues(top = 18.dp, bottom = 30.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { AppHeader("Sua leitura disponível sem internet") }
-        item { Text("Downloads", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black); Text("${items.size} capítulos salvos neste aparelho", color = Muted) }
+        item { Text("Minha biblioteca", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black); Text("${works.size} obras salvas • ${items.size} capítulos offline", color = Muted) }
+        if (works.isNotEmpty()) item { LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) { items(works, key = { it.id }) { WorkCard(it, openWork) } } }
+        item { Text("Downloads offline", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp)) }
         if (items.isEmpty()) item { PlaceholderScreen("Nada baixado ainda", "Abra uma obra e toque em ⇩ para salvar um capítulo.", "⇩") }
         items(items, key = { "${it.work.id}__${it.chapter.id}" }) { item ->
             Surface(Modifier.fillMaxWidth().clickable { open(item) }, color = Card, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) {
