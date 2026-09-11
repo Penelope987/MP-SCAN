@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -122,6 +123,27 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
         }.onSuccess { state = state.copy(downloadProgress = state.downloadProgress - key); loadDownloads() }
          .onFailure { state = state.copy(downloadProgress = state.downloadProgress - key, error = "Não foi possível baixar o capítulo.") }
     }
+    fun downloadAll(work: Work, chapters: List<Chapter>) = viewModelScope.launch {
+        if (chapters.isEmpty()) { state = state.copy(error = "Esta obra ainda não possui capítulos para baixar."); return@launch }
+        if (work.id !in state.libraryIds) toggleLibrary(work)
+        val allKey = "${work.id}__all"
+        state = state.copy(downloadProgress = state.downloadProgress + (allKey to 0), error = null)
+        var completed = 0
+        var failed = 0
+        for (chapter in chapters) {
+            runCatching {
+                val pages = repository.loadPages(work.id, chapter.id)
+                offline.downloadChapter(work, chapter, pages) { pageProgress ->
+                    val total = ((completed * 100) + pageProgress) / chapters.size
+                    state = state.copy(downloadProgress = state.downloadProgress + (allKey to total))
+                }
+            }.onFailure { failed++ }
+            completed++
+            state = state.copy(downloadProgress = state.downloadProgress + (allKey to ((completed * 100) / chapters.size)))
+        }
+        state = state.copy(downloadProgress = state.downloadProgress - allKey, error = if (failed > 0) "$failed capítulo(s) não puderam ser baixados." else null)
+        loadDownloads()
+    }
     fun removeDownload(item: OfflineChapter) = viewModelScope.launch { offline.remove(item.work.id, item.chapter.id); loadDownloads() }
     fun toggleLibrary(work: Work) {
         val next = state.libraryIds.toMutableSet().apply { if (!add(work.id)) remove(work.id) }.toSet()
@@ -180,7 +202,7 @@ private fun MpScanApp(vm: CatalogViewModel = viewModel()) {
         Box(Modifier.fillMaxSize().padding(padding)) {
             when {
                 state.reader != null -> ReaderScreen(state.reader, vm::closeReader, { vm.download(state.reader.work, state.reader.chapter) }, state.downloadProgress["${state.reader.work.id}__${state.reader.chapter.id}"])
-                state.selected != null -> WorkScreen(state.selected, state.chapters, state.loading, state.downloadProgress, state.selected.id in state.libraryIds, vm::closeWork, { vm.openChapter(state.selected, it) }, { vm.download(state.selected, it) }, { vm.toggleLibrary(state.selected) })
+                state.selected != null -> WorkScreen(state.selected, state.chapters, state.loading, state.downloadProgress, state.selected.id in state.libraryIds, vm::closeWork, { vm.openChapter(state.selected, it) }, { vm.download(state.selected, it) }, { vm.downloadAll(state.selected, state.chapters) }, { vm.toggleLibrary(state.selected) })
                 tab == Tab.Home -> HomeScreen(state, vm::open, vm::refresh)
                 tab == Tab.Search -> SearchScreen(state.works, query, { query = it }, vm::open)
                 tab == Tab.Library -> LibraryScreen(state.works.filter { it.id in state.libraryIds }, state.downloads, vm::loadDownloads, vm::open, { vm.openChapter(it.work, it.chapter) }, vm::removeDownload)
@@ -349,7 +371,7 @@ private fun ProfileScreen(back: () -> Unit, signedIn: () -> Unit) {
             item { OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), singleLine = true, enabled = !busy, label = { Text("E-mail") }) }
             item { OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), singleLine = true, enabled = !busy, label = { Text("Senha") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()) }
             item { Button(onClick = { scope.launch { busy = true; message = "Entrando…"; runCatching { auth.signIn(email, password) }.onSuccess { auth.save(context, it); session = it; password = ""; message = "Conta conectada."; signedIn() }.onFailure { message = it.message.orEmpty() }; busy = false } }, modifier = Modifier.fillMaxWidth(), enabled = !busy && email.isNotBlank() && password.length >= 6) { if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Text("Entrar") } }
-            item { OutlinedButton(onClick = { scope.launch { busy = true; message = "Criando conta…"; runCatching { auth.createAccount(email, password) }.onSuccess { auth.save(context, it); session = it; password = ""; message = "Conta criada e conectada." }.onFailure { message = it.message.orEmpty() }; busy = false } }, modifier = Modifier.fillMaxWidth(), enabled = !busy && email.isNotBlank() && password.length >= 6) { Text("Criar conta") } }
+            item { OutlinedButton(onClick = { scope.launch { busy = true; message = "Criando conta…"; runCatching { auth.createAccount(email, password) }.onSuccess { auth.save(context, it); session = it; password = ""; message = "Conta criada e conectada."; signedIn() }.onFailure { message = it.message.orEmpty() }; busy = false } }, modifier = Modifier.fillMaxWidth(), enabled = !busy && email.isNotBlank() && password.length >= 6) { Text("Criar conta") } }
         }
         if (message.isNotBlank()) item { Text(message, color = Color(0xFFE1BCF4)) }
     }
@@ -431,7 +453,7 @@ private fun SearchScreen(works: List<Work>, query: String, change: (String) -> U
 }
 
 @Composable
-private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, progress: Map<String, Int>, inLibrary: Boolean, close: () -> Unit, openChapter: (Chapter) -> Unit, download: (Chapter) -> Unit, toggleLibrary: () -> Unit) {
+private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, progress: Map<String, Int>, inLibrary: Boolean, close: () -> Unit, openChapter: (Chapter) -> Unit, download: (Chapter) -> Unit, downloadAll: () -> Unit, toggleLibrary: () -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 30.dp)) {
         item {
             Box(Modifier.fillMaxWidth().height(230.dp)) {
@@ -448,6 +470,12 @@ private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, pr
         }
         item { Text(work.synopsis.ifBlank { "Sinopse ainda não informada." }, color = Muted, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge) }
         item { Button(onClick = toggleLibrary, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { Text(if (inLibrary) "✓ Na biblioteca" else "+ Adicionar à biblioteca") } }
+        item {
+            val all = progress["${work.id}__all"]
+            OutlinedButton(onClick = downloadAll, enabled = all == null && chapters.isNotEmpty(), modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Text(all?.let { "Baixando todos… $it%" } ?: "⇩ Baixar todos os capítulos")
+            }
+        }
         item { Text("Capítulos", modifier = Modifier.padding(16.dp, 8.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
         if (loading) item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
         items(chapters, key = { it.id }) { chapter ->
@@ -465,6 +493,15 @@ private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, pr
 
 @Composable
 private fun ReaderScreen(reader: ReaderState, close: () -> Unit, download: () -> Unit, progress: Int?) {
+    val context = LocalContext.current
+    val positionPrefs = remember { context.getSharedPreferences("mp_scan_reader_progress", android.content.Context.MODE_PRIVATE) }
+    val positionKey = "${reader.work.id}__${reader.chapter.id}"
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = positionPrefs.getInt("${positionKey}_index", 0), initialFirstVisibleItemScrollOffset = positionPrefs.getInt("${positionKey}_offset", 0))
+    LaunchedEffect(positionKey) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }.collect { (index, offset) ->
+            positionPrefs.edit().putInt("${positionKey}_index", index).putInt("${positionKey}_offset", offset).apply()
+        }
+    }
     Column(Modifier.fillMaxSize().background(Color.Black)) {
         Row(Modifier.fillMaxWidth().background(Color(0xF517111D)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             FilledTonalButton(onClick = close) { Text("←") }
@@ -473,7 +510,7 @@ private fun ReaderScreen(reader: ReaderState, close: () -> Unit, download: () ->
             else AssistChip(onClick = {}, label = { Text("Offline ✓") })
         }
         if (reader.pages.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Nenhuma página encontrada.") }
-        else LazyColumn(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+        else LazyColumn(Modifier.fillMaxSize(), state = listState, horizontalAlignment = Alignment.CenterHorizontally) {
             items(reader.pages) { page -> AsyncImage(model = page, contentDescription = null, modifier = Modifier.fillMaxWidth(), contentScale = ContentScale.FillWidth) }
             item { Text("Fim de ${reader.chapter.label}", modifier = Modifier.padding(28.dp), color = Muted) }
         }
