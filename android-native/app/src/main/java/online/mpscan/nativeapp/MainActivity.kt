@@ -599,17 +599,34 @@ private fun ReaderScreen(reader: ReaderState, close: () -> Unit, download: () ->
 
 @Composable
 private fun LibraryScreen(works: List<Work>, items: List<OfflineChapter>, load: () -> Unit, openWork: (Work) -> Unit, open: (OfflineChapter) -> Unit, remove: (OfflineChapter) -> Unit) {
+    var tab by rememberSaveable { mutableStateOf("works") }
     LaunchedEffect(Unit) { load() }
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 14.dp), contentPadding = PaddingValues(top = 18.dp, bottom = 30.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), contentPadding = PaddingValues(top = 16.dp, bottom = 34.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { AppHeader("Sua leitura disponível sem internet") }
-        item { Text("Minha biblioteca", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black); Text("${works.size} obras salvas • ${items.size} capítulos offline", color = Muted) }
-        if (works.isNotEmpty()) item { LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) { items(works, key = { it.id }) { WorkCard(it, openWork) } } }
-        item { Text("Downloads offline", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp)) }
-        if (items.isEmpty()) item { PlaceholderScreen("Nada baixado ainda", "Abra uma obra e toque em ⇩ para salvar um capítulo.", "⇩") }
-        items(items, key = { "${it.work.id}__${it.chapter.id}" }) { item ->
+        item {
+            Surface(Modifier.fillMaxWidth(), color = Card, shape = RoundedCornerShape(22.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) {
+                Row(Modifier.padding(18.dp), horizontalArrangement = Arrangement.SpaceAround) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(works.size.toString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Purple); Text("Obras salvas", color = Muted, style = MaterialTheme.typography.bodySmall) }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(items.size.toString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Pink); Text("Capítulos offline", color = Muted, style = MaterialTheme.typography.bodySmall) }
+                }
+            }
+        }
+        item {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                listOf("works" to "Biblioteca", "downloads" to "Downloads").forEachIndexed { index, (key, label) ->
+                    SegmentedButton(selected = tab == key, onClick = { tab = key }, shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(label) }
+                }
+            }
+        }
+        if (tab == "works") item { Text("Minha biblioteca", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black) }
+        if (tab == "works" && works.isNotEmpty()) item { LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) { items(works, key = { it.id }) { WorkCard(it, openWork) } } }
+        if (tab == "works" && works.isEmpty()) item { PlaceholderScreen("Biblioteca vazia", "Adicione uma obra para acompanhar e baixar capítulos.", "♡") }
+        if (tab == "downloads") item { Text("Downloads offline", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 4.dp)) }
+        if (tab == "downloads" && items.isEmpty()) item { PlaceholderScreen("Nada baixado ainda", "Abra uma obra e toque em ⇩ para salvar um capítulo.", "⇩") }
+        if (tab == "downloads") items(items, key = { "${it.work.id}__${it.chapter.id}" }) { item ->
             Surface(Modifier.fillMaxWidth().clickable { open(item) }, color = Card, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    AsyncImage(item.work.cover, item.work.title, Modifier.width(58.dp).aspectRatio(2f/3f).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
+                    AsyncImage(item.work.cover, item.work.title, Modifier.width(64.dp).aspectRatio(3f/4f).clip(RoundedCornerShape(14.dp)).background(Card2), contentScale = ContentScale.Crop)
                     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) { Text(item.work.title, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis); Text("${item.chapter.label} • ${item.pageCount} páginas", color = Muted, style = MaterialTheme.typography.bodySmall); Text("Disponível offline", color = Color(0xFF72D7A5), style = MaterialTheme.typography.labelSmall) }
                     TextButton(onClick = { remove(item) }) { Text("Excluir") }
                 }
