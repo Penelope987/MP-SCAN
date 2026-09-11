@@ -320,8 +320,17 @@ private fun SettingsScreen(back: () -> Unit) {
     var dialog by remember { mutableStateOf<Pair<String, String>?>(null) }
     fun setBool(key: String, value: Boolean) { prefs.edit().putBoolean(key, value).apply() }
 
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), contentPadding = PaddingValues(top = 14.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-        item { Row(verticalAlignment = Alignment.CenterVertically) { FilledTonalButton(onClick = back) { Text("←") }; Spacer(Modifier.width(12.dp)); Column { Text("Configurações", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black); Text("Tudo organizado em um só lugar", color = Muted) } } }
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), contentPadding = PaddingValues(top = 14.dp, bottom = 36.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+        item { Row(verticalAlignment = Alignment.CenterVertically) { FilledTonalButton(onClick = back, shape = RoundedCornerShape(14.dp)) { Text("←") }; Spacer(Modifier.width(12.dp)); Column { Text("Configurações", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black); Text("Tudo organizado em um só lugar", color = Muted) } } }
+        item {
+            Surface(Modifier.fillMaxWidth(), color = Card, shape = RoundedCornerShape(22.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(58.dp).clip(RoundedCornerShape(19.dp)).background(Brush.linearGradient(listOf(Purple, Pink))), contentAlignment = Alignment.Center) { Text("👤") }
+                    Column(Modifier.weight(1f).padding(horizontal = 13.dp)) { Text(profile?.name?.takeIf { it.isNotBlank() } ?: if (session == null) "Visitante" else "Conta MP SCAN", fontWeight = FontWeight.Black); Text(session?.email ?: "Entre para sincronizar suas preferências", color = Muted, style = MaterialTheme.typography.bodySmall) }
+                    Text(if (session == null) "Entrar" else "✓", color = Purple, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
         item { SettingsTitle("Conta e proteção") }
         item { SettingsLink("👤", "Conta e segurança", if (session == null) "Você está como visitante" else "Conectada: ${session.email}") { dialog = "Conta e segurança" to if (session == null) "Entre pelo Perfil para sincronizar suas informações." else "Sua conta está conectada. Em breve esta página também terá confirmação do e-mail e recuperação de senha." } }
         item {
@@ -367,16 +376,16 @@ private fun SettingsScreen(back: () -> Unit) {
     dialog?.let { (title, text) -> AlertDialog(onDismissRequest = { dialog = null }, confirmButton = { TextButton(onClick = { dialog = null }) { Text("Entendi") } }, title = { Text(title) }, text = { Text(text) }) }
 }
 
-@Composable private fun SettingsTitle(text: String) { Text(text.uppercase(), color = Color(0xFFE1BCF4), fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 7.dp, start = 4.dp)) }
+@Composable private fun SettingsTitle(text: String) { Text(text.uppercase(), color = Pink, fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 9.dp, start = 4.dp)) }
 
 @Composable
 private fun SettingsLink(icon: String, title: String, subtitle: String, onClick: () -> Unit) = MenuCard(icon, title, subtitle, onClick)
 
 @Composable
 private fun SettingsToggle(icon: String, title: String, subtitle: String, checked: Boolean, change: (Boolean) -> Unit) {
-    Surface(color = Card, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) {
+    Surface(color = Card, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF2A1936)), contentAlignment = Alignment.Center) { Text(icon) }
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Card2), contentAlignment = Alignment.Center) { Text(icon) }
             Spacer(Modifier.width(13.dp)); Column(Modifier.weight(1f)) { Text(title, fontWeight = FontWeight.Bold); Text(subtitle, color = Muted, style = MaterialTheme.typography.bodySmall) }
             Switch(checked = checked, onCheckedChange = change)
         }
