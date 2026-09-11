@@ -46,12 +46,14 @@ import online.mpscan.nativeapp.data.WorkComment
 import online.mpscan.nativeapp.model.Chapter
 import online.mpscan.nativeapp.model.Work
 
-private val Bg = Color(0xFF09070D)
-private val Card = Color(0xFF17101E)
-private val Line = Color(0xFF382542)
-private val Purple = Color(0xFF8750C1)
-private val Pink = Color(0xFFD454A4)
-private val Muted = Color(0xFFB7A5C1)
+// Tokens copiados do :root do tema MP SCAN. Toda tela nativa usa esta mesma base.
+private val Bg = Color(0xFF0B0B0D)
+private val Card = Color(0xFF141419)
+private val Card2 = Color(0xFF1B1B22)
+private val Line = Color(0xFF2A2A33)
+private val Purple = Color(0xFF7B4DFF)
+private val Pink = Color(0xFFFF5AA5)
+private val Muted = Color(0xFFA8A8B3)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -218,12 +220,12 @@ private fun MpScanApp(vm: CatalogViewModel = viewModel()) {
     Scaffold(
         containerColor = Bg,
         bottomBar = {
-            if (state.selected == null && state.reader == null) NavigationBar(containerColor = Color(0xF5120C19)) {
+            if (state.selected == null && state.reader == null) NavigationBar(containerColor = Card) {
                 Tab.entries.forEach { item ->
                     NavigationBarItem(
                         selected = tab == item,
                         onClick = { tab = item },
-                        icon = { Text(item.icon) },
+                        icon = { Box(Modifier.size(38.dp).clip(RoundedCornerShape(14.dp)).background(if (tab == item) Purple else Color.Transparent), contentAlignment = Alignment.Center) { Text(item.icon, color = if (tab == item) Color.White else Muted) } },
                         label = { Text(item.label) }
                     )
                 }
@@ -412,12 +414,12 @@ private fun ProfileScreen(back: () -> Unit, signedIn: () -> Unit) {
 private fun AppHeader(subtitle: String) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Box(
-            Modifier.size(50.dp).clip(RoundedCornerShape(17.dp))
+            Modifier.size(48.dp).clip(RoundedCornerShape(16.dp))
                 .background(Brush.linearGradient(listOf(Purple, Pink))),
             contentAlignment = Alignment.Center
         ) { Text("MP", fontWeight = FontWeight.Black) }
         Spacer(Modifier.width(12.dp))
-        Column { Text("MP SCAN", fontWeight = FontWeight.Black); Text(subtitle, color = Muted, style = MaterialTheme.typography.bodySmall) }
+        Column { Text("MP SCAN", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium); Text(subtitle, color = Muted, style = MaterialTheme.typography.bodySmall) }
     }
 }
 
@@ -427,9 +429,9 @@ private fun HomeScreen(state: CatalogState, open: (Work) -> Unit, refresh: () ->
         state.loading && state.works.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         state.works.isEmpty() -> PlaceholderScreen("Catálogo vazio", "Nenhuma obra adequada foi encontrada agora.", "⌁", refresh)
         else -> LazyColumn(
-            Modifier.fillMaxSize().padding(horizontal = 14.dp),
-            contentPadding = PaddingValues(top = 18.dp, bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(22.dp)
+            Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(28.dp)
         ) {
             item { AppHeader("Leitura nativa e sincronizada") }
             item { FeaturedWork(state.works.first(), open) }
@@ -442,18 +444,19 @@ private fun HomeScreen(state: CatalogState, open: (Work) -> Unit, refresh: () ->
 @Composable
 private fun FeaturedWork(work: Work, open: (Work) -> Unit) {
     Box(
-        Modifier.fillMaxWidth().height(330.dp).clip(RoundedCornerShape(28.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF4A285E), Color(0xFF211329))))
+        Modifier.fillMaxWidth().height(490.dp).clip(RoundedCornerShape(34.dp))
+            .background(Card)
             .clickable { open(work) }
     ) {
         AsyncImage(model = work.banner.ifBlank { work.cover }, contentDescription = work.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xF20D0910), Color(0x40100B12)))))
-        Column(Modifier.align(Alignment.BottomStart).padding(24.dp).fillMaxWidth(.88f)) {
-            Text("DESTAQUE MP SCAN", color = Color(0xFFE1BCF4), fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelSmall)
-            Spacer(Modifier.height(8.dp)); Text(work.title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xF207070A), Color(0xB807070A), Color(0x2E07070A)))))
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xF207070A)))))
+        Column(Modifier.align(Alignment.BottomStart).padding(26.dp).fillMaxWidth(.90f)) {
+            Text("DESTAQUE MP SCAN", color = Pink, fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelSmall)
+            Spacer(Modifier.height(10.dp)); Text(work.title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
             if (work.sensitive) AssistChip(onClick = {}, label = { Text("Conteúdo sensível") })
             Text(work.synopsis, color = Muted, maxLines = 3, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(14.dp)); Button(onClick = { open(work) }) { Text("Ver obra") }
+            Spacer(Modifier.height(16.dp)); Button(onClick = { open(work) }, shape = RoundedCornerShape(14.dp)) { Text("Ver detalhes", fontWeight = FontWeight.Bold) }
         }
     }
 }
@@ -466,7 +469,7 @@ private fun WorkRail(title: String, works: List<Work>, open: (Work) -> Unit) {
 @Composable
 private fun WorkCard(work: Work, open: (Work) -> Unit) {
     Column(Modifier.width(145.dp).clickable { open(work) }) {
-        AsyncImage(model = work.cover, contentDescription = work.title, modifier = Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(18.dp)).background(Card), contentScale = ContentScale.Crop)
+        AsyncImage(model = work.cover, contentDescription = work.title, modifier = Modifier.fillMaxWidth().aspectRatio(3f / 4f).clip(RoundedCornerShape(18.dp)).background(Card2), contentScale = ContentScale.Crop)
         Text(work.title, modifier = Modifier.padding(top = 8.dp), fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(if (work.sensitive) "Sensível • ${work.type}" else work.type, color = Muted, style = MaterialTheme.typography.bodySmall, maxLines = 1)
     }
@@ -475,9 +478,9 @@ private fun WorkCard(work: Work, open: (Work) -> Unit) {
 @Composable
 private fun SearchScreen(works: List<Work>, query: String, change: (String) -> Unit, open: (Work) -> Unit) {
     val filtered = remember(works, query) { works.filter { (it.title + " " + it.alternativeTitle + " " + it.author + " " + it.genres.joinToString()).contains(query, true) } }
-    Column(Modifier.fillMaxSize().padding(14.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 16.dp)) {
         AppHeader("Encontre sua próxima leitura"); Spacer(Modifier.height(18.dp))
-        OutlinedTextField(value = query, onValueChange = change, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Buscar por nome, autor ou gênero") })
+        OutlinedTextField(value = query, onValueChange = change, modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(16.dp), leadingIcon = { Text("⌕", color = Muted) }, label = { Text("Buscar por nome, autor ou gênero") })
         Text("${filtered.size} obras", color = Muted, modifier = Modifier.padding(vertical = 12.dp))
         LazyVerticalGrid(columns = GridCells.Adaptive(140.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) { items(filtered, key = { it.id }) { WorkCard(it, open) } }
     }
