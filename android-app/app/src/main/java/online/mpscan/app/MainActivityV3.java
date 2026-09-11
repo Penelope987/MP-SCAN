@@ -10,6 +10,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
 import android.os.Bundle;
 import android.os.Build;
 import android.os.Environment;
@@ -176,8 +178,9 @@ public class MainActivityV3 extends ComponentActivity {
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 if (request.isForMainFrame()) {
+                    if (openDownloadedFromUri(request.getUrl())) return;
                     Toast.makeText(MainActivityV3.this, "O site não respondeu. Abrimos sua biblioteca offline.", Toast.LENGTH_SHORT).show();
-                    showOfflineLibrary();
+                    showNativeApp();
                 }
             }
         });
@@ -262,9 +265,38 @@ public class MainActivityV3 extends ComponentActivity {
         }
 
         String host = uri.getHost() == null ? "" : uri.getHost();
-        if (host.equals("appassets.androidplatform.net") || host.endsWith("mpscan.online") || host.endsWith("firebaseapp.com") || host.endsWith("googleapis.com")) return false;
+        if (host.endsWith("mpscan.online")) {
+            if (openDownloadedFromUri(uri)) return true;
+            if (!hasNetwork()) { showNativeApp(); return true; }
+            return false;
+        }
+        if (host.equals("appassets.androidplatform.net") || host.endsWith("firebaseapp.com") || host.endsWith("googleapis.com")) return false;
         try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (Exception ignored) {}
         return true;
+    }
+
+    /** Opens a downloaded chapter directly when a stale/online chapter URL is tapped offline. */
+    private boolean openDownloadedFromUri(Uri uri) {
+        if (uri == null) return false;
+        String hash = uri.getFragment();
+        if (hash == null || hash.isEmpty()) return false;
+        java.util.regex.Matcher m = Pattern.compile("^/?capitulo/([^/]+)/([^/?]+)").matcher(hash.replaceFirst("^#/?", ""));
+        if (!m.find()) return false;
+        String workId = Uri.decode(m.group(1));
+        String chapterId = Uri.decode(m.group(2));
+        File dir = chapterDir(workId, chapterId);
+        if (!new File(dir, "meta.json").exists()) return false;
+        showOfflineReader(dir.getParentFile().getName(), dir.getName());
+        return true;
+    }
+
+    private boolean hasNetwork() {
+        ConnectivityManager cm = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+        NetworkCapabilities caps = cm.getNetworkCapabilities(cm.getActiveNetwork());
+        return caps != null && (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+            || caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+            || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET));
     }
 
     private void hideLoading() {

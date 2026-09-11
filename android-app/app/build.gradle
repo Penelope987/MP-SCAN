@@ -8,8 +8,8 @@ android {
         applicationId 'online.mpscan.app'
         minSdk 24
         targetSdk 35
-        versionCode 15
-        versionName '3.0.0-local-theme'
+        versionCode 16
+        versionName '3.0.1-offline-reader-fix'
     }
 }
 
