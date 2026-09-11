@@ -490,31 +490,48 @@ private fun SearchScreen(works: List<Work>, query: String, change: (String) -> U
 private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, progress: Map<String, Int>, inLibrary: Boolean, comments: List<WorkComment>, commentsLoading: Boolean, close: () -> Unit, openChapter: (Chapter) -> Unit, download: (Chapter) -> Unit, downloadAll: () -> Unit, toggleLibrary: () -> Unit, postComment: (String, Boolean) -> Unit, react: (WorkComment, String) -> Unit) {
     var commentText by rememberSaveable(work.id) { mutableStateOf("") }
     var spoiler by rememberSaveable(work.id) { mutableStateOf(false) }
+    var workTab by rememberSaveable(work.id) { mutableStateOf("chapters") }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 30.dp)) {
         item {
-            Box(Modifier.fillMaxWidth().height(230.dp)) {
+            Box(Modifier.fillMaxWidth().height(330.dp).padding(horizontal = 12.dp).clip(RoundedCornerShape(24.dp))) {
                 AsyncImage(model = work.banner.ifBlank { work.cover }, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x50000000), Bg))))
-                FilledTonalButton(onClick = close, modifier = Modifier.padding(14.dp).align(Alignment.TopStart)) { Text("← Voltar") }
+                FilledTonalButton(onClick = close, modifier = Modifier.padding(14.dp).align(Alignment.TopStart), shape = RoundedCornerShape(14.dp)) { Text("←") }
             }
         }
         item {
             Row(Modifier.padding(horizontal = 16.dp)) {
-                AsyncImage(model = work.cover, contentDescription = work.title, modifier = Modifier.width(112.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(18.dp)), contentScale = ContentScale.Crop)
+                AsyncImage(model = work.cover, contentDescription = work.title, modifier = Modifier.width(120.dp).aspectRatio(3f / 4f).clip(RoundedCornerShape(18.dp)).background(Card2), contentScale = ContentScale.Crop)
                 Spacer(Modifier.width(16.dp)); Column { Text(work.type.uppercase(), color = Color(0xFFE1BCF4), style = MaterialTheme.typography.labelSmall); Text(work.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black); Text(work.alternativeTitle, color = Muted); Text(work.status, modifier = Modifier.padding(top = 8.dp)); if (work.sensitive) AssistChip(onClick = {}, label = { Text("Aviso: sensível") }) }
             }
         }
-        item { Text(work.synopsis.ifBlank { "Sinopse ainda não informada." }, color = Muted, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge) }
-        item { Button(onClick = toggleLibrary, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { Text(if (inLibrary) "✓ Na biblioteca" else "+ Adicionar à biblioteca") } }
+        item {
+            Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(onClick = { chapters.lastOrNull()?.let(openChapter) }, enabled = chapters.isNotEmpty(), modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)) { Text("Ler agora", fontWeight = FontWeight.Black) }
+                FilledTonalButton(onClick = toggleLibrary, shape = RoundedCornerShape(14.dp)) { Text(if (inLibrary) "✓" else "♡") }
+            }
+        }
         item {
             val all = progress["${work.id}__all"]
             OutlinedButton(onClick = downloadAll, enabled = all == null && chapters.isNotEmpty(), modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                 Text(all?.let { "Baixando todos… $it%" } ?: "⇩ Baixar todos os capítulos")
             }
         }
-        item { Text("Capítulos", modifier = Modifier.padding(16.dp, 8.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
+        item {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                listOf("about" to "Sobre", "chapters" to "Capítulos", "comments" to "Comentários").forEachIndexed { index, (key, label) ->
+                    SegmentedButton(selected = workTab == key, onClick = { workTab = key }, shape = SegmentedButtonDefaults.itemShape(index, 3)) { Text(label) }
+                }
+            }
+        }
+        if (workTab == "about") item {
+            Surface(Modifier.fillMaxWidth().padding(16.dp), color = Card, shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) {
+                Column(Modifier.padding(16.dp)) { Text("Sinopse", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium); Text(work.synopsis.ifBlank { "Sinopse ainda não informada." }, color = Muted, modifier = Modifier.padding(top = 10.dp), style = MaterialTheme.typography.bodyLarge); if (work.genres.isNotEmpty()) Text(work.genres.joinToString("  •  "), color = Pink, modifier = Modifier.padding(top = 14.dp)) }
+            }
+        }
+        if (workTab == "chapters") item { Text("Capítulos", modifier = Modifier.padding(16.dp, 8.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
         if (loading) item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
-        items(chapters, key = { it.id }) { chapter ->
+        if (workTab == "chapters") items(chapters, key = { it.id }) { chapter ->
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 5.dp).clip(RoundedCornerShape(18.dp)).background(Card).clickable { openChapter(chapter) }.padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -524,8 +541,8 @@ private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, pr
                 IconButton(onClick = { download(chapter) }) { Text("⇩", style = MaterialTheme.typography.titleLarge) }
             }
         }
-        item { Text("Comentários", modifier = Modifier.padding(16.dp, 22.dp, 16.dp, 8.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
-        item {
+        if (workTab == "comments") item { Text("Comentários", modifier = Modifier.padding(16.dp, 22.dp, 16.dp, 8.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
+        if (workTab == "comments") item {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).clip(RoundedCornerShape(20.dp)).background(Card).padding(14.dp)) {
                 OutlinedTextField(commentText, { commentText = it }, Modifier.fillMaxWidth(), label = { Text("Escreva um comentário") }, minLines = 2)
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -534,9 +551,9 @@ private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, pr
                 }
             }
         }
-        if (commentsLoading) item { LinearProgressIndicator(Modifier.fillMaxWidth().padding(16.dp)) }
-        if (!commentsLoading && comments.isEmpty()) item { Text("Ainda não há comentários nesta obra.", color = Muted, modifier = Modifier.padding(16.dp)) }
-        items(comments, key = { it.id }) { comment ->
+        if (workTab == "comments" && commentsLoading) item { LinearProgressIndicator(Modifier.fillMaxWidth().padding(16.dp)) }
+        if (workTab == "comments" && !commentsLoading && comments.isEmpty()) item { Text("Ainda não há comentários nesta obra.", color = Muted, modifier = Modifier.padding(16.dp)) }
+        if (workTab == "comments") items(comments, key = { it.id }) { comment ->
             var revealed by rememberSaveable(comment.id) { mutableStateOf(!comment.spoiler) }
             Surface(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp), color = Card, shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) {
                 Column(Modifier.padding(14.dp)) {
