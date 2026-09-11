@@ -12,10 +12,10 @@ import java.net.URL
 class FirebaseCatalogRepository(
     private val databaseUrl: String = "https://nnnsss-23f2f-default-rtdb.firebaseio.com"
 ) {
-    suspend fun loadWorks(): List<Work> = withContext(Dispatchers.IO) {
+    suspend fun loadWorks(canSeeSensitive: Boolean = false): List<Work> = withContext(Dispatchers.IO) {
         val root = getObject("obras")
         root.keys().asSequence().mapNotNull { id -> root.optJSONObject(id)?.toWork(id) }
-            .filter { it.published && !it.adult }
+            .filter { it.published && !it.adult && (!it.sensitive || canSeeSensitive) }
             .sortedByDescending { it.updatedAt }
             .toList()
     }
@@ -36,12 +36,32 @@ class FirebaseCatalogRepository(
                 val item = value.opt(key)
                 when (item) {
                     is String -> item
-                    is JSONObject -> first(item, "url", "src", "dataUrl", "imagem")
+                    is JSONObject -> first(item, "dataUrl", "url", "imagemUrl", "imagem", "src", "page", "base64", "data")
                     else -> null
                 }?.takeIf(String::isNotBlank)
             }.toList()
             else -> emptyList()
         }
+            .let { pages -> if (pages.isNotEmpty()) pages else loadEmbeddedPages(workId, chapterId) }
+    }
+
+    private fun loadEmbeddedPages(workId: String, chapterId: String): List<String> {
+        val chapter = getValue("capitulos/$workId/$chapterId") as? JSONObject ?: return emptyList()
+        val raw = listOf("paginas", "pages", "imagens", "images").firstNotNullOfOrNull { chapter.opt(it).takeUnless { v -> v == null || v == JSONObject.NULL } }
+        return when (raw) {
+            is JSONArray -> (0 until raw.length()).mapNotNull { pageValue(raw.opt(it)) }
+            is JSONObject -> raw.keys().asSequence().mapNotNull { key ->
+                val value = raw.opt(key); val order = (value as? JSONObject)?.optInt("ordem", Int.MAX_VALUE) ?: key.toIntOrNull() ?: Int.MAX_VALUE
+                pageValue(value)?.let { order to it }
+            }.sortedBy { it.first }.map { it.second }.toList()
+            else -> pageValue(raw)?.let(::listOf) ?: emptyList()
+        }
+    }
+
+    private fun pageValue(value: Any?): String? = when (value) {
+        is String -> value.trim().takeIf(String::isNotBlank)
+        is JSONObject -> first(value, "dataUrl", "url", "imagemUrl", "imagem", "src", "page", "base64", "data")
+        else -> null
     }
 
     private fun getObject(path: String): JSONObject = getValue(path) as? JSONObject ?: JSONObject()

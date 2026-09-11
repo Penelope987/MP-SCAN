@@ -10,6 +10,7 @@ import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import android.util.Base64
 
 /** Device-owned cache. Catalog metadata and downloaded chapter images survive restarts. */
 class OfflineLibrary(private val context: Context) {
@@ -69,6 +70,12 @@ class OfflineLibrary(private val context: Context) {
     private fun safe(value: String) = value.replace(Regex("[^A-Za-z0-9._-]"), "_")
     private fun atomicWrite(file: File, text: String) { file.parentFile?.mkdirs(); val tmp = File(file.parentFile, file.name + ".tmp"); tmp.writeText(text); if (!tmp.renameTo(file)) { file.writeText(text); tmp.delete() } }
     private fun download(address: String, target: File) {
+        if (address.startsWith("data:image", ignoreCase = true)) {
+            val encoded = address.substringAfter(',', "")
+            require(encoded.isNotBlank()) { "Imagem offline inválida." }
+            target.writeBytes(Base64.decode(encoded, Base64.DEFAULT))
+            return
+        }
         val connection = URL(address).openConnection() as HttpURLConnection
         connection.connectTimeout = 20_000; connection.readTimeout = 45_000; connection.instanceFollowRedirects = true
         try { connection.inputStream.use { input -> target.outputStream().use { input.copyTo(it) } } } catch (e: Exception) { target.delete(); throw e } finally { connection.disconnect() }

@@ -11,8 +11,8 @@ android {
         applicationId = "online.mpscan.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 4
-        versionName = "3.0.0-alpha04-offline"
+        versionCode = 5
+        versionName = "3.0.0-alpha05-offline-fix"
     }
     buildFeatures { compose = true }
     compileOptions {

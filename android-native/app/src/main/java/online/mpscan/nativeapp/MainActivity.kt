@@ -75,6 +75,7 @@ data class ReaderState(val work: Work, val chapter: Chapter, val pages: List<Str
 class CatalogViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = FirebaseCatalogRepository()
     private val offline = OfflineLibrary(application)
+    private val auth = FirebaseAuthRepository()
     var state by mutableStateOf(CatalogState())
         private set
 
@@ -82,7 +83,10 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
 
     fun refresh() = viewModelScope.launch {
         state = state.copy(loading = true, error = null)
-        runCatching { repository.loadWorks() }
+        val sensitivePermission = runCatching {
+            auth.current(getApplication())?.let { auth.loadProfile(it) }?.let { it.minorSensitiveApproved || it.sensitiveAllowed } == true
+        }.getOrDefault(false)
+        runCatching { repository.loadWorks(sensitivePermission) }
             .onSuccess { offline.saveCatalog(it); state = state.copy(loading = false, works = it, offline = false) }
             .onFailure { val cached = offline.loadCatalog(); state = state.copy(loading = false, works = cached, offline = true, error = if (cached.isEmpty()) "Conecte-se uma vez para sincronizar o catálogo." else null) }
     }
