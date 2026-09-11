@@ -66,7 +66,6 @@ import java.util.regex.Pattern;
 
 public class MainActivityV3 extends ComponentActivity {
     private static final String HOME = "https://www.mpscan.online/";
-    private static final String APP_HOME = "https://www.mpscan.online/app/";
     private static final String OFFLINE_DIR = "mp_scan_offline";
     private static final String NOTIFICATION_CHANNEL = "mp_scan_updates";
 
@@ -168,10 +167,6 @@ public class MainActivityV3 extends ComponentActivity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
-                if (url != null && (url.startsWith("https://app.mpscan.local/") || url.startsWith(APP_HOME))) {
-                    hideLoading();
-                    return;
-                }
                 nativeScreen = "";
                 nativeWorkKey = "";
                 hideLoading();

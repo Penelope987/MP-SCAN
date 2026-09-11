@@ -1,5 +1,3 @@
-# MP SCAN — aplicativo Android
+# MP SCAN — aplicativo Android 2.6
 
-Base Android em desenvolvimento para preservar a interface, o Firebase, o login e as rotas do MP SCAN.
-
-O WebView usa DOM Storage, banco local, cookies persistentes e cache. A próxima etapa é completar e validar a camada offline do leitor antes de publicar uma versão final.
+O aplicativo abre a interface oficial da MP SCAN para manter o mesmo visual e as mesmas funções do site. A ponte Android adiciona download real dos capítulos, biblioteca por obra, metadados, capa, progresso e leitor offline no armazenamento privado do aplicativo.
