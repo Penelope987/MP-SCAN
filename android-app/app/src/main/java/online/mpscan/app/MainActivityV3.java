@@ -393,6 +393,27 @@ public class MainActivityV3 extends ComponentActivity {
         }
 
         @JavascriptInterface
+        public String offlineLibraryJson() {
+            JSONArray result = new JSONArray();
+            try {
+                for (OfflineGroup group : listOfflineGroups()) {
+                    JSONObject work = new JSONObject().put("key", group.key).put("title", group.title);
+                    JSONArray chapters = new JSONArray();
+                    for (OfflineItem item : group.chapters) chapters.put(new JSONObject()
+                        .put("key", item.chapterDir.getName())
+                        .put("label", item.meta.optString("chapterLabel", "Capítulo")));
+                    work.put("chapters", chapters); result.put(work);
+                }
+            } catch (Exception ignored) {}
+            return result.toString();
+        }
+
+        @JavascriptInterface
+        public void openStoredChapter(String workKey, String chapterKey) {
+            runOnUiThread(() -> showOfflineReader(workKey, chapterKey));
+        }
+
+        @JavascriptInterface
         public void saveOfflineProgress(String workId, String chapterId, double progress) {
             saveChapterProgress(workId, chapterId, progress);
         }
