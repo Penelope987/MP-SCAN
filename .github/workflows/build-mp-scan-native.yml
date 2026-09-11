@@ -9,7 +9,7 @@ on:
       - '.github/workflows/build-mp-scan-native.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -37,12 +37,3 @@ jobs:
           name: mp-scan-native-preview
           path: downloads/mp-scan-native-preview.apk
           if-no-files-found: error
-      - name: Publish preview APK
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add downloads/mp-scan-native-preview.apk
-          if ! git diff --cached --quiet; then
-            git commit -m "Update native MP SCAN preview APK"
-            git push origin main
-          fi
