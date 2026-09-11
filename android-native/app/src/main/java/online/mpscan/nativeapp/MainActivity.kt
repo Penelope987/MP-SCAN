@@ -393,11 +393,28 @@ private fun ProfileScreen(back: () -> Unit, signedIn: () -> Unit) {
     var password by rememberSaveable { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
+    var profile by remember { mutableStateOf<AccountProfile?>(null) }
+    LaunchedEffect(session?.idToken) {
+        profile = session?.let { runCatching { auth.loadProfile(it) }.getOrNull() }
+    }
     LazyColumn(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 32.dp)) {
         item { Row(verticalAlignment = Alignment.CenterVertically) { FilledTonalButton(onClick = back) { Text("←") }; Spacer(Modifier.width(12.dp)); Text("Perfil", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black) } }
-        item { Box(Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(28.dp)).background(Brush.linearGradient(listOf(Color(0xFF4A285E), Color(0xFF211329)))), contentAlignment = Alignment.Center) { Box(Modifier.size(82.dp).clip(RoundedCornerShape(28.dp)).background(Brush.linearGradient(listOf(Purple, Pink))), contentAlignment = Alignment.Center) { Text("👤", style = MaterialTheme.typography.headlineLarge) } } }
+        item {
+            Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(26.dp)).background(Brush.linearGradient(listOf(Color(0xFF37224E), Card2)))) {
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xC90B0B0D)))))
+                Box(Modifier.align(Alignment.BottomStart).padding(18.dp).size(94.dp).clip(RoundedCornerShape(28.dp)).background(Brush.linearGradient(listOf(Purple, Pink))), contentAlignment = Alignment.Center) { Text("👤", style = MaterialTheme.typography.headlineLarge) }
+            }
+        }
         if (session != null) {
-            item { Text("Conta conectada", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black); Text(session?.email.orEmpty(), color = Muted) }
+            item { Text(profile?.name?.takeIf { it.isNotBlank() } ?: "Conta conectada", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black); Text(profile?.username?.takeIf { it.isNotBlank() }?.let { "@$it" } ?: session?.email.orEmpty(), color = Muted) }
+            item {
+                Surface(Modifier.fillMaxWidth(), color = Card, shape = RoundedCornerShape(21.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) {
+                    Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceAround) {
+                        ProfileStat("0", "Seguidores"); ProfileStat("0", "Seguindo"); ProfileStat("0", "Obras lidas")
+                    }
+                }
+            }
+            item { MenuCard("✎", "Editar perfil", "Nome, arroba, foto, capa e privacidade") { message = "A edição completa do perfil está sendo conectada nesta reconstrução." } }
             item { Button(onClick = { auth.signOut(context); session = null; message = "Você saiu da conta com segurança." }, modifier = Modifier.fillMaxWidth()) { Text("Sair da conta") } }
         } else {
             item { Text("Entre na sua conta", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black); Text("O perfil será usado nos comentários, reações e sincronização da biblioteca.", color = Muted) }
@@ -408,6 +425,11 @@ private fun ProfileScreen(back: () -> Unit, signedIn: () -> Unit) {
         }
         if (message.isNotBlank()) item { Text(message, color = Color(0xFFE1BCF4)) }
     }
+}
+
+@Composable
+private fun ProfileStat(value: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(value, color = Purple, fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleLarge); Text(label, color = Muted, style = MaterialTheme.typography.labelSmall) }
 }
 
 @Composable
