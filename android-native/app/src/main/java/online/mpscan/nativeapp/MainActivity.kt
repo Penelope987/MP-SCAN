@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
+import android.app.Application
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
@@ -36,6 +38,8 @@ import kotlinx.coroutines.launch
 import online.mpscan.nativeapp.data.FirebaseCatalogRepository
 import online.mpscan.nativeapp.data.FirebaseAuthRepository
 import online.mpscan.nativeapp.data.AccountProfile
+import online.mpscan.nativeapp.data.OfflineLibrary
+import online.mpscan.nativeapp.data.OfflineChapter
 import online.mpscan.nativeapp.model.Chapter
 import online.mpscan.nativeapp.model.Work
 
@@ -59,11 +63,18 @@ data class CatalogState(
     val works: List<Work> = emptyList(),
     val chapters: List<Chapter> = emptyList(),
     val selected: Work? = null,
-    val error: String? = null
+    val error: String? = null,
+    val reader: ReaderState? = null,
+    val downloads: List<OfflineChapter> = emptyList(),
+    val downloadProgress: Map<String, Int> = emptyMap(),
+    val offline: Boolean = false
 )
 
-class CatalogViewModel : ViewModel() {
+data class ReaderState(val work: Work, val chapter: Chapter, val pages: List<String>, val downloaded: Boolean)
+
+class CatalogViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = FirebaseCatalogRepository()
+    private val offline = OfflineLibrary(application)
     var state by mutableStateOf(CatalogState())
         private set
 
@@ -72,18 +83,40 @@ class CatalogViewModel : ViewModel() {
     fun refresh() = viewModelScope.launch {
         state = state.copy(loading = true, error = null)
         runCatching { repository.loadWorks() }
-            .onSuccess { state = state.copy(loading = false, works = it) }
-            .onFailure { state = state.copy(loading = false, error = "Não foi possível carregar o catálogo.") }
+            .onSuccess { offline.saveCatalog(it); state = state.copy(loading = false, works = it, offline = false) }
+            .onFailure { val cached = offline.loadCatalog(); state = state.copy(loading = false, works = cached, offline = true, error = if (cached.isEmpty()) "Conecte-se uma vez para sincronizar o catálogo." else null) }
     }
 
     fun open(work: Work) = viewModelScope.launch {
         state = state.copy(selected = work, chapters = emptyList(), loading = true, error = null)
         runCatching { repository.loadChapters(work.id) }
-            .onSuccess { state = state.copy(loading = false, chapters = it) }
-            .onFailure { state = state.copy(loading = false, error = "Não foi possível carregar os capítulos.") }
+            .onSuccess { offline.saveChapters(work.id, it); state = state.copy(loading = false, chapters = it, offline = false) }
+            .onFailure { val cached = offline.loadChapters(work.id); state = state.copy(loading = false, chapters = cached, offline = true, error = if (cached.isEmpty()) "Estes capítulos ainda não foram sincronizados." else null) }
     }
 
     fun closeWork() { state = state.copy(selected = null, chapters = emptyList(), error = null) }
+
+    fun openChapter(work: Work, chapter: Chapter) = viewModelScope.launch {
+        state = state.copy(loading = true, error = null)
+        val local = offline.localPages(work.id, chapter.id)
+        if (local.isNotEmpty()) { state = state.copy(loading = false, reader = ReaderState(work, chapter, local, true)); return@launch }
+        runCatching { repository.loadPages(work.id, chapter.id) }
+            .onSuccess { state = state.copy(loading = false, reader = ReaderState(work, chapter, it, false)) }
+            .onFailure { state = state.copy(loading = false, error = "Este capítulo não foi baixado e a internet está indisponível.") }
+    }
+
+    fun closeReader() { state = state.copy(reader = null, error = null) }
+    fun loadDownloads() = viewModelScope.launch { state = state.copy(downloads = offline.downloads()) }
+    fun download(work: Work, chapter: Chapter) = viewModelScope.launch {
+        val key = "${work.id}__${chapter.id}"
+        state = state.copy(downloadProgress = state.downloadProgress + (key to 0), error = null)
+        runCatching {
+            val pages = repository.loadPages(work.id, chapter.id)
+            offline.downloadChapter(work, chapter, pages) { value -> state = state.copy(downloadProgress = state.downloadProgress + (key to value)) }
+        }.onSuccess { state = state.copy(downloadProgress = state.downloadProgress - key); loadDownloads() }
+         .onFailure { state = state.copy(downloadProgress = state.downloadProgress - key, error = "Não foi possível baixar o capítulo.") }
+    }
+    fun removeDownload(item: OfflineChapter) = viewModelScope.launch { offline.remove(item.work.id, item.chapter.id); loadDownloads() }
 }
 
 @Composable
@@ -114,14 +147,14 @@ private fun MpScanApp(vm: CatalogViewModel = viewModel()) {
     var query by remember { mutableStateOf("") }
     var morePage by rememberSaveable { mutableStateOf(MorePage.Menu) }
     val state = vm.state
-    BackHandler(state.selected != null || (tab == Tab.More && morePage != MorePage.Menu)) {
-        if (state.selected != null) vm.closeWork() else morePage = MorePage.Menu
+    BackHandler(state.reader != null || state.selected != null || (tab == Tab.More && morePage != MorePage.Menu)) {
+        if (state.reader != null) vm.closeReader() else if (state.selected != null) vm.closeWork() else morePage = MorePage.Menu
     }
 
     Scaffold(
         containerColor = Bg,
         bottomBar = {
-            if (state.selected == null) NavigationBar(containerColor = Color(0xF5120C19)) {
+            if (state.selected == null && state.reader == null) NavigationBar(containerColor = Color(0xF5120C19)) {
                 Tab.entries.forEach { item ->
                     NavigationBarItem(
                         selected = tab == item,
@@ -135,10 +168,11 @@ private fun MpScanApp(vm: CatalogViewModel = viewModel()) {
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             when {
-                state.selected != null -> WorkScreen(state.selected, state.chapters, state.loading, vm::closeWork)
+                state.reader != null -> ReaderScreen(state.reader, vm::closeReader, { vm.download(state.reader.work, state.reader.chapter) }, state.downloadProgress["${state.reader.work.id}__${state.reader.chapter.id}"])
+                state.selected != null -> WorkScreen(state.selected, state.chapters, state.loading, state.downloadProgress, vm::closeWork, { vm.openChapter(state.selected, it) }, { vm.download(state.selected, it) })
                 tab == Tab.Home -> HomeScreen(state, vm::open, vm::refresh)
                 tab == Tab.Search -> SearchScreen(state.works, query, { query = it }, vm::open)
-                tab == Tab.Library -> PlaceholderScreen("Sua biblioteca", "Downloads e progresso offline entrarão na próxima etapa.", "▣")
+                tab == Tab.Library -> DownloadsScreen(state.downloads, vm::loadDownloads, { vm.openChapter(it.work, it.chapter) }, vm::removeDownload)
                 else -> when (morePage) {
                     MorePage.Menu -> MoreScreen(
                         openSettings = { morePage = MorePage.Settings },
@@ -386,7 +420,7 @@ private fun SearchScreen(works: List<Work>, query: String, change: (String) -> U
 }
 
 @Composable
-private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, close: () -> Unit) {
+private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, progress: Map<String, Int>, close: () -> Unit, openChapter: (Chapter) -> Unit, download: (Chapter) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 30.dp)) {
         item {
             Box(Modifier.fillMaxWidth().height(230.dp)) {
@@ -406,12 +440,48 @@ private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, cl
         if (loading) item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
         items(chapters, key = { it.id }) { chapter ->
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 5.dp).clip(RoundedCornerShape(18.dp)).background(Card).clickable { }.padding(14.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 5.dp).clip(RoundedCornerShape(18.dp)).background(Card).clickable { openChapter(chapter) }.padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(Modifier.size(50.dp).clip(RoundedCornerShape(15.dp)).background(Color(0xFF2A1936)), contentAlignment = Alignment.Center) { Text(chapter.number?.toString()?.removeSuffix(".0") ?: "—", color = Color(0xFFE0BCF6), fontWeight = FontWeight.Black) }
-                Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(chapter.label, fontWeight = FontWeight.Bold); Text(chapter.title.ifBlank { "Toque para ler" }, color = Muted, style = MaterialTheme.typography.bodySmall) }
-                Text("›", style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(chapter.label, fontWeight = FontWeight.Bold); Text(chapter.title.ifBlank { "Toque para ler" }, color = Muted, style = MaterialTheme.typography.bodySmall); progress["${work.id}__${chapter.id}"]?.let { LinearProgressIndicator(progress = { it / 100f }, modifier = Modifier.fillMaxWidth().padding(top = 7.dp)) } }
+                IconButton(onClick = { download(chapter) }) { Text("⇩", style = MaterialTheme.typography.titleLarge) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReaderScreen(reader: ReaderState, close: () -> Unit, download: () -> Unit, progress: Int?) {
+    Column(Modifier.fillMaxSize().background(Color.Black)) {
+        Row(Modifier.fillMaxWidth().background(Color(0xF517111D)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            FilledTonalButton(onClick = close) { Text("←") }
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) { Text(reader.work.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold); Text(reader.chapter.label, color = Muted, style = MaterialTheme.typography.bodySmall) }
+            if (!reader.downloaded) Button(onClick = download, enabled = progress == null) { Text(progress?.let { "$it%" } ?: "Baixar") }
+            else AssistChip(onClick = {}, label = { Text("Offline ✓") })
+        }
+        if (reader.pages.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Nenhuma página encontrada.") }
+        else LazyColumn(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+            items(reader.pages) { page -> AsyncImage(model = page, contentDescription = null, modifier = Modifier.fillMaxWidth(), contentScale = ContentScale.FillWidth) }
+            item { Text("Fim de ${reader.chapter.label}", modifier = Modifier.padding(28.dp), color = Muted) }
+        }
+    }
+}
+
+@Composable
+private fun DownloadsScreen(items: List<OfflineChapter>, load: () -> Unit, open: (OfflineChapter) -> Unit, remove: (OfflineChapter) -> Unit) {
+    LaunchedEffect(Unit) { load() }
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 14.dp), contentPadding = PaddingValues(top = 18.dp, bottom = 30.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { AppHeader("Sua leitura disponível sem internet") }
+        item { Text("Downloads", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black); Text("${items.size} capítulos salvos neste aparelho", color = Muted) }
+        if (items.isEmpty()) item { PlaceholderScreen("Nada baixado ainda", "Abra uma obra e toque em ⇩ para salvar um capítulo.", "⇩") }
+        items(items, key = { "${it.work.id}__${it.chapter.id}" }) { item ->
+            Surface(Modifier.fillMaxWidth().clickable { open(item) }, color = Card, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    AsyncImage(item.work.cover, item.work.title, Modifier.width(58.dp).aspectRatio(2f/3f).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) { Text(item.work.title, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis); Text("${item.chapter.label} • ${item.pageCount} páginas", color = Muted, style = MaterialTheme.typography.bodySmall); Text("Disponível offline", color = Color(0xFF72D7A5), style = MaterialTheme.typography.labelSmall) }
+                    TextButton(onClick = { remove(item) }) { Text("Excluir") }
+                }
             }
         }
     }
