@@ -41,6 +41,8 @@ import online.mpscan.nativeapp.data.FirebaseAuthRepository
 import online.mpscan.nativeapp.data.AccountProfile
 import online.mpscan.nativeapp.data.OfflineLibrary
 import online.mpscan.nativeapp.data.OfflineChapter
+import online.mpscan.nativeapp.data.CommunityRepository
+import online.mpscan.nativeapp.data.WorkComment
 import online.mpscan.nativeapp.model.Chapter
 import online.mpscan.nativeapp.model.Work
 
@@ -70,6 +72,8 @@ data class CatalogState(
     val downloadProgress: Map<String, Int> = emptyMap(),
     val offline: Boolean = false,
     val libraryIds: Set<String> = emptySet()
+    ,val comments: List<WorkComment> = emptyList()
+    ,val commentsLoading: Boolean = false
 )
 
 data class ReaderState(val work: Work, val chapter: Chapter, val pages: List<String>, val downloaded: Boolean)
@@ -78,6 +82,7 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
     private val repository = FirebaseCatalogRepository()
     private val offline = OfflineLibrary(application)
     private val auth = FirebaseAuthRepository()
+    private val community = CommunityRepository()
     private val preferences = application.getSharedPreferences("mp_scan_library", android.content.Context.MODE_PRIVATE)
     var state by mutableStateOf(CatalogState(libraryIds = preferences.getStringSet("works", emptySet())?.toSet() ?: emptySet()))
         private set
@@ -95,10 +100,28 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun open(work: Work) = viewModelScope.launch {
-        state = state.copy(selected = work, chapters = emptyList(), loading = true, error = null)
+        state = state.copy(selected = work, chapters = emptyList(), comments = emptyList(), loading = true, error = null)
         runCatching { repository.loadChapters(work.id) }
             .onSuccess { offline.saveChapters(work.id, it); state = state.copy(loading = false, chapters = it, offline = false) }
             .onFailure { val cached = offline.loadChapters(work.id); state = state.copy(loading = false, chapters = cached, offline = true, error = if (cached.isEmpty()) "Estes capítulos ainda não foram sincronizados." else null) }
+        loadComments(work.id)
+    }
+
+    fun loadComments(workId: String) = viewModelScope.launch {
+        state = state.copy(commentsLoading = true)
+        runCatching { community.comments(workId) }
+            .onSuccess { state = state.copy(comments = it, commentsLoading = false) }
+            .onFailure { state = state.copy(commentsLoading = false) }
+    }
+
+    fun postComment(workId: String, text: String, spoiler: Boolean) = viewModelScope.launch {
+        val session = auth.current(getApplication())
+        if (session == null) { state = state.copy(error = "Entre na sua conta para comentar."); return@launch }
+        if (text.isBlank()) { state = state.copy(error = "Escreva um comentário antes de enviar."); return@launch }
+        state = state.copy(commentsLoading = true, error = null)
+        runCatching { community.post(workId, session, text, spoiler) }
+            .onSuccess { loadComments(workId) }
+            .onFailure { state = state.copy(commentsLoading = false, error = it.message ?: "Não foi possível publicar o comentário.") }
     }
 
     fun closeWork() { state = state.copy(selected = null, chapters = emptyList(), error = null) }
@@ -202,7 +225,7 @@ private fun MpScanApp(vm: CatalogViewModel = viewModel()) {
         Box(Modifier.fillMaxSize().padding(padding)) {
             when {
                 state.reader != null -> ReaderScreen(state.reader, vm::closeReader, { vm.download(state.reader.work, state.reader.chapter) }, state.downloadProgress["${state.reader.work.id}__${state.reader.chapter.id}"])
-                state.selected != null -> WorkScreen(state.selected, state.chapters, state.loading, state.downloadProgress, state.selected.id in state.libraryIds, vm::closeWork, { vm.openChapter(state.selected, it) }, { vm.download(state.selected, it) }, { vm.downloadAll(state.selected, state.chapters) }, { vm.toggleLibrary(state.selected) })
+                state.selected != null -> WorkScreen(state.selected, state.chapters, state.loading, state.downloadProgress, state.selected.id in state.libraryIds, state.comments, state.commentsLoading, vm::closeWork, { vm.openChapter(state.selected, it) }, { vm.download(state.selected, it) }, { vm.downloadAll(state.selected, state.chapters) }, { vm.toggleLibrary(state.selected) }, { text, spoiler -> vm.postComment(state.selected.id, text, spoiler) })
                 tab == Tab.Home -> HomeScreen(state, vm::open, vm::refresh)
                 tab == Tab.Search -> SearchScreen(state.works, query, { query = it }, vm::open)
                 tab == Tab.Library -> LibraryScreen(state.works.filter { it.id in state.libraryIds }, state.downloads, vm::loadDownloads, vm::open, { vm.openChapter(it.work, it.chapter) }, vm::removeDownload)
@@ -453,7 +476,9 @@ private fun SearchScreen(works: List<Work>, query: String, change: (String) -> U
 }
 
 @Composable
-private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, progress: Map<String, Int>, inLibrary: Boolean, close: () -> Unit, openChapter: (Chapter) -> Unit, download: (Chapter) -> Unit, downloadAll: () -> Unit, toggleLibrary: () -> Unit) {
+private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, progress: Map<String, Int>, inLibrary: Boolean, comments: List<WorkComment>, commentsLoading: Boolean, close: () -> Unit, openChapter: (Chapter) -> Unit, download: (Chapter) -> Unit, downloadAll: () -> Unit, toggleLibrary: () -> Unit, postComment: (String, Boolean) -> Unit) {
+    var commentText by rememberSaveable(work.id) { mutableStateOf("") }
+    var spoiler by rememberSaveable(work.id) { mutableStateOf(false) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 30.dp)) {
         item {
             Box(Modifier.fillMaxWidth().height(230.dp)) {
@@ -486,6 +511,26 @@ private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, pr
                 Box(Modifier.size(50.dp).clip(RoundedCornerShape(15.dp)).background(Color(0xFF2A1936)), contentAlignment = Alignment.Center) { Text(chapter.number?.toString()?.removeSuffix(".0") ?: "—", color = Color(0xFFE0BCF6), fontWeight = FontWeight.Black) }
                 Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(chapter.label, fontWeight = FontWeight.Bold); Text(chapter.title.ifBlank { "Toque para ler" }, color = Muted, style = MaterialTheme.typography.bodySmall); progress["${work.id}__${chapter.id}"]?.let { LinearProgressIndicator(progress = { it / 100f }, modifier = Modifier.fillMaxWidth().padding(top = 7.dp)) } }
                 IconButton(onClick = { download(chapter) }) { Text("⇩", style = MaterialTheme.typography.titleLarge) }
+            }
+        }
+        item { Text("Comentários", modifier = Modifier.padding(16.dp, 22.dp, 16.dp, 8.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
+        item {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).clip(RoundedCornerShape(20.dp)).background(Card).padding(14.dp)) {
+                OutlinedTextField(commentText, { commentText = it }, Modifier.fillMaxWidth(), label = { Text("Escreva um comentário") }, minLines = 2)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(spoiler, { spoiler = it }); Text("Marcar como spoiler", Modifier.weight(1f))
+                    Button(onClick = { postComment(commentText, spoiler); commentText = ""; spoiler = false }, enabled = commentText.isNotBlank() && !commentsLoading) { Text("Enviar") }
+                }
+            }
+        }
+        if (commentsLoading) item { LinearProgressIndicator(Modifier.fillMaxWidth().padding(16.dp)) }
+        if (!commentsLoading && comments.isEmpty()) item { Text("Ainda não há comentários nesta obra.", color = Muted, modifier = Modifier.padding(16.dp)) }
+        items(comments, key = { it.id }) { comment ->
+            Surface(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp), color = Card, shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) {
+                Column(Modifier.padding(14.dp)) {
+                    Text(comment.author + comment.username.takeIf { it.isNotBlank() }?.let { "  @$it" }.orEmpty(), fontWeight = FontWeight.Bold)
+                    Text(if (comment.spoiler) "⚠ SPOILER — toque não é necessário: conteúdo ocultado nesta versão." else comment.text, color = if (comment.spoiler) Pink else Color.White, modifier = Modifier.padding(top = 7.dp))
+                }
             }
         }
     }
