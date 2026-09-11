@@ -302,6 +302,7 @@
   }
 
   function refresh() {
+    const promo=document.getElementById('downloadAndroidAppCard');if(promo)promo.style.setProperty('display','none','important');
     hideWholeWorkDownloads();
     rememberWorkTitle();
     syncNativeDownloadsPanel();

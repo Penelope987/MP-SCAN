@@ -1,0 +1,791 @@
+do, mas nenhuma imagem de página foi encontrada. Se ele foi publicado antes, abra o ADM e edite o capítulo para confirmar as imagens.',workId,id);return;}
+        try{const k='mp_read_'+workId+'_'+id;if(!sessionStorage.getItem(k)){sessionStorage.setItem(k,'1');await tx('obras/'+workId+'/leituras',v=>num(v)+1).catch(()=>{});}}catch(e){}
+        if(seq!==chapterRenderSeq)return;
+        const cur=router.current();
+        if(cur?.page!=='chapter'||cur.workId!==workId||cur.id!==id)return;
+        const settings=readerSettings(),savedHistory=state.history?.[workId];
+        if(settings.mode==='one'&&settings.resume==='on'&&savedHistory?.chapterId===id&&!historyIsComplete(savedHistory)&&num(savedHistory.paginaAtual)>0)settings.page=Math.max(0,Math.min(pages.length-1,num(savedHistory.paginaAtual)-1));else settings.page=0;
+        const list=(state.chapters[workId]||[]).slice().sort((a,b)=>num(b.number)-num(a.number)||b.createdAt-a.createdAt),idx=list.findIndex(x=>x.id===id),prev=idx>=0?list[idx+1]:null,next=idx>=0?list[idx-1]:null;
+        if(commentHasPending(chapterCommentKey)&&el.dataset.chapterId===id&&el.dataset.workId===workId&&el.querySelector('[data-comment-composer]'))return;
+        el.dataset.workId=workId;el.dataset.chapterId=id;el.dataset.chapterMounted=renderKey;
+        el.innerHTML="<div class='reader-v32'>"+readerTopbarHtml(w,c)+"<main class='reader-stage'><div class='reader-stage-inner'><div id='readerPages' data-reader-tap-area='true'></div></div></main><div id='chapterContentReactions' class='reader-content-reaction-wrap'></div>"+readerBottomHtml(workId,prev,next)+readerChapterPanelHtml(workId,id,list)+readerCommentsPanelHtml(workId,id,c)+readerSheetHtml(workId,id,settings,false)+"</div>";
+        bindReaderLocalControls();
+        applyReaderVisualSettings(settings);setupReaderChrome(settings);renderReaderPages(pages,workId,id,c,settings);
+        renderComments('capitulo',workId,id,'#chapterComments').catch(err=>console.warn('Comentários do capítulo:',err));
+        renderContentReactions('chapter',workId,id,'#chapterContentReactions').catch(err=>console.warn('Reações do capítulo:',err));
+        document.title=w.name+' — Capítulo '+c.number+' — MP SCAN';
+      }catch(err){
+        console.error('Erro ao abrir capítulo:',err);
+        if(seq===chapterRenderSeq)el.innerHTML=chapterErrorHtml('O leitor encontrou um erro ao montar este capítulo. Use “Tentar novamente”.',workId,id);
+      }finally{
+        if(seq===chapterRenderSeq&&el.dataset.chapterLoading===renderKey)delete el.dataset.chapterLoading;
+      }
+    }
+
+    function readerSettings(){
+      let s={width:100,gap:0,mode:'vertical',page:0,fit:'screen',direction:'ltr',brightness:100,contrast:100,grayscale:0,warmth:0,background:'black',progress:'show',keepAwake:false,uiMode:'stable',tapControls:'off',tapZones:'on',keyboard:'on',transition:'fade',zoom:100,resume:'on',preload:'2',scrollSpeed:2};
+      try{s={...s,...JSON.parse(localStorage.getItem('mp_reader')||'{}')};}catch(e){}
+      if(state.profile?.readerSettings&&typeof state.profile.readerSettings==='object')s={...s,...state.profile.readerSettings};
+      s.width=Math.max(40,Math.min(100,num(s.width)||100));
+      s.gap=Math.max(0,Math.min(60,num(s.gap)));
+      s.brightness=Math.max(55,Math.min(125,num(s.brightness)||100));
+      s.contrast=Math.max(75,Math.min(140,num(s.contrast)||100));
+      s.grayscale=Math.max(0,Math.min(100,num(s.grayscale)));
+      s.warmth=Math.max(0,Math.min(55,num(s.warmth)));
+      s.zoom=Math.max(100,Math.min(200,num(s.zoom)||100));
+      s.scrollSpeed=Math.max(1,Math.min(5,num(s.scrollSpeed)||2));
+      s.page=0;
+      if(!['vertical','one'].includes(s.mode))s.mode='vertical';
+      if(!['screen','width'].includes(s.fit))s.fit='screen';
+      if(!['ltr','rtl'].includes(s.direction))s.direction='ltr';
+      if(!['black','charcoal','light','sepia'].includes(s.background))s.background='black';
+      if(!['show','hide'].includes(s.progress))s.progress='show';
+      s.keepAwake=!!s.keepAwake;
+      s.uiMode='stable';
+      s.tapControls='off';
+      if(!['on','off'].includes(s.tapZones))s.tapZones='on';
+      if(!['on','off'].includes(s.keyboard))s.keyboard='on';
+      if(!['none','fade','slide'].includes(s.transition))s.transition='fade';
+      if(!['on','off'].includes(s.resume))s.resume='on';
+      s.preload=String(['0','2','4'].includes(String(s.preload))?s.preload:'2');
+      const ap=getAppSettings();if(ap.dataSaver)s.preload='0';if(ap.reduceMotion)s.transition='none';
+      return s;
+    }
+    let readerSettingsSyncTimer=null;
+    function readerPreferenceSnapshot(s){const clean={...s};delete clean.page;return clean;}
+    function saveReaderSettings(s){const clean=readerPreferenceSnapshot(s);try{localStorage.setItem('mp_reader',JSON.stringify(clean));}catch(e){}if(state.profile&&!state.user?.isAnonymous)state.profile={...state.profile,readerSettings:{...clean}};if(state.firebaseReady&&isMember()){clearTimeout(readerSettingsSyncTimer);const snapshot={...clean};readerSettingsSyncTimer=setTimeout(()=>dbUpdate('usuarios/'+state.user.uid,{readerSettings:snapshot}).catch(()=>{}),700);}}
+    function applyReaderVisualSettings(s){
+      const bg={black:'#050507',charcoal:'#17171b',light:'#f4f4f2',sepia:'#e9dfc7'}[s.background]||'#050507';
+      document.documentElement.style.setProperty('--reader-width',Math.max(40,Math.min(100,num(s.width)))+'%');
+      document.documentElement.style.setProperty('--reader-gap',Math.max(0,Math.min(60,num(s.gap)))+'px');
+      document.documentElement.style.setProperty('--reader-brightness',(Math.max(55,Math.min(125,num(s.brightness)))/100));
+      document.documentElement.style.setProperty('--reader-contrast',(Math.max(75,Math.min(140,num(s.contrast)))/100));
+      document.documentElement.style.setProperty('--reader-grayscale',(Math.max(0,Math.min(100,num(s.grayscale)))/100));
+      document.documentElement.style.setProperty('--reader-warmth',(Math.max(0,Math.min(55,num(s.warmth)))/100));
+      document.documentElement.style.setProperty('--reader-bg',bg);
+      const shell=$('#readerShell');if(shell)shell.style.background=bg;
+      document.body.classList.add('reader-active');
+      document.body.classList.remove('reader-ui-hidden','reader-ui-fixed','reader-ui-focus','reader-ui-peek');
+      $('#readerShell')?.classList.toggle('reader-progress-hidden',s.progress==='hide');$('#chapterReaderContent')?.classList.toggle('reader-progress-hidden',s.progress==='hide');
+    }
+    function updateReaderLockButton(s){}
+    function setupReaderChrome(s){
+      document.body.classList.add('reader-active');
+      document.body.classList.remove('reader-ui-hidden','reader-ui-fixed','reader-ui-focus','reader-ui-peek');
+      applyReaderVisualSettings(s);
+      if(window.__readerChromeScroll){window.removeEventListener('scroll',window.__readerChromeScroll);window.__readerChromeScroll=null;}
+    }
+    function toggleReaderChromeByTap(){}
+    function preloadReaderPages(pages,index,count){
+      const n=Math.max(0,num(count));if(!n)return;
+      for(let i=1;i<=n;i++)for(const pos of [index+i,index-i])if(pos>=0&&pos<pages.length){const im=new Image();im.src=pages[pos];}
+    }
+    function clearReaderResumeTimers(){for(const t of window.__readerResumeTimers||[])clearTimeout(t);window.__readerResumeTimers=[];}
+    function readerRatioKey(workId,id){return 'mp_reader_ratios:'+workId+':'+id;}
+    function readerRatios(workId,id){try{const v=JSON.parse(localStorage.getItem(readerRatioKey(workId,id))||'[]');return Array.isArray(v)?v:[];}catch(e){return[];}}
+    function rememberReaderRatio(workId,id,index,img){if(!img?.naturalWidth||!img?.naturalHeight)return;const ratio=img.naturalWidth/img.naturalHeight;if(!Number.isFinite(ratio)||ratio<=0)return;const list=readerRatios(workId,id);if(Math.abs(num(list[index])-ratio)<.0005)return;list[index]=Number(ratio.toFixed(6));try{localStorage.setItem(readerRatioKey(workId,id),JSON.stringify(list.slice(0,400)));}catch(e){}}
+    function maybeResumeReader(workId,id,s){
+      if(s.resume!=='on'||s.mode!=='vertical')return false;
+      const h=state.history?.[workId];if(!h||h.chapterId!==id||historyIsComplete(h))return false;
+      const total=window.__readerPages?.pages?.length||num(h.totalPaginas),savedPage=Math.max(1,Math.min(total||1,num(h.paginaAtual)||1)),savedOffset=Number.isFinite(Number(h.paginaOffset))?Math.max(0,Math.min(1,Number(h.paginaOffset))):.45,key=workId+'__'+id;
+      if(savedPage<=1&&historyProgressValue(h)<2)return false;if(window.__readerResumeDoneKey===key)return false;
+      window.__readerResumeDoneKey=key;window.__readerResuming=true;clearReaderResumeTimers();
+      const imgs=Array.from($('#readerPages')?.querySelectorAll('.reader-images img')||[]),targetIndex=Math.max(0,Math.min(imgs.length-1,savedPage-1));
+      imgs.forEach((img,i)=>{if(i<=targetIndex+1)try{img.loading='eager';}catch(e){}});
+      const align=()=>{const cur=router.current();if(cur?.page!=='chapter'||cur.workId!==workId||cur.id!==id)return;const img=Array.from($('#readerPages')?.querySelectorAll('.reader-images img')||[])[targetIndex];if(!img)return;const r=img.getBoundingClientRect(),absoluteTop=window.scrollY+r.top,height=Math.max(1,r.height),target=Math.max(0,absoluteTop+(height*savedOffset)-(window.innerHeight*.52));window.scrollTo({top:target,behavior:'auto'});};
+      [90,240,520,900,1450,2200].forEach((delay,i)=>window.__readerResumeTimers.push(setTimeout(()=>{align();if(i===5){window.__readerResuming=false;window.__mpProgressFn?.();}},delay)));
+      return true;
+    }
+    function stopReaderAutoScroll(){window.__readerAutoScrollActive=false;if(window.__readerAutoScrollFrame)cancelAnimationFrame(window.__readerAutoScrollFrame);window.__readerAutoScrollFrame=null;window.__readerAutoScrollLast=0;}
+    function startReaderAutoScroll(){
+      const d=window.__readerPages;if(!d||d.s.mode!=='vertical'){ui.toast('A rolagem automática funciona no modo vertical.');return;}
+      stopReaderAutoScroll();window.__readerAutoScrollActive=true;
+      const step=t=>{if(!window.__readerAutoScrollActive||router.current()?.page!=='chapter')return;const last=window.__readerAutoScrollLast||t,dt=Math.min(50,t-last);window.__readerAutoScrollLast=t;const pxPerSec=18+num(d.s.scrollSpeed)*16;window.scrollBy(0,pxPerSec*dt/1000);if((window.innerHeight+window.scrollY)>=document.documentElement.scrollHeight-4){stopReaderAutoScroll();syncReaderSheetUI(d.s);return;}window.__readerAutoScrollFrame=requestAnimationFrame(step);};
+      window.__readerAutoScrollFrame=requestAnimationFrame(step);
+    }
+    function syncReaderSheetUI(s){
+      const root=$('#readerSheetBackdrop');if(!root)return;
+      $$('[data-reader-choice]',root).forEach(b=>b.classList.toggle('active',String(s[b.dataset.readerChoice])===String(b.dataset.readerValue)));
+      $$('[data-reader-value-label]',root).forEach(x=>{const k=x.dataset.readerValueLabel;if(k==='gap')x.textContent=s[k]+'px';else if(k==='scrollSpeed')x.textContent=s[k]+'×';else x.textContent=s[k]+'%';});
+      $$('[data-reader-range]',root).forEach(r=>{const k=r.dataset.readerRange;if(document.activeElement!==r)r.value=s[k];});
+      const wake=$('[data-reader-wake]',root);if(wake){wake.classList.toggle('active',!!s.keepAwake);wake.textContent=s.keepAwake?'☀ Tela sempre ligada: ON':'☾ Manter tela ligada';}
+      const auto=$('[data-reader-autoscroll]',root);if(auto){auto.classList.toggle('active',!!window.__readerAutoScrollActive);auto.textContent=window.__readerAutoScrollActive?'⏸ Pausar rolagem automática':'▶ Iniciar rolagem automática';}
+      const modeStatus=$('[data-reader-mode-status]',root);if(modeStatus)modeStatus.textContent='Modo atual: '+(s.mode==='one'?'Uma página':'Vertical');
+    }
+    function renderReaderPages(pages,workId,id,c,s){
+      const wrap=$('#readerPages');if(!wrap)return;
+      applyReaderVisualSettings(s);
+      if(!pages.length){wrap.innerHTML="<div class='reader-load-state'><div class='reader-load-card'><h2>Sem páginas</h2><p>Este capítulo ainda não possui imagens.</p></div></div>";return;}
+      if(s.mode==='one'){
+        s.page=Math.max(0,Math.min(pages.length-1,num(s.page)));
+        const prev="<button type='button' class='reader-page-nav prev' data-page-prev='true' "+(s.page===0?'disabled':'')+" aria-label='Página anterior'>← <span>Anterior</span></button>",next="<button type='button' class='reader-page-nav next' data-page-next='true' "+(s.page===pages.length-1?'disabled':'')+" aria-label='Próxima página'><span>Próxima</span> →</button>";
+        const tapZones=s.tapZones==='on'?"<button class='reader-tap-zone left' type='button' data-page-zone='left' aria-label='Mudar página pela lateral esquerda'></button><button class='reader-tap-zone right' type='button' data-page-zone='right' aria-label='Mudar página pela lateral direita'></button>":'';
+        const trans=s.transition==='fade'?'reader-page-fade':(s.transition==='slide'?(window.__readerPageDirection==='prev'?'reader-page-slide-prev':'reader-page-slide-next'):'');
+        const zoomed=num(s.zoom)>100?' reader-zoomed':'';
+        const fit=s.fit==='width'?'width':'screen',oneWidth=fit==='width'?Math.min(300,Math.max(40,num(s.width))*Math.max(100,num(s.zoom))/100):Math.min(300,Math.max(100,num(s.zoom)));
+        const wrapStyle=" style='--reader-one-width:"+oneWidth+"%'";
+        wrap.innerHTML="<div class='one-page-wrap fit-"+fit+" "+trans+zoomed+"'"+wrapStyle+">"+tapZones+"<img src='"+escapeAttr(pages[s.page])+"' alt='Página "+(s.page+1)+"'/><div class='one-page-controls "+(s.direction==='rtl'?'rtl':'')+"'>"+prev+"<strong>Página "+(s.page+1)+" de "+pages.length+"</strong>"+next+"</div></div>";
+        const pageProgress=((s.page+1)/pages.length)*100;updateProgress(workId,id,c,pageProgress,s.page+1,pages.length,1,s.page===pages.length-1);if($('#readerProgress'))$('#readerProgress').style.width=pageProgress+'%';
+        window.__readerPages={pages,workId,id,c,s};preloadReaderPages(pages,s.page,s.preload);setupReaderChrome(s);
+      }else{
+        const ratios=readerRatios(workId,id);
+        wrap.innerHTML="<div class='reader-images reader-soft-pages'>"+pages.map((url,i)=>"<img data-reader-page='"+(i+1)+"' loading='"+(i<2?'eager':'lazy')+"' decoding='async' "+(num(ratios[i])>0?"style='aspect-ratio:"+num(ratios[i])+"' ":'')+"src='"+escapeAttr(url)+"' alt='Página "+(i+1)+"'/>").join('')+"</div>";
+        window.__readerPages={pages,workId,id,c,s};Array.from(wrap.querySelectorAll('.reader-images img')).forEach((img,i)=>{const remember=()=>{rememberReaderRatio(workId,id,i,img);if(img.naturalWidth&&img.naturalHeight)img.style.aspectRatio=String(img.naturalWidth/img.naturalHeight);};if(img.complete)remember();else img.addEventListener('load',remember,{once:true});});setupReaderChrome(s);maybeResumeReader(workId,id,s);setTimeout(trackVerticalProgress,260);
+        preloadReaderPages(pages,Math.max(0,(num(state.history?.[workId]?.paginaAtual)||1)-1),s.preload);
+      }
+      syncReaderSheetUI(s);
+    }
+    async function requestReaderWakeLock(showToast=true){
+      const d=window.__readerPages;if(!d)return false;
+      if(!('wakeLock' in navigator)){d.s.keepAwake=false;saveReaderSettings(d.s);syncReaderSheetUI(d.s);if(showToast)ui.toast('Este navegador não oferece a opção de manter a tela ligada.');return false;}
+      try{if(window.__readerWakeLock)await window.__readerWakeLock.release().catch(()=>{});window.__readerWakeLock=await navigator.wakeLock.request('screen');window.__readerWakeLock.addEventListener('release',()=>{window.__readerWakeLock=null;});return true;}catch(err){d.s.keepAwake=false;saveReaderSettings(d.s);syncReaderSheetUI(d.s);if(showToast)ui.toast('O navegador não permitiu manter a tela ligada.');return false;}
+    }
+    async function releaseReaderWakeLock(){try{if(window.__readerWakeLock)await window.__readerWakeLock.release();}catch(e){}window.__readerWakeLock=null;}
+    let progressTimer;
+    function verticalReaderPosition(wrap,totalPages){const imgs=Array.from(wrap?.querySelectorAll('.reader-images img')||[]),mid=window.innerHeight*.52;if(!imgs.length)return{page:1,offset:0,progress:0,complete:false};let best=-1,bestDist=Infinity,bestRect=null;imgs.forEach((img,i)=>{const r=img.getBoundingClientRect();if(r.height<3)return;const dist=mid<r.top?r.top-mid:(mid>r.bottom?mid-r.bottom:0);if(dist<bestDist){bestDist=dist;best=i;bestRect=r;}});if(best<0){const old=Math.max(1,Math.min(totalPages||1,num(state.history?.[window.__readerPages?.workId]?.paginaAtual)||1));return{page:old,offset:0,progress:Math.max(0,Math.min(99,(old-1)/Math.max(1,totalPages)*100)),complete:false};}const offset=Math.max(0,Math.min(1,(mid-bestRect.top)/Math.max(1,bestRect.height))),page=best+1,progress=Math.max(0,Math.min(100,((best+offset)/Math.max(1,totalPages))*100)),complete=page===totalPages&&(offset>=.9||bestRect.bottom<=window.innerHeight*.92);return{page,offset,progress:complete?100:Math.min(99.4,progress),complete};}
+    function trackVerticalProgress(){const data=window.__readerPages;if(!data||data.s.mode!=='vertical')return;const fn=()=>{const cur=router.current();if(cur?.page!=='chapter'||cur.workId!==data.workId||cur.id!==data.id)return;const wrap=$('#readerPages');if(!wrap)return;const pos=verticalReaderPosition(wrap,data.pages.length);if($('#readerProgress'))$('#readerProgress').style.width=pos.progress+'%';if(window.__readerResuming)return;clearTimeout(progressTimer);progressTimer=setTimeout(()=>updateProgress(data.workId,data.id,data.c,pos.progress,pos.page,data.pages.length,pos.offset,pos.complete),650);};if(window.__mpProgressFn)window.removeEventListener('scroll',window.__mpProgressFn);window.__mpProgressFn=fn;window.addEventListener('scroll',fn,{passive:true});fn();}
+    async function updateProgress(workId,id,c,p,page=0,totalPages=0,pageOffset=0,complete=false){if(!state.user)return;const concluded=!!complete&&num(page)>=num(totalPages)&&num(totalPages)>0,payload={obraId:workId,chapterId:id,numero:c.number,titulo:c.title||'',progresso:concluded?100:Math.min(99.4,Math.max(0,p)),concluido:concluded,paginaAtual:num(page),paginaOffset:Math.max(0,Math.min(1,Number(pageOffset)||0)),totalPaginas:num(totalPages),progressVersion:2,data:now()};state.history={...(state.history||{}),[workId]:payload};await dbSet('historico_leitura/'+state.user.uid+'/'+workId,payload).catch(()=>{});}
+    async function guestMayRead(c){if(!state.user?.isAnonymous)return true;const base='usuarios/'+state.user.uid+'/mpAccountState/capitulos',key=(c.workId||'obra')+'__'+c.id;const seen=await dbGet(base)||{};if(seen[key])return true;if(Object.keys(seen).length>=3)return false;await dbSet(base+'/'+key,{obraId:c.workId||'',chapterId:c.id,data:now()});return true;}
+
+    function profileAccent(p){const allowed=['#8d2bff','#ff4fa3','#4f8cff','#9d2449','#35b978','#e3a21a'];return allowed.includes(p?.corPerfil)?p.corPerfil:'#8d2bff';}
+    async function collectProfileActivity(uid){
+      const commentsRoot=await dbGet('comentariosV1').catch(()=>({}))||{},comments=[];
+      const walkComments=(node,where,workId,chapterId='')=>{for(const [id,c] of objEntries(node||{})){if(c?.uid===uid)comments.push({id,...c,where,workId,chapterId});for(const [rid,r] of objEntries(c?.respostas||{})){if(r?.uid===uid)comments.push({id:rid,...r,where:'Resposta',workId,chapterId});}}};
+      for(const [wid,node] of objEntries(commentsRoot.obra||{}))walkComments(node,'Comentário na obra',wid,'');
+      for(const [wid,chapters] of objEntries(commentsRoot.capitulo||{}))for(const [cid,node] of objEntries(chapters||{}))walkComments(node,'Comentário no capítulo',wid,cid);
+      comments.sort((a,b)=>num(b.data)-num(a.data));
+      const ratings=[];for(const [wid,users] of objEntries(state.ratings||{})){const r=users?.[uid];if(r)ratings.push({workId:wid,nota:num(r.nota),data:num(r.data)});}ratings.sort((a,b)=>b.data-a.data);
+      return {comments,ratings};
+    }
+    async function computeOwnProfileStats(){
+      if(!isMember())return{};
+      const followers=await dbGet('seguidores/'+state.user.uid).catch(()=>({}))||{},following=await dbGet('seguindo/'+state.user.uid).catch(()=>({}))||{},activity=await collectProfileActivity(state.user.uid);
+      const history=state.history||{},collections=state.collections||{},favorites=state.favorites||{};
+      const stats={seguidores:Object.keys(followers).length,seguindo:Object.keys(following).length,obrasLidas:Object.values(history).filter(h=>h?.concluido||num(h?.progresso)>=98).length,comentarios:activity.comments.length,avaliacoes:activity.ratings.length,favoritos:Object.keys(favorites).length,colecoes:Object.keys(collections).length,minutosLeitura:Math.floor(num(state.profile?.tempoLeituraSegundos)/60)};
+      state.profile={...(state.profile||{}),estatisticasPerfil:stats};
+      await dbUpdate('usuarios/'+state.user.uid,{estatisticasPerfil:stats}).catch(()=>{});await syncPublicProfile(state.user.uid,state.profile).catch(()=>{});
+      return {...stats,activity,followers,following};
+    }
+    function profileStatsHtml(stats={},own=false){const items=[['Seguidores',stats.seguidores||0],['Seguindo',stats.seguindo||0],['Obras lidas',stats.obrasLidas||0],['Comentários',stats.comentarios||0],['Avaliações',stats.avaliacoes||0],['Favoritos',stats.favoritos||0],['Coleções',stats.colecoes||0]];if(own)items.push(['Tempo de leitura',(stats.minutosLeitura||0)+' min']);return items.map(([label,val])=>"<div class='profile-stat'><strong>"+escapeHtml(val)+"</strong><span>"+label+"</span></div>").join('');}
+    function profileRankMedal(rank){rank=num(rank);return rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':rank>=4&&rank<=10?'🏅':'✦';}
+    function normalizeProfileRanks(ranks={}){return{comments:num(ranks?.comments),reactions:num(ranks?.reactions)};}
+    function profileRankBest(ranks={}){const r=normalizeProfileRanks(ranks),vals=[r.comments,r.reactions].filter(x=>x>=1&&x<=10);return vals.length?Math.min(...vals):0;}
+    function profileLeaderboardBadgeHtml(ranks={}){
+      const r=normalizeProfileRanks(ranks),c=r.comments>=1&&r.comments<=10?r.comments:0,x=r.reactions>=1&&r.reactions<=10?r.reactions:0;if(!c&&!x)return'';const best=profileRankBest(r);
+      if(c&&x&&c===x)return "<span class='profile-rank-fusion best-"+best+"' title='Posições atuais, recalculadas ao abrir o perfil'><span class='profile-rank-token shared'><span class='profile-rank-medal'>"+profileRankMedal(c)+"</span>"+c+"º • COMENTÁRIOS + REAÇÕES</span></span>";
+      let parts=[];if(c)parts.push("<span class='profile-rank-token comments'><span class='profile-rank-medal'>"+profileRankMedal(c)+"</span>"+c+"º • COMENTÁRIOS</span>");if(x)parts.push("<span class='profile-rank-token reactions'><span class='profile-rank-medal'>"+profileRankMedal(x)+"</span>"+x+"º • REAÇÕES</span>");return "<span class='profile-rank-fusion best-"+best+"' title='Posições atuais, recalculadas ao abrir o perfil'>"+parts.join("<span class='profile-rank-plus'>＋</span>")+"</span>";
+    }
+    function profileOwnRankStatusHtml(ranks={}){
+      const r=normalizeProfileRanks(ranks),c=r.comments>=1&&r.comments<=10?r.comments:0,x=r.reactions>=1&&r.reactions<=10?r.reactions:0;if(!c&&!x)return'';const best=profileRankBest(r),both=c&&x,same=both&&c===x,icon=same?profileRankMedal(c):(best?profileRankMedal(best):'🏅');let headline='',explain='';
+      if(same){headline='Você está em '+c+'º lugar nos dois rankings!';explain='Sua posição atual é '+c+'º em Comentários e '+x+'º em Reações. As duas colocações foram recalculadas agora com os dados atuais da comunidade.';}
+      else if(both){headline='Você está no Top 10 em duas categorias!';explain='Agora você está em '+c+'º lugar nos Comentários e '+x+'º lugar nas Reações. Cada ranking é calculado separadamente e atualizado ao abrir seu perfil.';}
+      else if(c){headline='Você está em '+c+'º lugar nos Comentários!';explain='Essa é sua posição atual no ranking de comentários e respostas da MP SCAN, recalculada ao abrir o perfil.';}
+      else{headline='Você está em '+x+'º lugar nas Reações!';explain='Essa é sua posição atual no ranking de reações da MP SCAN, recalculada ao abrir o perfil.';}
+      const summary=(c?"<span class='profile-rank-token comments'><span class='profile-rank-medal'>"+profileRankMedal(c)+"</span>"+c+"º • COMENTÁRIOS</span>":'')+(x?"<span class='profile-rank-token reactions'><span class='profile-rank-medal'>"+profileRankMedal(x)+"</span>"+x+"º • REAÇÕES</span>":'');
+      return "<div class='profile-rank-owner-card dual rank-"+best+"'><div class='profile-rank-owner-icon'>"+icon+"</div><div class='profile-rank-owner-copy'><strong>"+escapeHtml(headline)+"</strong><p>"+escapeHtml(explain)+"</p><div class='profile-rank-owner-summary'>"+summary+"</div></div><span class='profile-rank-owner-place'>POSIÇÕES ATUAIS • verificadas ao abrir o perfil</span></div>";
+    }
+    function profileRankHeroClass(ranks={}){const rank=profileRankBest(ranks);if(rank<1||rank>10)return'';return ' profile-leader-rank '+(rank<=5?'profile-leader-rank-'+rank:'profile-leader-rank-top10');}
+    function referralFxClass(v){const e=String(v||'none');return ['pulse','shine','float','aurora','sparkle'].includes(e)?' referral-fx-'+e:'';}
+    function referralProfileDecorHtml(p={}){
+      const badge=p.referralBadge||{},title=p.referralTitle||{},banner=p.referralBanner||{};
+      const badgeHtml=badge.text?"<span class='profile-referral-badge"+referralFxClass(badge.effect)+"' style='--rr-bg:"+safeFrameColor(badge.bgColor,'#2a1838')+";--rr-text:"+safeFrameColor(badge.textColor,'#ffffff')+";--rr-accent:"+safeFrameColor(badge.accentColor,'#d875ff')+"'>"+escapeHtml(badge.icon||'✦')+" "+escapeHtml(badge.text)+"</span>":'';
+      const titleHtml=title.text?"<div class='profile-referral-title"+referralFxClass(title.effect)+"' style='--rr-accent:"+safeFrameColor(title.color,'#d875ff')+"'>"+escapeHtml(title.text)+"</div>":'';
+      const bannerStyle="--rr-bg:"+safeFrameColor(banner.bgColor,'#171222')+";--rr-text:"+safeFrameColor(banner.textColor,'#ffffff')+";--rr-accent:"+safeFrameColor(banner.accentColor,'#8d2bff')+(banner.imageUrl?";background-image:linear-gradient(90deg,rgba(12,10,18,.68),rgba(12,10,18,.22)),url('"+String(banner.imageUrl).replace(/'/g,'%27')+"')":"");
+      const bannerHtml=(banner.text||banner.imageUrl)?"<div class='profile-referral-banner"+referralFxClass(banner.effect)+"' style=\""+escapeAttr(bannerStyle)+"\"><div><small>PRÊMIO DO EVENTO</small><strong>"+escapeHtml(banner.text||'Destaque MP SCAN')+"</strong>"+(banner.subtext?"<span>"+escapeHtml(banner.subtext)+"</span>":'')+"</div><b>✦</b></div>":'';
+      return {badgeHtml,titleHtml,bannerHtml};
+    }
+    function profileHeroHtml(p,stats,actions,own=false,ranks={}){const accent=profileAccent(p),cover=p.capaPerfil?"<img src='"+escapeAttr(p.capaPerfil)+"' alt=''/>":'',role=((own&&isAdmin())||p.papel==='ADM'||p.admin)?"<span class='profile-role-badge'>✦ ADM</span>":(String(p.papel||'').toLowerCase().includes('moder')?"<span class='profile-role-badge'>◆ Moderador</span>":''),shareAttr=own?("data-copy-profile='"+escapeAttr(p.uid||state.user?.uid||'')+"'"):"data-copy-link='true'",rankClass=profileRankHeroClass(ranks),rankBadge=profileLeaderboardBadgeHtml(ranks),special=referralProfileDecorHtml(p);return "<div class='profile-pro"+rankClass+"' style='--profile-accent:"+accent+"'><div class='profile-pro-cover'>"+cover+"<div class='profile-pro-cover-actions'><button type='button' class='icon-btn' "+shareAttr+" title='Copiar link'>↗</button></div></div><div class='profile-pro-main'><div class='profile-pro-head'><div class='profile-pro-avatar'>"+(p.foto?"<img src='"+escapeAttr(p.foto)+"' alt='Foto de perfil'/>":'👤')+"</div><div class='profile-pro-title'><h1>"+escapeHtml(p.nome||'Usuário')+"</h1><div class='profile-pro-handle'>"+(p.nomeUsuario?'@'+escapeHtml(p.nomeUsuario):'Sem @username')+"</div>"+special.titleHtml+role+special.badgeHtml+rankBadge+"</div></div>"+special.bannerHtml+"<div class='profile-pro-bio "+(p.bio?'':'muted')+"'>"+escapeHtml(p.bio||'Este perfil ainda não escreveu uma bio.')+"</div><div class='profile-pro-actions'>"+actions+"</div><div class='profile-stat-strip'>"+profileStatsHtml(stats,own)+"</div></div></div>";}
+
+    function profileRankIntroCategory(rank,kind){
+      rank=num(rank);if(rank<1||rank>5)return null;const medal=profileRankMedal(rank),label=kind==='reactions'?'REAÇÕES':'COMENTÁRIOS';return{rank,kind,medal,label};
+    }
+    function profileRankEntranceMeta(ranks={}){
+      const r=normalizeProfileRanks(ranks),comments=profileRankIntroCategory(r.comments,'comments'),reactions=profileRankIntroCategory(r.reactions,'reactions'),items=[comments,reactions].filter(Boolean);if(!items.length)return null;
+      const best=Math.min(...items.map(x=>x.rank)),dual=items.length===2,same=dual&&comments.rank===reactions.rank;let title='',sub='';
+      if(same){title=comments.rank+'º NOS DOIS RANKINGS';sub='Destaque simultâneo em Comentários e Reações da comunidade MP SCAN.';}
+      else if(dual){title='DESTAQUE DUPLO';sub=comments.rank+'º em Comentários e '+reactions.rank+'º em Reações — duas posições atuais reunidas em uma única conquista.';}
+      else if(comments){title=comments.rank+'º EM COMENTÁRIOS';sub='Top 5 atual no ranking de comentários e respostas da comunidade MP SCAN.';}
+      else{title=reactions.rank+'º EM REAÇÕES';sub='Top 5 atual no ranking de reações da comunidade MP SCAN.';}
+      return{comments,reactions,items,best,dual,same,title,sub,cls:'rank-'+best+(dual?' dual':'')};
+    }
+    function playProfileRankEntrance(uid,ranks,name){
+      const meta=profileRankEntranceMeta(ranks);if(!meta||typeof document==='undefined')return;
+      const visitId=String(window.__mpProfileRouteVisitId||'');
+      // Exatamente uma animação por visita ao perfil. Trocar aba, abrir seguidores, molduras,
+      // seguir/deixar de seguir ou qualquer re-render interno mantém o mesmo visitId e não repete.
+      if(visitId&&window.__mpProfileRankIntroShownVisit===visitId)return;
+      if(visitId)window.__mpProfileRankIntroShownVisit=visitId;
+      document.querySelectorAll('.profile-rank-intro').forEach(x=>x.remove());
+      const intro=document.createElement('div');intro.className='profile-rank-intro '+meta.cls;intro.setAttribute('aria-hidden','true');intro.dataset.profileUid=String(uid||'');
+      const particles="<div class='profile-rank-particles'>"+Array.from({length:8},()=>'<span></span>').join('')+"</div>";
+      const rankCard=item=>"<div class='profile-rank-intro-rank-card "+item.kind+"'><div class='medal'>"+item.medal+"</div><strong>"+item.rank+"º LUGAR</strong><span>"+item.label+"</span></div>";
+      const cards=meta.dual?rankCard(meta.comments)+"<div class='profile-rank-intro-fusion-mark'>＋</div>"+rankCard(meta.reactions):rankCard(meta.items[0]);
+      const pills=(meta.comments?"<span class='comments'>💬 "+meta.comments.rank+"º Comentários</span>":'')+(meta.reactions?"<span class='reactions'>❤ "+meta.reactions.rank+"º Reações</span>":'');
+      intro.innerHTML="<div class='profile-rank-intro-backdrop'></div><div class='profile-rank-intro-core'>"+particles+"<div class='profile-rank-intro-ranks "+(meta.dual?'dual':'single')+"'>"+cards+"</div><div class='profile-rank-intro-title'>"+escapeHtml(meta.title)+"</div><div class='profile-rank-intro-sub'>"+escapeHtml(name||'Leitor MP SCAN')+"<br/>"+escapeHtml(meta.sub)+"</div><div class='profile-rank-intro-category-pills'>"+pills+"</div><div class='profile-rank-intro-place'>POSIÇÕES ATUAIS • recalculadas ao abrir este perfil</div></div>";
+      intro.style.pointerEvents='none';intro.setAttribute('inert','');
+      document.body.appendChild(intro);
+      // V83: animação curta e leve. Há dois mecanismos de remoção para ela nunca ficar presa na tela.
+      const hold=meta.dual?1650:1450;
+      let gone=false;
+      const removeNow=()=>{if(gone)return;gone=true;if(intro.isConnected)intro.remove();};
+      const leave=()=>{if(gone||!intro.isConnected)return;intro.classList.add('leaving');setTimeout(removeNow,300);};
+      setTimeout(leave,hold);
+      setTimeout(removeNow,2600);
+    }
+
+    function profileActivityHtml(activity){const comments=(activity?.comments||[]).slice(0,6),ratings=(activity?.ratings||[]).slice(0,6),items=[];for(const c of comments){const w=state.allWorkMap[c.workId]||state.workMap[c.workId],link=c.chapterId?'/capitulo/'+c.workId+'/'+c.chapterId:'/obra/'+c.workId;items.push({data:c.data,html:"<a class='profile-activity-card' href='#"+link+"' data-route='"+link+"'><div class='profile-activity-icon'>💬</div><div class='profile-activity-main'><strong>"+escapeHtml(c.where)+(w?' • '+escapeHtml(w.name):'')+"</strong><span>"+escapeHtml((c.texto||'[imagem]').slice(0,90))+"</span></div><div class='tiny'>"+fmtRelative(c.data)+"</div></a>"});}for(const r of ratings){const w=state.allWorkMap[r.workId]||state.workMap[r.workId];items.push({data:r.data,html:"<a class='profile-activity-card' href='#/obra/"+r.workId+"' data-route='/obra/"+r.workId+"'><div class='profile-activity-icon'>⭐</div><div class='profile-activity-main'><strong>"+escapeHtml(w?.name||'Obra')+"</strong><span>Avaliou esta obra</span></div><div class='profile-activity-score'>"+r.nota+"/5</div></a>"});}items.sort((a,b)=>num(b.data)-num(a.data));return items.length?items.slice(0,8).map(x=>x.html).join(''):"<div class='empty'>Nenhuma atividade para mostrar ainda.</div>";}
+    function profileTabKey(uid){return uid&&uid!==state.user?.uid?'public:'+uid:'self';}
+    function currentProfileTab(uid,allowed){
+      const key=profileTabKey(uid),saved=state.profileTabs?.[key]||'overview';
+      return allowed.includes(saved)?saved:'overview';
+    }
+    function profileTabButton(tab,label,active){
+      return "<button type='button' class='profile-tab "+(active===tab?'active':'')+"' data-profile-tab='"+tab+"'>"+label+"</button>";
+    }
+    function profilePanelClass(tab,active){return "profile-panel "+(active===tab?'active':'');}
+
+    async function ownCommentFramesHtml(){
+      if(!isMember())return '';
+      let inventory={};try{inventory=await dbGet('commentFrameInventory/'+state.user.uid)||{};}catch(e){inventory={};}
+      state.commentFrameInventory=inventory;
+      if(!Object.keys(state.commentFrames||{}).length){try{state.commentFrames=await dbGet('config/commentFrames')||{};}catch(e){}}
+      const frames=objEntries(state.commentFrames||{}).map(([id,f])=>normalizedCommentFrame({id,...f})).filter(f=>f.ativo!==false&&f.imagemUrl&&(!f.exclusiveToUid||f.exclusiveToUid===state.user.uid||isAdmin())).sort((a,b)=>num(b.criadoEm)-num(a.criadoEm));
+      const active=String(state.profile?.molduraComentarioId||'');
+      const owned=frames.filter(f=>inventory[f.id]),available=frames.filter(f=>!inventory[f.id]);
+      const card=(f,have)=>"<div class='comment-frame-card "+(active===f.id?'active':'')+"'>"+commentFramePreviewBlock(f)+"<div class='comment-frame-meta'><strong>"+escapeHtml(f.nome||'Moldura')+"</strong><span class='comment-frame-status'>"+(active===f.id?'USANDO':have?'NA COLEÇÃO':'DISPONÍVEL')+"</span></div><div class='admin-frame-style-chips'><span class='admin-frame-style-chip'>Fundo "+f.bgOpacity+"%</span><span class='admin-frame-style-chip'>Brilho "+f.brightness+"%</span><span class='admin-frame-style-chip'>"+commentFrameEffectLabel(f.effect)+"</span><span class='admin-frame-style-chip'>Glow "+f.glow+"%</span></div><div class='comment-frame-actions'>"+(have?"<button type='button' class='btn "+(active===f.id?'ghost':'primary')+"' data-comment-frame-use='"+escapeAttr(f.id)+"' "+(active===f.id?"disabled='disabled'":'')+">"+(active===f.id?'✓ Em uso':'Usar moldura')+"</button>":"<button type='button' class='btn primary' data-comment-frame-claim='"+escapeAttr(f.id)+"'>＋ Pegar e usar</button>")+"</div></div>";
+      return "<div class='comment-frame-profile-hero'><div><h3>🖼 Moldura do comentário</h3><p>Escolha uma moldura criada pelo MP SCAN. Cores, brilho e efeitos definidos pelo ADM acompanham a moldura automaticamente.</p></div><button type='button' class='btn ghost comment-frame-none' data-comment-frame-none='true'>Sem moldura</button></div><div class='profile-section-card'><h3>Minhas molduras</h3><p class='section-sub'>As molduras que você já pegou ficam guardadas aqui para trocar quando quiser.</p><div class='comment-frame-gallery'>"+(owned.length?owned.map(f=>card(f,true)).join(''):"<div class='empty'>Você ainda não pegou nenhuma moldura.</div>")+"</div></div><div class='profile-section-card' style='margin-top:14px'><h3>Catálogo MP SCAN</h3><p class='section-sub'>Molduras publicadas pelo ADM e disponíveis para sua coleção.</p><div class='comment-frame-gallery'>"+(available.length?available.map(f=>card(f,false)).join(''):"<div class='empty'>Não há novas molduras disponíveis agora.</div>")+"</div></div>";
+    }
+    async function equipCommentFrame(frameId,claim=false){
+      if(!requireMember())return;
+      try{
+        const f=state.commentFrames?.[frameId]||await dbGet('config/commentFrames/'+frameId);if(!f||f.ativo===false){ui.toast('Esta moldura não está disponível.');return;}if(f.exclusiveToUid&&f.exclusiveToUid!==state.user.uid&&!isAdmin()){ui.toast('Esta moldura é exclusiva de outro participante.');return;}
+        if(claim){await dbSet('commentFrameInventory/'+state.user.uid+'/'+frameId,{data:now()});state.commentFrameInventory[frameId]={data:now()};}
+        else if(!state.commentFrameInventory?.[frameId]&&!await dbGet('commentFrameInventory/'+state.user.uid+'/'+frameId)){ui.toast('Pegue esta moldura antes de usar.');return;}
+        await dbUpdate('usuarios/'+state.user.uid,{molduraComentarioId:frameId,atualizadoEm:now()});state.profile={...(state.profile||{}),molduraComentarioId:frameId};await syncPublicProfile(state.user.uid,state.profile);ui.toast(claim?'Moldura adicionada e ativada.':'Moldura alterada.');await renderMyProfile();
+      }catch(e){console.error(e);ui.toast('Não foi possível alterar a moldura agora.');}
+    }
+    async function clearCommentFrame(){if(!requireMember())return;try{await dbUpdate('usuarios/'+state.user.uid,{molduraComentarioId:'',atualizadoEm:now()});state.profile={...(state.profile||{}),molduraComentarioId:''};await syncPublicProfile(state.user.uid,state.profile);ui.toast('Moldura removida.');await renderMyProfile();}catch(e){console.error(e);ui.toast('Não foi possível remover a moldura.');}}
+    function bindProfileFrameActions(root){if(!root||root.dataset.commentFramesBound==='1')return;root.dataset.commentFramesBound='1';root.addEventListener('click',e=>{const claim=e.target.closest('[data-comment-frame-claim]'),use=e.target.closest('[data-comment-frame-use]'),none=e.target.closest('[data-comment-frame-none]');if(!claim&&!use&&!none)return;e.preventDefault();e.stopPropagation();if(claim)equipCommentFrame(claim.dataset.commentFrameClaim,true);else if(use)equipCommentFrame(use.dataset.commentFrameUse,false);else clearCommentFrame();});}
+
+    async function publicProfileFrameHtml(p={}){
+      const frameId=String(p?.molduraComentarioId||'').trim();
+      if(!frameId)return "<div class='profile-section-card public-frame-showcase'><div class='public-frame-showcase-head'><h3>🖼 Minhas molduras</h3><span>NENHUMA EM USO</span></div><p class='public-frame-showcase-note'>Esta pessoa não está usando uma moldura de comentário agora.</p></div>";
+      let raw=state.commentFrames?.[frameId]||null;if(!raw)try{raw=await dbGet('config/commentFrames/'+frameId);}catch(e){raw=null;}
+      if(!raw||raw.ativo===false||!raw.imagemUrl)return "<div class='profile-section-card public-frame-showcase'><div class='public-frame-showcase-head'><h3>🖼 Minhas molduras</h3><span>INDISPONÍVEL</span></div><p class='public-frame-showcase-note'>A moldura usada neste perfil não está disponível para visualização no momento.</p></div>";
+      const f=normalizedCommentFrame({id:frameId,...raw});
+      return "<div class='profile-section-card public-frame-showcase'><div class='public-frame-showcase-head'><div><h3>🖼 Minhas molduras</h3><p class='public-frame-showcase-note'>Esta é a moldura que está equipada agora e também aparece nos comentários desta pessoa.</p></div><span>EM USO</span></div>"+commentFramePreviewBlock(f,'Moldura atualmente usada neste perfil.')+"<div class='admin-frame-style-chips'><span class='admin-frame-style-chip'>"+escapeHtml(f.nome||'Moldura')+"</span><span class='admin-frame-style-chip'>"+commentFrameEffectLabel(f.effect)+"</span><span class='admin-frame-style-chip'>Glow "+f.glow+"%</span></div></div>";
+    }
+    async function profilePeopleManageHtml(map={},mode='following'){
+      const entries=objEntries(map||{}).sort((a,b)=>num(b[1]?.data)-num(a[1]?.data)).slice(0,60);
+      if(!entries.length)return "<div class='empty'>"+(mode==='followers'?'Você ainda não tem seguidores.':'Você ainda não segue ninguém.')+"</div>";
+      const profiles=await Promise.all(entries.map(async([uid])=>({uid,p:await safePublicProfile(uid)})));
+      return "<div class='profile-person-manage-list'>"+profiles.map(({uid,p})=>{const route='/perfil/'+escapeAttr(uid),action=mode==='followers'?"<button type='button' class='profile-person-action danger' data-profile-remove-follower='"+escapeAttr(uid)+"'>Remover</button>":"<button type='button' class='profile-person-action' data-profile-unfollow='"+escapeAttr(uid)+"'>Deixar de seguir</button>";return "<div class='profile-person-manage'><a class='profile-person-main' href='#"+route+"' data-route='"+route+"'><div class='public-person-avatar'>"+(p.foto?"<img src='"+escapeAttr(p.foto)+"' alt=''/>":'👤')+"</div><div class='public-person-text'><strong>"+escapeHtml(p.nome||'Usuário')+"</strong><span>"+(p.nomeUsuario?'@'+escapeHtml(p.nomeUsuario):'Perfil MP SCAN')+"</span></div></a>"+action+"</div>";}).join('')+"</div>";
+    }
+    function bindOwnConnectionActions(root){if(!root||root.dataset.profileConnectionsBound==='1')return;root.dataset.profileConnectionsBound='1';root.addEventListener('click',async e=>{const unfollow=e.target.closest('[data-profile-unfollow]'),remove=e.target.closest('[data-profile-remove-follower]');if(!unfollow&&!remove)return;e.preventDefault();e.stopPropagation();if(!requireMember())return;const uid=String((unfollow?.dataset.profileUnfollow||remove?.dataset.profileRemoveFollower)||'');if(!uid||uid===state.user.uid)return;try{if(unfollow){unfollow.disabled=true;await Promise.allSettled([dbRemove('seguindo/'+state.user.uid+'/'+uid),dbRemove('seguidores/'+uid+'/'+state.user.uid),dbRemove('privateAccess/'+uid+'/'+state.user.uid),dbRemove('followRequests/'+uid+'/'+state.user.uid)]);ui.toast('Você deixou de seguir esta pessoa.');}else{if(!confirm('Remover esta pessoa dos seus seguidores?'))return;remove.disabled=true;await Promise.allSettled([dbRemove('seguidores/'+state.user.uid+'/'+uid),dbRemove('seguindo/'+uid+'/'+state.user.uid),dbRemove('privateAccess/'+state.user.uid+'/'+uid),dbRemove('followRequests/'+state.user.uid+'/'+uid)]);ui.toast('Seguidor removido do seu perfil.');}await renderMyProfile();}catch(err){console.error(err);ui.toast('Não foi possível atualizar seus seguidores agora. Confira as regras v93.');if(unfollow)unfollow.disabled=false;if(remove)remove.disabled=false;}});}
+
+    async function renderMyProfile(){
+      const el=$('#myProfileContent');if(!el)return;
+      if(!isMember()){
+        el.innerHTML="<div class='profile-private-card'><div style='font-size:2rem'>👤</div><h2>Seu perfil começa aqui</h2><p class='section-sub'>Entre para ter foto, @username, bio, seguidores, coleções, avaliações, comentários e histórico de leitura.</p><button type='button' class='btn primary open-auth' id='profileLoginNow'>Entrar / Criar conta</button></div>";
+        $('#profileLoginNow')?.addEventListener('click',ui.openAuth);return;
+      }
+      const renderSeq=++state.profileRenderSeq;
+      const [stats,referralExtras,rankSnapshot]=await Promise.all([computeOwnProfileStats(),dbGet('eventoDivulgacao/ativos/'+state.user.uid).catch(()=>({})),getProfileLeaderboardSnapshot(true)]);
+      if(renderSeq!==state.profileRenderSeq||router.current()?.page!=='profile')return;
+      const activity=stats.activity||await collectProfileActivity(state.user.uid),ownRanks={comments:num(rankSnapshot?.commentMap?.[state.user.uid]),reactions:num(rankSnapshot?.reactionMap?.[state.user.uid])};
+      const [framesPanel,followersHtml,followingHtml]=await Promise.all([ownCommentFramesHtml(),profilePeopleManageHtml(stats.followers||{},'followers'),profilePeopleManageHtml(stats.following||{},'following')]);
+      if(renderSeq!==state.profileRenderSeq||router.current()?.page!=='profile')return;
+      const actions="<a class='btn primary' href='#/perfil/editar' data-route='/perfil/editar'>✎ Editar perfil</a><a class='btn ghost' href='#/notificacoes' data-route='/notificacoes'>🔔 Notificações</a><button class='btn ghost' id='logoutProfileButton' type='button'>Sair</button>";
+      const adminCard=isAdmin()?"<div id='profileAdminAccess' class='admin-access-card'><div class='admin-access-icon'>🛠</div><div class='admin-access-copy'><strong>Painel administrativo</strong><p>Gerencie obras, capítulos, usuários, comentários, banners, notificações e estatísticas.</p></div><a class='btn admin-launch-btn' href='#/adm/visao-geral' data-route='/adm/visao-geral'>Abrir painel ADM</a></div>":'';
+      const fav=Object.keys(state.favorites||{}).map(id=>state.workMap[id]).filter(Boolean).slice(0,18),cols=objEntries(state.collections||{}).slice(0,18);
+      const allowed=['overview','activity','followers','following','favorites','collections','frames'],active=currentProfileTab(state.user.uid,allowed);
+      el.innerHTML=profileHeroHtml({...state.profile,uid:state.user.uid,referralBadge:referralExtras?.selo||null,referralBanner:referralExtras?.banner||null,referralTitle:referralExtras?.titulo||null},stats,actions,true,ownRanks)+profileOwnRankStatusHtml(ownRanks)+adminCard+
+        "<div class='profile-pro-main' style='margin-top:0' data-profile-key='self'><div class='profile-tabs'>"+
+        profileTabButton('overview','Visão geral',active)+profileTabButton('activity','Atividade',active)+profileTabButton('followers','Seguidores',active)+profileTabButton('following','Seguindo',active)+profileTabButton('favorites','Favoritos',active)+profileTabButton('collections','Coleções',active)+profileTabButton('frames','Molduras',active)+
+        "</div><div class='"+profilePanelClass('overview',active)+"' data-profile-panel='overview'><div class='profile-section-card'><h3>Resumo</h3><p class='section-sub'>Acompanhe sua leitura, participação, conexões e biblioteca em um só lugar.</p><div class='profile-panel-grid'>"+profileActivityHtml({comments:(activity.comments||[]).slice(0,2),ratings:(activity.ratings||[]).slice(0,2)})+"</div></div></div>"+
+        "<div class='"+profilePanelClass('activity',active)+"' data-profile-panel='activity'><div class='profile-panel-grid'>"+profileActivityHtml(activity)+"</div></div>"+
+        "<div class='"+profilePanelClass('followers',active)+"' data-profile-panel='followers'><div class='profile-section-card'><div class='profile-connections-head'><div><h3>Seus seguidores</h3><p>Veja quem acompanha seu perfil. Se não quiser que alguém continue seguindo você, use Remover.</p></div><span class='comment-frame-status'>"+Object.keys(stats.followers||{}).length+" SEGUIDORES</span></div>"+followersHtml+"</div></div>"+
+        "<div class='"+profilePanelClass('following',active)+"' data-profile-panel='following'><div class='profile-section-card'><div class='profile-connections-head'><div><h3>Pessoas que você segue</h3><p>Abra qualquer perfil ou deixe de seguir diretamente por aqui.</p></div><span class='comment-frame-status'>"+Object.keys(stats.following||{}).length+" SEGUINDO</span></div>"+followingHtml+"</div></div>"+
+        "<div class='"+profilePanelClass('favorites',active)+"' data-profile-panel='favorites'><div class='cards'>"+(fav.length?fav.map(w=>workCard(w)).join(''):"<div class='empty'>Você ainda não favoritou nenhuma obra.</div>")+"</div></div>"+
+        "<div class='"+profilePanelClass('collections',active)+"' data-profile-panel='collections'><div class='profile-collection-mini'>"+(cols.length?cols.map(([id,c])=>"<a href='#/colecao/"+state.user.uid+"/"+id+"' data-route='/colecao/"+state.user.uid+"/"+id+"'><strong>"+escapeHtml(c.nome||'Coleção')+"</strong><span class='tiny'>"+Object.keys(c.obras||{}).length+" obras</span></a>").join(''):"<div class='empty'>Você ainda não criou coleções.</div>")+"</div></div>"+
+        "<div class='"+profilePanelClass('frames',active)+"' data-profile-panel='frames'>"+framesPanel+"</div></div>";
+      bindProfileFrameActions(el);bindOwnConnectionActions(el);
+      requestAnimationFrame(()=>playProfileRankEntrance(state.user.uid,ownRanks,state.profile?.nome||state.user?.displayName||'Leitor MP SCAN'));
+      $('#logoutProfileButton')?.addEventListener('click',async()=>{await signOut(auth);router.navigate('/inicio');ui.toast('Você saiu da conta.');});
+      document.title='Meu perfil — MP SCAN';
+    }
+    async function profilePeopleHtml(map,emptyText){
+      const ids=Object.keys(map||{}).slice(0,30);
+      if(!ids.length)return "<div class='empty'>"+escapeHtml(emptyText)+"</div>";
+      const profiles=await Promise.all(ids.map(async uid=>({uid,p:await safePublicProfile(uid)})));
+      return "<div class='public-profile-people'>"+profiles.map(({uid,p})=>{const route='/perfil/'+escapeAttr(uid);return "<a class='public-person-card' href='#"+route+"' data-route='"+route+"'><div class='public-person-avatar'>"+(p.foto?"<img src='"+escapeAttr(p.foto)+"' alt=''/>":'👤')+"</div><div class='public-person-text'><strong>"+escapeHtml(p.nome||'Usuário')+"</strong><span>"+(p.nomeUsuario?'@'+escapeHtml(p.nomeUsuario):'Perfil MP SCAN')+"</span></div></a>";}).join('')+"</div>";
+    }
+    async function renderPublicProfile(uid){
+      const el=$('#publicProfileContent');if(!el)return;
+      if(!isMember()){
+        el.innerHTML="<div class='profile-private-card'><h2>Entre para ver perfis</h2><p class='section-sub'>Perfis não ficam disponíveis no modo visitante.</p><button type='button' class='btn primary open-auth' id='profileLoginNow'>Entrar</button></div>";
+        $('#profileLoginNow')?.addEventListener('click',ui.openAuth);return;
+      }
+      if(uid===state.user.uid){router.navigate('/perfil',true);return;}
+      const renderSeq=++state.profileRenderSeq;
+      const [publicInfo,followLink,requestState,identity,accessGrant]=await Promise.all([
+        dbGet('perfisPublicos/'+uid).catch(()=>null),
+        dbGet('seguindo/'+state.user.uid+'/'+uid).catch(()=>null),
+        dbGet('followRequests/'+uid+'/'+state.user.uid).catch(()=>null),
+        dbGet('identidadesComentarios/'+uid).catch(()=>null),
+        dbGet('privateAccess/'+uid+'/'+state.user.uid).catch(()=>null)
+      ]);
+      if(renderSeq!==state.profileRenderSeq||router.current()?.page!=='public-profile'||router.current()?.id!==uid)return;
+      if(!publicInfo&&!identity){el.innerHTML="<div class='empty'>Perfil não encontrado.</div>";return;}
+      const minimal={...(identity||{}),...(publicInfo||{})},isPrivate=publicInfo?.publico===false,isFollowing=!!followLink,hasPrivateAccess=isFollowing||accessGrant?.granted===true||requestState?.status==='accepted';
+      if(isPrivate&&!hasPrivateAccess){
+        const pending=requestState?.status==='pending',rejected=requestState?.status==='rejected',name=minimal.nome||'Usuário',handle=minimal.nomeUsuario?'@'+minimal.nomeUsuario:'Perfil privado';
+        el.innerHTML="<div class='private-follow-gate'><div class='private-follow-lock'>🔒</div><div class='private-follow-person'><div class='private-follow-avatar'>"+(minimal.foto?"<img src='"+escapeAttr(minimal.foto)+"' alt='Foto de perfil'/>":'👤')+"</div><div class='private-follow-person-copy'><strong>"+escapeHtml(name)+"</strong><span>"+escapeHtml(handle)+"</span></div></div><h2>Este perfil é privado</h2><p>Para ver bio, favoritos, moldura, seguidores, seguindo e outras informações do perfil, envie um pedido. O dono precisa aceitar primeiro.</p>"+(pending?"<div class='private-follow-pending'>⏳ Solicitação aguardando aprovação</div>":rejected?"<div class='private-follow-pending'>🔒 Seu último pedido não foi aprovado</div>":'')+"<div class='private-follow-actions'><button type='button' class='btn primary' data-private-follow-request='"+escapeAttr(uid)+"'>"+(pending?'Cancelar solicitação':rejected?'Pedir permissão novamente':'Pedir permissão para seguir')+"</button><button type='button' class='btn ghost' data-report-profile='"+escapeAttr(uid)+"'>Denunciar</button></div></div>";
+        document.title=name+' — Perfil privado • MP SCAN';return;
+      }
+      let p=publicInfo;
+      if(isPrivate&&hasPrivateAccess){
+        if(!isFollowing)repairViewerPrivateFollow(uid).catch(err=>console.warn('Reparo do seguimento privado:',err));
+        p=await dbGet('perfisPrivados/'+uid).catch(()=>null);
+        if(renderSeq!==state.profileRenderSeq||router.current()?.page!=='public-profile'||router.current()?.id!==uid)return;
+        if(!p){
+          el.innerHTML="<div class='private-follow-gate'><div class='private-follow-lock'>🔓</div><h2>Acesso aprovado</h2><p>Você já foi aprovado para ver este perfil. Os dados privados ainda não chegaram neste aparelho, então use o botão abaixo para sincronizar de verdade.</p><div class='private-follow-actions'><button type='button' class='btn primary' data-private-profile-refresh='"+escapeAttr(uid)+"'>Sincronizar perfil agora</button><button type='button' class='btn ghost' data-follow-profile='"+escapeAttr(uid)+"' data-following='true'>Deixar de seguir</button></div><div class='tiny' style='margin-top:12px'>Se o dono estiver com o MP SCAN aberto, a correção acontece automaticamente. Ao entrar novamente na conta dele, o perfil também é reparado.</div></div>";return;
+        }
+      }
+      const [followers,following,cols,activity,rankSnapshot,referralExtras,publicFramePanel]=await Promise.all([
+        dbGet('seguidores/'+uid).catch(()=>({})),
+        dbGet('seguindo/'+uid).catch(()=>({})),
+        dbGet('colecoesPublicas/'+uid).catch(()=>({})),
+        collectProfileActivity(uid),
+        getProfileLeaderboardSnapshot(true),
+        dbGet('eventoDivulgacao/ativos/'+uid).catch(()=>({})),
+        publicProfileFrameHtml(p)
+      ]);
+      if(renderSeq!==state.profileRenderSeq||router.current()?.page!=='public-profile'||router.current()?.id!==uid)return;
+      const followersSafe=followers||{},followingSafe=following||{},colsSafe=cols||{};
+      const favoriteIds=Object.keys(p.favoritos||{}),favWorks=favoriteIds.map(id=>state.workMap[id]).filter(Boolean).slice(0,18);
+      const [followersHtml,followingHtml]=await Promise.all([
+        profilePeopleHtml(followersSafe,'Ainda não há seguidores para mostrar.'),
+        profilePeopleHtml(followingSafe,'Esta pessoa ainda não segue ninguém.')
+      ]);
+      if(renderSeq!==state.profileRenderSeq||router.current()?.page!=='public-profile'||router.current()?.id!==uid)return;
+      const stats={...(p.estatisticas||{}),seguidores:Object.keys(followersSafe).length,seguindo:Object.keys(followingSafe).length,comentarios:activity.comments.length,avaliacoes:activity.ratings.length,favoritos:favoriteIds.length,colecoes:Object.keys(colsSafe).length};
+      const privacyBadge=isPrivate?"<span class='private-access-badge'>🔓 Seguidor aprovado</span>":'';
+      const actions=privacyBadge+"<button type='button' class='btn primary' data-follow-profile='"+uid+"' data-following='"+(hasPrivateAccess?'true':'false')+"'>"+(hasPrivateAccess?'Deixar de seguir':'＋ Seguir')+"</button><button type='button' class='btn ghost' data-report-profile='"+uid+"'>Denunciar</button>";
+      const allowed=['overview','frames','favorites','collections','followers','following'],active=currentProfileTab(uid,allowed),key='public:'+uid;
+      const profileRanks={comments:num(rankSnapshot?.commentMap?.[uid]),reactions:num(rankSnapshot?.reactionMap?.[uid])};
+      el.innerHTML=profileHeroHtml({...p,referralBadge:referralExtras?.selo||null,referralBanner:referralExtras?.banner||null,referralTitle:referralExtras?.titulo||null},stats,actions,false,profileRanks)+
+        "<div class='profile-pro-main' style='margin-top:0' data-profile-key='"+escapeAttr(key)+"'><div class='profile-tabs'>"+
+        profileTabButton('overview','Visão geral',active)+profileTabButton('frames','Minhas molduras',active)+profileTabButton('favorites','Favoritos',active)+profileTabButton('collections','Coleções públicas',active)+profileTabButton('followers','Seguidores',active)+profileTabButton('following','Seguindo',active)+
+        "</div><div class='"+profilePanelClass('overview',active)+"' data-profile-panel='overview'><div class='profile-public-intro'><div class='profile-public-summary'><h3>Atividade "+(isPrivate?'compartilhada':'pública')+"</h3><p class='section-sub'>Comentários e avaliações recentes desta pessoa.</p><div class='profile-panel-grid'>"+profileActivityHtml(activity)+"</div></div></div></div>"+
+        "<div class='"+profilePanelClass('frames',active)+"' data-profile-panel='frames'>"+publicFramePanel+"</div>"+
+        "<div class='"+profilePanelClass('favorites',active)+"' data-profile-panel='favorites'><div class='cards'>"+(favWorks.length?favWorks.map(w=>workCard(w)).join(''):"<div class='empty'>Nenhum favorito disponível ainda.</div>")+"</div></div>"+
+        "<div class='"+profilePanelClass('collections',active)+"' data-profile-panel='collections'><div class='profile-collection-mini'>"+(Object.keys(colsSafe).length?objEntries(colsSafe).map(([id,c])=>"<a href='#/colecao/"+uid+"/"+id+"' data-route='/colecao/"+uid+"/"+id+"'><strong>"+escapeHtml(c.nome||'Coleção')+"</strong><span class='tiny'>"+Object.keys(c.obras||{}).length+" obras</span></a>").join(''):"<div class='empty'>Nenhuma coleção pública.</div>")+"</div></div>"+
+        "<div class='"+profilePanelClass('followers',active)+"' data-profile-panel='followers'>"+followersHtml+"</div>"+
+        "<div class='"+profilePanelClass('following',active)+"' data-profile-panel='following'>"+followingHtml+"</div></div>";
+      requestAnimationFrame(()=>playProfileRankEntrance(uid,profileRanks,p.nome||'Leitor MP SCAN'));
+      document.title=(p.nome||'Perfil')+' — MP SCAN';
+    }
+
+    function updateProfileEditPreview(){const p=state.profile||{},accent=$('#profileEditShell')?.dataset.accent||p.corPerfil||'#8d2bff',name=$('#editProfileName')?.value||p.nome||'Seu nome',handle=slugUser($('#editProfileUsername')?.value||p.nomeUsuario)||'usuario';const shell=$('#profileEditShell');if(shell)shell.style.setProperty('--profile-accent',accent);if($('#profilePreviewName'))$('#profilePreviewName').textContent=name;if($('#profilePreviewHandle'))$('#profilePreviewHandle').textContent='@'+handle;const photo=$('#profilePhotoPreview'),cover=$('#profileCoverPreview');if(photo&&!photo.dataset.preview){photo.innerHTML=p.foto?"<img src='"+escapeAttr(p.foto)+"' alt=''/>":'👤';}if(cover&&!cover.dataset.preview){cover.innerHTML=p.capaPerfil?"<img src='"+escapeAttr(p.capaPerfil)+"' alt=''/>":'';}$$('[data-profile-accent]').forEach(b=>b.classList.toggle('active',b.dataset.profileAccent===accent));const bio=$('#editProfileBio');if($('#profileBioCount')&&bio)$('#profileBioCount').textContent=bio.value.length+'/280';}
+    async function prepareUiImage(file,kind='photo'){
+      if(!file)throw new Error('Arquivo de imagem ausente.');
+      if(file.type&&!file.type.startsWith('image/'))throw new Error('O arquivo escolhido não é uma imagem.');
+      const raw=await fileData(file);
+      const limits=kind==='background'?{w:1600,h:1200,q:.78}:kind==='cover'?{w:1800,h:1000,q:.9}:{w:900,h:900,q:.92};
+      return await new Promise((resolve,reject)=>{
+        const img=new Image();
+        img.onload=()=>{
+          try{
+            let w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+            if(!w||!h){resolve(raw);return;}
+            const scale=Math.min(1,limits.w/w,limits.h/h);
+            const cw=Math.max(1,Math.round(w*scale)),ch=Math.max(1,Math.round(h*scale));
+            const canvas=document.createElement('canvas');canvas.width=cw;canvas.height=ch;
+            const ctx=canvas.getContext('2d',{alpha:true});if(!ctx){resolve(raw);return;}
+            ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(img,0,0,cw,ch);
+            let out=canvas.toDataURL('image/webp',limits.q);
+            if(!out||out==='data:,')out=canvas.toDataURL('image/jpeg',limits.q);
+            resolve(out||raw);
+          }catch(err){resolve(raw);}
+        };
+        img.onerror=()=>{if(file.size<=3*1024*1024)resolve(raw);else reject(new Error('Este formato de imagem não pôde ser processado pelo navegador.'));};
+        img.src=raw;
+      });
+    }
+    async function prepareCommentImage(file){return prepareUiImage(file,'cover');}
+
+    function setProfileEditStatus(text,stateName=''){const el=$('#profileEditSaveStatus');if(!el)return;el.textContent=text;el.className='profile-edit-save-status'+(stateName?' '+stateName:'');}
+    function markProfileEditDirty(){const shell=$('#profileEditShell');if(!shell||router.current()?.page!=='profile-edit')return;shell.dataset.dirty='1';setProfileEditStatus('Alterações prontas para salvar.','dirty');}
+    function updateProfilePrivacyUI(){const input=$('#editProfilePrivate'),card=$('#profilePrivacyCard'),icon=$('#profilePrivacyIcon'),title=$('#profilePrivacyTitle'),desc=$('#profilePrivacyDescription');if(!input)return;const locked=input.checked;card?.classList.toggle('private',locked);card?.setAttribute('aria-checked',String(locked));if(icon)icon.textContent=locked?'🔒':'🌐';if(title)title.textContent=locked?'Perfil privado':'Perfil público';if(desc)desc.textContent=locked?'Somente seguidores que você aprovar poderão ver as informações completas do seu perfil.':'Outras pessoas podem visualizar sua bio e suas informações públicas.';}
+    function resetProfileEditSession(){const shell=$('#profileEditShell');if(!shell)return;delete shell.dataset.editorReady;delete shell.dataset.editorUser;delete shell.dataset.dirty;}
+    async function renderProfileEdit(){
+      if(!isMember()){ui.openAuth();router.navigate('/perfil');return;}
+      const shell=$('#profileEditShell'),uid=state.user?.uid||'';
+      if(shell?.dataset.editorReady==='1'&&shell.dataset.editorUser===uid){updateProfileEditPreview();updateProfilePrivacyUI();return;}
+      if(shell){shell.dataset.editorReady='1';shell.dataset.editorUser=uid;shell.dataset.dirty='0';}
+      window.__removeProfilePhoto=false;window.__removeProfileCover=false;const p=state.profile||{};
+      $('#editProfileName').value=p.nome||'';$('#editProfileUsername').value=p.nomeUsuario||'';$('#editProfileBio').value=p.bio||'';$('#editProfilePrivate').checked=p.publico===false;$('#profileEditShell').dataset.accent=profileAccent(p);$('#editProfilePhoto').value='';$('#editProfileCover').value='';$('#profilePhotoStatus').textContent='Nenhuma nova foto selecionada.';$('#profileCoverStatus').textContent='Nenhuma nova capa selecionada.';$('#profilePhotoPreview').removeAttribute('data-preview');$('#profileCoverPreview').removeAttribute('data-preview');updateProfileEditPreview();updateProfilePrivacyUI();setProfileEditStatus('As alterações só serão aplicadas quando você salvar.');
+    }
+    async function saveProfile(){
+      if(!requireMember())return;
+      const btn=$('#saveProfileButton');
+      try{
+        if(btn){btn.disabled=true;btn.textContent='Salvando...';}setProfileEditStatus('Salvando seu perfil...','saving');
+        const name=$('#editProfileName').value.trim(),username=slugUser($('#editProfileUsername').value),bio=$('#editProfileBio').value.trim(),old=slugUser(state.profile?.nomeUsuario),isPrivate=$('#editProfilePrivate').checked,accent=$('#profileEditShell')?.dataset.accent||profileAccent(state.profile);
+        if(!name||username.length<3){ui.toast('Preencha nome e @username.');return;}
+        if(username!==old){
+          const claim=await dbGet('nomesUsuario/'+username);
+          if(claim&&claim!==state.user.uid){ui.toast('Este @username já está em uso.');return;}
+          await dbSet('nomesUsuario/'+username,state.user.uid);
+          if(old)await dbRemove('nomesUsuario/'+old).catch(()=>{});
+        }
+        let foto=window.__removeProfilePhoto?'':(state.profile?.foto||''),capaPerfil=window.__removeProfileCover?'':(state.profile?.capaPerfil||'');
+        const photoFile=$('#editProfilePhoto').files?.[0],coverFile=$('#editProfileCover').files?.[0];
+        if(photoFile){
+          if(photoFile.size>12*1024*1024){ui.toast('Essa foto é muito grande. Escolha uma com até 12 MB.');return;}
+          foto=await prepareUiImage(photoFile,'photo');
+        }
+        if(coverFile){
+          if(coverFile.size>20*1024*1024){ui.toast('Essa capa é muito grande. Escolha uma com até 20 MB.');return;}
+          capaPerfil=await prepareUiImage(coverFile,'cover');
+        }
+        const patch={nome:name,nomeUsuario:username,bio,publico:!isPrivate,foto,capaPerfil,corPerfil:accent,atualizadoEm:now(),fotoAtualizadaEm:photoFile||window.__removeProfilePhoto?now():(state.profile?.fotoAtualizadaEm||0)};
+        await dbUpdate('usuarios/'+state.user.uid,patch);
+        const persisted=await dbGet('usuarios/'+state.user.uid);
+        state.profile={...(state.profile||{}),...(persisted||patch)};
+        let publicWarning=false;
+        try{await syncPublicProfile(state.user.uid,state.profile);}catch(err){console.error('sync public profile',err);publicWarning=true;}
+        updateAuthUI();
+        window.__removeProfilePhoto=false;window.__removeProfileCover=false;
+        setProfileEditStatus('Perfil salvo com sucesso.','success');ui.toast(publicWarning?'Perfil salvo. A foto foi salva na conta; a cópia pública será sincronizada novamente.':'Perfil atualizado. A foto já será usada nos comentários.');
+        router.navigate('/perfil');
+      }catch(e){
+        console.error(e);
+        setProfileEditStatus('Não foi possível salvar. Seus campos continuam preenchidos.','dirty');ui.toast('Não foi possível salvar o perfil. '+(String(e?.message||'').includes('format')?'Tente JPG, PNG ou WebP.':'Tente novamente.'));
+      }finally{
+        if(btn){btn.disabled=false;btn.textContent='Salvar alterações';}
+      }
+    }
+
+    let settingsRenderSeq=0;
+    async function renderSettingsDetail(sub){
+      const el=$('#settingsDetailContent');if(!el)return;const titleMap={aparencia:'Aparência',leitor:'Leitor',notificacoes:'Notificações',privacidade:'Privacidade',conta:'Conta e segurança',dados:'Dados e armazenamento',acessibilidade:'Acessibilidade',idioma:'Idioma e região',sobre:'Sobre',termos:'Termos de uso','privacidade-politica':'Política de privacidade','seguranca-politica':'Política de segurança'};document.title=(titleMap[sub]||'Configurações')+' — MP SCAN';const seq=++settingsRenderSeq,active=document.activeElement;if(el.dataset.renderedSub===sub&&active&&el.contains(active)&&/^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName))return;el.dataset.renderedSub=sub;const s=readerSettings(),p=getAppSettings();
+      const hero=(icon,title,desc)=>`<div class='settings-detail-hero'><div class='settings-detail-hero-icon'>${icon}</div><h2>${title}</h2><p>${desc}</p></div>`;
+      const toggle=(id,on,title,desc)=>`<div class='settings-option-row settings-option-clickable' role='switch' tabindex='0' aria-checked='${on?'true':'false'}' data-settings-toggle='${id}'><div class='settings-option-copy'><strong>${title}</strong><small>${desc}</small></div><span class='app-toggle' aria-hidden='true'><input id='${id}' tabindex='-1' type='checkbox' ${on?'checked':''}/><span></span></span></div>`;
+      const accessibilityToggle=(id,on,title,desc)=>`<button type='button' class='accessibility-native-row ${on?'is-on':''}' data-accessibility-toggle='${id}' aria-pressed='${on?'true':'false'}' aria-label='${title}: ${on?'ativado':'desativado'}'><div class='settings-option-copy'><strong>${title}</strong><small>${desc}</small></div><span class='accessibility-native-side'><span class='accessibility-toggle-state' data-accessibility-state='${id}'>${on?'Ativado':'Desativado'}</span><span class='accessibility-switch-track' aria-hidden='true'></span></span></button>`;
+      if(sub==='aparencia'){
+        let currentAppearance='dark';try{currentAppearance=localStorage.getItem('mp_appearance')||localStorage.getItem('mp_theme')||'dark';}catch(e){}
+        const bg=getAppearanceBackground();
+        el.innerHTML=`<div class='settings-detail-shell'>${hero('◐','Aparência','Personalize o MP SCAN com cores, brilho, vidro, movimentos suaves e até uma imagem de fundo. As opções foram separadas para você mudar sem perder as funções do aplicativo.')}
+        <div class='settings-section-card'><h3>Modo e paleta</h3><p>Claro, escuro ou acompanhando o sistema. Você também pode escolher entre várias combinações de cores.</p><div class='appearance-modes'><button type='button' class='appearance-mode ${currentAppearance==='light'?'active':''}' data-appearance='light'>☀ Claro</button><button type='button' class='appearance-mode ${currentAppearance==='dark'?'active':''}' data-appearance='dark'>☾ Escuro</button><button type='button' class='appearance-mode ${currentAppearance==='system'?'active':''}' data-appearance='system'>◐ Sistema</button></div><button type='button' class='btn primary' data-theme-panel-open='true'>🎨 Ver todas as paletas</button></div>
+        <div class='settings-section-card settings-wide'><h3>Prévia do seu estilo</h3><p>Os ajustes abaixo aparecem em tempo real antes de você salvar.</p><div class='appearance-pro-preview'><div class='appearance-pro-preview-bg' id='appearanceLiveBackground'>${bg?`<img src='${escapeAttr(bg)}' alt=''/>`:''}</div><div class='appearance-pro-preview-overlay'></div><div class='appearance-pro-preview-card'><strong>MP SCAN personalizado ✨</strong><span>Cores, brilho e transparência sem esconder suas informações.</span></div></div><div class='appearance-section-note'>A foto de fundo é otimizada e fica salva somente neste aparelho. Suas cores e demais preferências podem continuar sincronizando com sua conta.</div></div>
+        <div class='settings-section-card settings-wide'><h3>Cores personalizadas</h3><p>Escolha suas próprias cores. Ao salvar, a paleta “Personalizado” fica pronta para usar.</p><div class='appearance-control-grid'><label class='appearance-color-control'><span><strong>Cor principal</strong><small>Botões, destaques e detalhes</small></span><input id='appearanceAccentPrimary' type='color' value='${escapeAttr(safeAppearanceColor(p.customAccent,'#7b4dff'))}'/></label><label class='appearance-color-control'><span><strong>Cor secundária</strong><small>Gradientes e combinações</small></span><input id='appearanceAccentSecondary' type='color' value='${escapeAttr(safeAppearanceColor(p.customAccent2,'#ff5aa5'))}'/></label><label class='appearance-color-control'><span><strong>Cor do brilho</strong><small>Luzes e glow da interface</small></span><input id='appearanceGlowColor' type='color' value='${escapeAttr(safeAppearanceColor(p.appearanceGlowColor,'#9d7cff'))}'/></label></div><div class='appearance-background-actions'><button type='button' class='btn ghost' id='useCustomPalette'>Usar minhas cores agora</button></div></div>
+        <div class='settings-section-card'><h3>Luzes e brilho</h3><p>Controle o quanto a interface deve brilhar sem prejudicar a leitura.</p><div class='field'><label>Intensidade do glow</label><div class='settings-range-wrap'><input id='appearanceGlowSetting' type='range' min='0' max='100' step='5' value='${Number.isFinite(Number(p.appearanceGlow))?Number(p.appearanceGlow):34}'/><span class='settings-range-value' id='appearanceGlowValue'>${Number.isFinite(Number(p.appearanceGlow))?Number(p.appearanceGlow):34}%</span></div></div><div class='field'><label>Luz ambiente do fundo</label><div class='settings-range-wrap'><input id='appearanceAmbientSetting' type='range' min='0' max='70' step='2' value='${Number.isFinite(Number(p.appearanceAmbient))?Number(p.appearanceAmbient):14}'/><span class='settings-range-value' id='appearanceAmbientValue'>${Number.isFinite(Number(p.appearanceAmbient))?Number(p.appearanceAmbient):14}%</span></div></div>${toggle('glowingUiSetting',p.glowingUi!==false,'Brilho nos destaques','Adiciona glow em botões principais, paleta selecionada e marca do MP SCAN.')}${toggle('shinyUiSetting',p.shinyUi!==false,'Reflexo luminoso','Um brilho suave atravessa botões importantes de tempos em tempos.')}${toggle('ambientMotionSetting',p.ambientMotion!==false,'Luzes de fundo em movimento','Move lentamente as luzes coloridas do fundo. Respeita a opção Reduzir animações.')}</div>
+        <div class='settings-section-card'><h3>Vidro e transparência</h3><p>Deixe algumas áreas mais leves quando estiver usando uma imagem de fundo.</p><div class='field'><label>Opacidade dos cartões</label><div class='settings-range-wrap'><input id='appearanceCardOpacitySetting' type='range' min='55' max='100' step='5' value='${num(p.appearanceCardOpacity)||92}'/><span class='settings-range-value' id='appearanceCardOpacityValue'>${num(p.appearanceCardOpacity)||92}%</span></div></div><div class='field'><label>Desfoque do vidro</label><div class='settings-range-wrap'><input id='appearanceGlassBlurSetting' type='range' min='0' max='24' step='1' value='${Number.isFinite(Number(p.appearanceGlassBlur))?Number(p.appearanceGlassBlur):10}'/><span class='settings-range-value' id='appearanceGlassBlurValue'>${Number.isFinite(Number(p.appearanceGlassBlur))?Number(p.appearanceGlassBlur):10}px</span></div></div>${toggle('glassUiSetting',!!p.glassUi,'Cartões com efeito de vidro','Aplica transparência apenas em áreas seguras da interface, sem mexer no leitor dos capítulos.')}</div>
+        <div class='settings-section-card settings-wide'><h3>Foto de fundo</h3><p>Escolha uma foto da sua galeria para usar como fundo do MP SCAN. Ela fica salva neste aparelho e não quebra suas outras funções.</p><div class='appearance-bg-preview' id='appearanceBackgroundPreview'>${bg?`<img src='${escapeAttr(bg)}' alt='Prévia do fundo personalizado'/>`:'Nenhuma imagem de fundo selecionada.'}</div><input class='admin-file-hidden' id='appearanceBackgroundFile' type='file' accept='image/png,image/jpeg,image/webp'/><div class='appearance-background-actions'><button type='button' class='btn primary' id='appearanceBgPick'>📷 Escolher foto da galeria</button><button type='button' class='btn ghost ${bg?'':'hidden'}' id='appearanceBgRemove'>Remover foto</button></div><div class='appearance-background-status' id='appearanceBackgroundStatus'>${bg?'Fundo personalizado ativo e salvo neste aparelho.':'Escolha uma imagem da sua galeria. Ela será reduzida e otimizada antes de ser salva.'}</div><div class='appearance-section-note' style='margin-top:10px'>A foto fica salva no navegador deste aparelho para evitar bugs no Firebase e não mexe no leitor, no evento, nos comentários nem no perfil.</div><div class='appearance-select-grid' style='margin-top:14px'><div class='field'><label>Encaixe da imagem</label><select id='appearanceBgFitSetting'><option value='cover' ${p.appearanceBgFit==='contain'?'':'selected'}>Preencher a tela</option><option value='contain' ${p.appearanceBgFit==='contain'?'selected':''}>Mostrar imagem inteira</option></select></div><div class='field'><label>Posição</label><select id='appearanceBgPositionSetting'><option value='center' ${p.appearanceBgPosition==='center'?'selected':''}>Centro</option><option value='top' ${p.appearanceBgPosition==='top'?'selected':''}>Topo</option><option value='bottom' ${p.appearanceBgPosition==='bottom'?'selected':''}>Parte de baixo</option><option value='left' ${p.appearanceBgPosition==='left'?'selected':''}>Esquerda</option><option value='right' ${p.appearanceBgPosition==='right'?'selected':''}>Direita</option></select></div></div><div class='field'><label>Escurecer o fundo</label><div class='settings-range-wrap'><input id='appearanceBackgroundDimSetting' type='range' min='0' max='100' step='5' value='${Number.isFinite(Number(p.appearanceBackgroundDim))?Number(p.appearanceBackgroundDim):78}'/><span class='settings-range-value' id='appearanceBackgroundDimValue'>${Number.isFinite(Number(p.appearanceBackgroundDim))?Number(p.appearanceBackgroundDim):78}%</span></div></div><div class='field'><label>Desfoque do fundo</label><div class='settings-range-wrap'><input id='appearanceBackgroundBlurSetting' type='range' min='0' max='16' step='1' value='${Number.isFinite(Number(p.appearanceBackgroundBlur))?Number(p.appearanceBackgroundBlur):0}'/><span class='settings-range-value' id='appearanceBackgroundBlurValue'>${Number.isFinite(Number(p.appearanceBackgroundBlur))?Number(p.appearanceBackgroundBlur):0}px</span></div></div></div>
+        <div class='settings-section-card'><h3>Comportamento da Home</h3><p>Controle pequenos detalhes visuais da página inicial.</p>${toggle('heroAutoRotateSetting',p.heroAutoRotate,'Troca automática do destaque','Alterna suavemente entre as obras destacadas.')}${toggle('compactModeSetting',p.compactMode,'Interface mais compacta','Reduz alguns espaços sem esconder informações.')}</div>
+        <div class='settings-wide settings-actions'><button class='btn primary' type='button' id='saveAppearanceSettings'>Salvar aparência</button><button class='btn ghost' type='button' id='resetAppearanceEffects'>Restaurar efeitos visuais</button></div></div>`;
+      }else if(sub==='leitor'){
+        el.innerHTML=`<div class='settings-detail-shell'>${hero('📖','Leitor','Defina o comportamento padrão dos capítulos. Você ainda pode alterar cada opção dentro do leitor quando quiser.')}
+        <div class='settings-section-card'><h3>Layout</h3><p>Tamanho, espaço e navegação.</p><div class='field'><label>Largura das imagens</label><div class='settings-range-wrap'><input id='readerWidthSetting' type='range' min='40' max='100' value='${s.width}'/><span class='settings-range-value' id='readerWidthValue'>${s.width}%</span></div></div><div class='field'><label>Espaçamento</label><div class='settings-range-wrap'><input id='readerGapSetting' type='range' min='0' max='60' value='${s.gap}'/><span class='settings-range-value' id='readerGapValue'>${s.gap}px</span></div></div><div class='field'><label>Zoom padrão</label><div class='settings-range-wrap'><input id='readerZoomSetting' type='range' min='100' max='200' value='${s.zoom}'/><span class='settings-range-value' id='readerZoomValue'>${s.zoom}%</span></div></div><div class='field'><label>Modo padrão</label><select id='readerModeSetting'><option value='vertical' ${s.mode==='vertical'?'selected':''}>Vertical contínuo</option><option value='one' ${s.mode==='one'?'selected':''}>Uma página por vez</option></select></div><div class='field'><label>Direção</label><select id='readerDirectionSetting'><option value='ltr' ${s.direction==='ltr'?'selected':''}>Normal</option><option value='rtl' ${s.direction==='rtl'?'selected':''}>Mangá — direita para esquerda</option></select></div></div>
+        <div class='settings-section-card'><h3>Imagem e conforto</h3><p>Ajustes visuais aplicados às páginas.</p><div class='field'><label>Brilho</label><div class='settings-range-wrap'><input id='readerBrightnessSetting' type='range' min='55' max='125' value='${s.brightness}'/><span class='settings-range-value' id='readerBrightnessValue'>${s.brightness}%</span></div></div><div class='field'><label>Contraste</label><div class='settings-range-wrap'><input id='readerContrastSetting' type='range' min='75' max='140' value='${s.contrast}'/><span class='settings-range-value' id='readerContrastValue'>${s.contrast}%</span></div></div><div class='field'><label>Escala de cinza</label><div class='settings-range-wrap'><input id='readerGraySetting' type='range' min='0' max='100' value='${s.grayscale}'/><span class='settings-range-value' id='readerGrayValue'>${s.grayscale}%</span></div></div><div class='field'><label>Tom quente</label><div class='settings-range-wrap'><input id='readerWarmSetting' type='range' min='0' max='55' value='${s.warmth}'/><span class='settings-range-value' id='readerWarmValue'>${s.warmth}%</span></div></div><div class='field'><label>Fundo</label><select id='readerBackgroundSetting'><option value='black' ${s.background==='black'?'selected':''}>Preto</option><option value='charcoal' ${s.background==='charcoal'?'selected':''}>Grafite</option><option value='light' ${s.background==='light'?'selected':''}>Claro</option><option value='sepia' ${s.background==='sepia'?'selected':''}>Sépia</option></select></div></div>
+        <div class='settings-section-card'><h3>Comportamento</h3><p>Atalhos e retomada da leitura.</p>${toggle('readerResumeSetting',s.resume==='on','Retomar ponto salvo','Abre o capítulo no ponto em que você parou.')}${toggle('readerProgressSetting',s.progress!=='hide','Mostrar progresso','Exibe o progresso do capítulo durante a leitura.')}${toggle('readerTapZonesSetting',s.tapZones!=='off','Áreas de toque','No modo página única, toque nas laterais para navegar.')}${toggle('readerKeyboardSetting',s.keyboard!=='off','Atalhos do teclado','Usa setas e Page Up/Page Down no computador.')}${toggle('readerWakeSetting',!!s.keepAwake,'Manter tela ligada','Quando o navegador permitir, evita apagar a tela durante a leitura.')}<div class='field'><label>Pré-carregamento</label><select id='readerPreloadSetting'><option value='0' ${String(s.preload)==='0'?'selected':''}>Desativado</option><option value='2' ${String(s.preload)==='2'?'selected':''}>2 páginas</option><option value='4' ${String(s.preload)==='4'?'selected':''}>4 páginas</option></select></div><div class='field'><label>Transição de página</label><select id='readerTransitionSetting'><option value='none' ${s.transition==='none'?'selected':''}>Nenhuma</option><option value='fade' ${s.transition==='fade'?'selected':''}>Suave</option><option value='slide' ${s.transition==='slide'?'selected':''}>Deslizar</option></select></div></div>
+        <div class='settings-wide settings-actions'><button class='btn primary' type='button' id='saveReaderSetting'>Salvar leitor</button><button class='btn ghost' type='button' id='resetReaderDefaults'>Restaurar padrão</button></div></div>`;
+      }else if(sub==='notificacoes'){
+        el.innerHTML=`<div class='settings-detail-shell'>${hero('🔔','Notificações','Escolha quais tipos devem aparecer na sua central e no contador do sino. Seguir uma obra continua sendo controlado na página da própria obra.')}
+        <div class='settings-section-card settings-wide'><h3>O que mostrar</h3><p>As preferências abaixo afetam sua central de notificações neste MP SCAN.</p>${toggle('notifyReplySetting',p.notifyReply,'Respostas em comentários','Quando alguém responder a um comentário seu.')}${toggle('notifyReactionSetting',p.notifyReaction,'Reações e curtidas','Quando alguém reagir ao seu comentário.')}${toggle('notifyFollowerSetting',p.notifyFollower,'Seguidores e pedidos','Quando alguém começar a seguir você ou pedir acesso ao seu perfil privado.')}${toggle('notifyChapterSetting',p.notifyChapter,'Novos capítulos','Notificações das obras que você escolheu acompanhar.')}${toggle('notifyAdminSetting',p.notifyAdmin,'Avisos do ADM','Comunicados enviados pela administração.')}</div>
+        <div class='settings-section-card'><h3>Comportamento</h3><p>Controle o contador e a leitura automática.</p>${toggle('notificationBadgeSetting',p.showNotificationBadge,'Contador no sino','Mostra a quantidade de notificações não lidas.')}${toggle('autoMarkNotificationsSetting',p.autoMarkNotifications,'Marcar ao abrir','Ao abrir a Central, marca os itens como lidos automaticamente.')}</div>
+        <div class='settings-section-card'><h3>Central</h3><p>Acesse ou limpe o estado de leitura.</p><div class='settings-actions'><a class='btn primary' href='#/notificacoes' data-route='/notificacoes'>Abrir notificações</a><button class='btn ghost' type='button' id='settingsMarkAllRead'>Marcar tudo como lido</button></div></div>
+        <div class='settings-wide settings-actions'><button class='btn primary' type='button' id='saveNotificationSettings'>Salvar notificações</button></div></div>`;
+      }else if(sub==='privacidade'){
+        el.innerHTML=`<div class='settings-detail-shell'>${hero('🔒','Privacidade','Escolha o que fica visível para outros leitores. Coleções continuam respeitando a opção Pública/Privada definida em cada coleção.')}
+        <div class='settings-section-card settings-wide'><h3>Perfil público</h3><p>Essas alterações são salvas na sua conta.</p>${toggle('privacyToggle',state.profile?.publico===false,'Perfil privado','Quando ativado, novas pessoas precisam pedir permissão para seguir e ver suas informações completas.')}${toggle('showFavoritesPublicSetting',p.showFavoritesPublic!==false,'Mostrar favoritos no perfil público','Se o perfil estiver público, permite exibir suas obras favoritas.')}</div>
+        <div class='settings-info-strip settings-wide'>ⓘ Sua foto, nome e @ podem continuar sendo usados para identificar seus comentários sem revelar o restante de um perfil privado.</div>
+        <div class='settings-wide settings-actions'><button class='btn primary' type='button' id='savePrivacySetting' ${!state.firebaseReady?'disabled':''}>Salvar privacidade</button></div></div>`;
+      }else if(sub==='conta'){
+        const member=isMember();el.innerHTML=`<div class='settings-detail-shell'>${hero('👤','Conta e segurança','Gerencie os dados principais da sessão e os recursos de recuperação da sua conta.')}
+        <div class='settings-section-card'><h3>Conta atual</h3><p>Informações da sessão.</p><div class='settings-option-row'><div class='settings-option-copy'><strong>E-mail</strong><small>${escapeHtml(member?(state.user?.email||'Sem e-mail'):'Você está como visitante')}</small></div><span class='settings-value-pill'>${member?(state.user?.emailVerified?'Confirmado':'Pendente'):'Visitante'}</span></div><div class='settings-option-row'><div class='settings-option-copy'><strong>Perfil</strong><small>${escapeHtml(state.profile?.nomeUsuario?'@'+state.profile.nomeUsuario:'Sem @username')}</small></div><a class='btn ghost' href='#/perfil/editar' data-route='/perfil/editar'>Editar</a></div></div>
+        <div class='settings-section-card'><h3>Segurança</h3><p>As ações abaixo usam o Firebase Authentication.</p><div class='settings-actions'><button class='btn' type='button' id='resendVerify' ${!member||state.user?.emailVerified?'disabled':''}>Reenviar confirmação</button><button class='btn ghost' type='button' id='resetOwnPassword' ${!member||!state.user?.email?'disabled':''}>Alterar senha por e-mail</button></div></div>
+        <div class='settings-section-card settings-danger-zone settings-wide'><h3>Sessão</h3><p>Encerra a conta neste navegador sem apagar seus dados.</p><button class='btn danger' type='button' id='settingsLogout' ${!member?'disabled':''}>Sair da conta</button></div></div>`;
+      }else if(sub==='dados'){
+        let downloads=[];try{downloads=await offlineAll();}catch(e){}if(seq!==settingsRenderSeq||router.current()?.sub!==sub)return;const historyCount=Object.keys(state.history||{}).length;el.innerHTML=`<div class='settings-detail-shell'>${hero('▣','Dados e armazenamento','Gerencie o que fica salvo neste aparelho e os dados de leitura ligados à sua conta.')}
+        <div class='settings-section-card'><h3>Resumo</h3><p>Dados atualmente disponíveis.</p><div class='settings-stat-grid'><div class='settings-mini-stat'><strong>${downloads.length}</strong><span>capítulos offline</span></div><div class='settings-mini-stat'><strong>${historyCount}</strong><span>obras no histórico</span></div></div></div>
+        <div class='settings-section-card'><h3>Economia de dados</h3><p>Reduz o pré-carregamento do leitor.</p>${toggle('dataSaverSetting',p.dataSaver,'Modo economia de dados','Desativa o pré-carregamento automático das próximas páginas.')}</div>
+        <div class='settings-section-card settings-wide'><h3>Limpeza</h3><p>Escolha exatamente o que deseja apagar.</p><div class='settings-actions'><button class='btn ghost' type='button' id='clearAllDownloadsSetting'>Apagar downloads deste aparelho</button><button class='btn ghost' type='button' id='clearReadingHistorySetting' ${!isMember()?'disabled':''}>Limpar histórico de leitura</button></div></div>
+        <div class='settings-wide settings-actions'><button class='btn primary' type='button' id='saveDataSettings'>Salvar dados</button></div></div>`;
+      }else if(sub==='acessibilidade'){
+        const vibrateSupported=typeof navigator!=='undefined'&&typeof navigator.vibrate==='function';
+        el.innerHTML=`<div class='settings-detail-shell'>${hero('◉','Acessibilidade','Toque em qualquer parte da opção para ativar ou desativar. Os controles funcionam em tempo real, ficam salvos neste aparelho e, quando você está logado, também tentam sincronizar com sua conta.')}
+        <div class='settings-section-card settings-wide'><h3>Prévia em tempo real</h3><p>Mude uma opção e confira aqui na hora.</p><div class='accessibility-preview' id='accessibilityPreview'><div class='accessibility-preview-title'><div class='accessibility-preview-icon'>Aa</div><div><strong>Leitura confortável</strong><small>Exemplo de texto e controles</small></div></div><div class='accessibility-preview-copy'><strong>MP SCAN acessível</strong><span>Este texto acompanha o tamanho, a fonte e o contraste escolhidos por você.</span></div><div class='accessibility-preview-actions'><button class='btn primary' type='button' id='accessibilityPreviewButton'>Botão de exemplo</button><a class='btn ghost' href='#/configuracoes/acessibilidade' data-route='/configuracoes/acessibilidade'>Link de exemplo</a></div></div><div class='accessibility-save-status' id='accessibilitySaveStatus' role='status' aria-live='polite'>As alterações são aplicadas imediatamente.</div></div>
+        <div class='settings-section-card settings-wide'><h3>Texto e leitura da interface</h3><p>Ajuste o tamanho e a legibilidade sem precisar recarregar o site.</p><div class='field'><label for='uiTextScaleSetting'>Tamanho do texto</label><div class='settings-range-wrap'><input id='uiTextScaleSetting' type='range' min='90' max='130' step='5' value='${Math.max(90,Math.min(130,num(p.textScale)||100))}' aria-describedby='uiTextScaleHelp'/><span class='settings-range-value' id='uiTextScaleValue'>${Math.max(90,Math.min(130,num(p.textScale)||100))}%</span></div><div class='tiny' id='uiTextScaleHelp' style='margin-top:7px'>De 90% a 130%. O layout se adapta automaticamente.</div></div>${accessibilityToggle('readableFontSetting',p.readableFont,'Fonte mais legível','Troca textos, campos e botões por uma fonte de sistema mais aberta e fácil de distinguir.')}${accessibilityToggle('highContrastSetting',p.highContrast,'Alto contraste','Reforça bordas, textos secundários, campos e foco do teclado.')}</div>
+        <div class='settings-section-card settings-wide'><h3>Toque e movimento</h3><p>Opções para facilitar o uso no celular e reduzir efeitos visuais.</p>${accessibilityToggle('largeTargetsSetting',p.largeTargets,'Áreas de toque maiores','Aumenta botões, links, campos, reações e interruptores para facilitar o toque.')}${accessibilityToggle('reduceMotionSetting',p.reduceMotion,'Reduzir animações','Para animações decorativas, rotação automática do destaque e rolagem automática em andamento.')}${accessibilityToggle('hapticsSetting',p.haptics,'Resposta tátil','Vibra rapidamente em ações principais quando o navegador e o aparelho oferecem suporte.')}<div class='accessibility-support-note'><span>📳</span><span>${vibrateSupported?'Este navegador informou suporte à vibração. Você pode testar abaixo.':'Este navegador não oferece a API de vibração. A opção pode ficar salva, mas não haverá vibração neste aparelho/navegador.'}</span></div><div class='accessibility-preview-actions' style='margin-top:12px'><button class='btn ghost' type='button' id='testAccessibilityHaptics' ${vibrateSupported?'':'disabled'}>📳 Testar vibração</button></div></div>
+        <div class='settings-wide settings-actions'><button class='btn primary' type='button' id='saveAccessibilitySettings'>Salvar e sincronizar</button><button class='btn ghost' type='button' id='resetAccessibilitySettings'>Restaurar acessibilidade</button></div></div>`;
+        requestAnimationFrame(()=>syncAccessibilityNativeRows());
+      }else if(sub==='idioma'){
+        el.innerHTML=`<div class='settings-detail-shell'>${hero('🌐','Idioma e região','A interface atual do MP SCAN está em Português (Brasil). Você pode escolher como as datas são exibidas.')}
+        <div class='settings-section-card'><h3>Idioma</h3><p>Idioma atual da interface.</p><div class='settings-option-row'><div class='settings-option-copy'><strong>Português (Brasil)</strong><small>Idioma principal deste projeto</small></div><span class='settings-value-pill'>pt-BR</span></div></div>
+        <div class='settings-section-card'><h3>Datas</h3><p>Escolha o estilo usado em avisos e atividades.</p><div class='field'><label>Formato</label><select id='dateStyleSetting'><option value='relative' ${p.dateStyle==='relative'?'selected':''}>Relativo quando recente — “5 min”, “2 h”</option><option value='full' ${p.dateStyle==='full'?'selected':''}>Data e hora completas</option></select></div><div class='settings-info-strip'>◷ Fuso horário: usa automaticamente o fuso configurado no aparelho.</div></div>
+        <div class='settings-wide settings-actions'><button class='btn primary' type='button' id='saveRegionSettings'>Salvar região</button></div></div>`;
+      }else if(sub==='sobre'){
+        el.innerHTML=`<div class='settings-detail-shell'>${hero('ⓘ','Sobre o MP SCAN','Informações desta versão do aplicativo.')}
+        <div class='settings-section-card'><h3>MP SCAN</h3><p>Leitura de mangás, manhwas, manhuas, novels e outras obras.</p><div class='settings-option-row'><div class='settings-option-copy'><strong>Versão da interface</strong><small>Configurações profissionais</small></div><span class='settings-value-pill'>v94</span></div><div class='settings-option-row'><div class='settings-option-copy'><strong>Banco conectado</strong><small>Firebase Realtime Database</small></div><span class='settings-value-pill'>${state.firebaseReady?'Online':'Offline'}</span></div></div>
+        <div class='settings-section-card'><h3>Documentos</h3><p>Acesse os documentos publicados pelo ADM.</p><div class='settings-actions'><a class='btn' href='#/configuracoes/termos' data-route='/configuracoes/termos'>Termos de uso</a><a class='btn ghost' href='#/configuracoes/privacidade-politica' data-route='/configuracoes/privacidade-politica'>Privacidade</a><a class='btn ghost' href='#/configuracoes/seguranca-politica' data-route='/configuracoes/seguranca-politica'>Segurança</a></div></div></div>`;
+      }else if(sub==='maioridade'){router.navigate('/configuracoes/maioridade');return;}
+      else if(sub==='sensivel'){router.navigate('/configuracoes/sensivel');return;}
+      else if(sub==='termos'||sub==='privacidade-politica'||sub==='seguranca-politica'){
+        const docs={termos:{key:'termos',icon:'≡',title:'Termos de uso',desc:'Regras publicadas pela administração do MP SCAN.'},'privacidade-politica':{key:'privacidade',icon:'▤',title:'Política de privacidade',desc:'Informações sobre o tratamento de dados no MP SCAN.'},'seguranca-politica':{key:'seguranca',icon:'🛡',title:'Política de segurança',desc:'Orientações e regras de segurança publicadas pela administração.'}},doc=docs[sub];let value='';
+        if(state.firebaseReady){try{value=await dbGet('config/termos/'+doc.key)||'';}catch(e){value='';}}
+        if(seq!==settingsRenderSeq||router.current()?.sub!==sub)return;
+        el.innerHTML=`<div class='settings-detail-shell'>${hero(doc.icon,doc.title,doc.desc)}<div class='settings-section-card settings-wide'><div class='comment-text'>${escapeHtml(value||'Este texto ainda não foi publicado pelo administrador.')}</div></div></div>`;
+      }
+      else el.innerHTML="<div class='empty'>Configuração não encontrada.</div>";
+    }
+
+    function renderNotifications(){
+      const el=$('#notificationsList');if(!el)return;
+      if(!isMember()){el.innerHTML="<div class='empty'>Entre para ver suas notificações.</div>";return;}
+      const list=objEntries(state.notifications).map(([id,n])=>({id,...n})).filter(notificationVisible).sort((a,b)=>num(b.data)-num(a.data));
+      const icon=n=>n.tipo==='follow_request'?'🔐':n.tipo==='follow_request_accepted'?'✅':n.tipo==='follow_request_rejected'?'🔒':n.tipo==='follower'?'👤':n.tipo==='chapter'?'📚':n.tipo==='reply'?'💬':n.tipo==='reaction'?'❤️':'🔔';
+      const item=n=>{
+        if(n.tipo==='follow_request'){
+          const status=String(n.requestStatus||'pending'),from=String(n.requesterUid||n.fromUid||''),done=status!=='pending';
+          const statusHtml=done?"<span class='notification-request-status "+(status==='accepted'?'accepted':status==='rejected'?'rejected':'')+"'>"+(status==='accepted'?'✓ Pedido aceito':status==='rejected'?'Pedido recusado':'Pedido encerrado')+"</span>":"<div class='notification-request-actions'><button type='button' class='accept' data-follow-request-accept='"+escapeAttr(from)+"' data-follow-request-notification='"+escapeAttr(n.id)+"'>Aceitar</button><button type='button' class='reject' data-follow-request-reject='"+escapeAttr(from)+"' data-follow-request-notification='"+escapeAttr(n.id)+"'>Recusar</button></div>";
+          return "<div class='notification-item notification-request "+(!n.lida?'unread':'')+"' data-notification-id='"+escapeAttr(n.id)+"'><div>"+icon(n)+"</div><div class='grow'><strong>"+escapeHtml(n.titulo||'Pedido para seguir')+"</strong><p>"+escapeHtml(n.texto||'Uma pessoa quer seguir seu perfil privado.')+"</p><span class='tiny'>"+fmtRelative(n.data)+"</span>"+statusHtml+"</div></div>";
+        }
+        return "<a class='notification-item "+(!n.lida?'unread':'')+"' href='#"+escapeAttr(n.link||'/notificacoes')+"' data-route='"+escapeAttr(n.link||'/notificacoes')+"' data-notification-id='"+escapeAttr(n.id)+"'><div>"+icon(n)+"</div><div class='grow'><strong>"+escapeHtml(n.titulo||'Notificação')+"</strong><p>"+escapeHtml(n.texto||'')+"</p><span class='tiny'>"+fmtRelative(n.data)+"</span></div></a>";
+      };
+      el.innerHTML=list.length?list.map(item).join(''):"<div class='empty'>Nenhuma notificação visível com suas preferências atuais.</div>";
+    }
+
+    function updateNotificationBadge(){const pref=getAppSettings();const count=Object.values(state.notifications||{}).filter(n=>!n.lida&&notificationVisible(n)).length,btn=$('#notificationButton'),badge=$('#notificationCount');btn?.classList.toggle('has-unread',pref.showNotificationBadge!==false&&count>0);if(badge){badge.classList.toggle('hidden',pref.showNotificationBadge===false);badge.textContent=count>99?'99+':String(count);}}
+
+    async function markAllNotifications(){if(!isMember())return;const updates={};for(const id of Object.keys(state.notifications||{}))updates[id+'/lida']=true;await dbUpdate('notificacoes/'+state.user.uid,updates).catch(()=>{});}
+    async function sendNotification(uid,payload){if(!uid||uid===state.user?.uid)return;await dbPush('notificacoes/'+uid,{...payload,data:now(),lida:false,fromUid:state.user?.uid||''}).catch(()=>{});}
+
+    async function repairViewerPrivateFollow(targetUid){
+      if(!isMember()||!state.user?.uid)return false;targetUid=String(targetUid||'');if(!targetUid||targetUid===state.user.uid)return false;
+      const requesterUid=state.user.uid;
+      const [access,req,following]=await Promise.all([
+        dbGet('privateAccess/'+targetUid+'/'+requesterUid).catch(()=>null),
+        dbGet('followRequests/'+targetUid+'/'+requesterUid).catch(()=>null),
+        dbGet('seguindo/'+requesterUid+'/'+targetUid).catch(()=>null)
+      ]);
+      const approved=access?.granted===true||req?.status==='accepted'||!!following;if(!approved)return false;
+      const stamp=now(),writes=[];
+      if(!following)writes.push(dbSet('seguindo/'+requesterUid+'/'+targetUid,{data:stamp,aprovado:true}));
+      writes.push(dbSet('seguidores/'+targetUid+'/'+requesterUid,{data:stamp,aprovado:true}));
+      const results=await Promise.allSettled(writes);return results.every(r=>r.status==='fulfilled');
+    }
+    async function requestPrivateFollow(targetUid){
+      if(!requireMember())return;targetUid=String(targetUid||'');if(!targetUid||targetUid===state.user.uid)return;
+      const requesterUid=state.user.uid,path='followRequests/'+targetUid+'/'+requesterUid;
+      try{
+        const [already,existing,access]=await Promise.all([
+          dbGet('seguindo/'+requesterUid+'/'+targetUid).catch(()=>null),
+          dbGet(path).catch(()=>null),
+          dbGet('privateAccess/'+targetUid+'/'+requesterUid).catch(()=>null)
+        ]);
+        if(already||access?.granted===true||existing?.status==='accepted'){
+          await repairViewerPrivateFollow(targetUid).catch(()=>{});ui.toast('Seu acesso a este perfil já está aprovado.');await renderPublicProfile(targetUid);return;
+        }
+        if(existing?.status==='pending'){
+          await dbRemove(path);ui.toast('Solicitação cancelada.');await renderPublicProfile(targetUid);return;
+        }
+        const stamp=now(),payload={requesterUid,targetUid,status:'pending',data:existing?.data||stamp,atualizadoEm:stamp};
+        await dbSet(path,payload);
+        try{await dbPush('notificacoes/'+targetUid,{tipo:'follow_request',titulo:'Pedido para seguir você',texto:(state.profile?.nome||state.profile?.nomeUsuario||'Uma pessoa')+' quer seguir você e acessar seu perfil privado.',link:'/notificacoes',requesterUid,requestStatus:'pending',data:stamp,lida:false,fromUid:requesterUid});}
+        catch(err){console.warn('Notificação do pedido não foi criada:',err);}
+        ui.toast('Pedido enviado. A pessoa precisa aprovar antes de você ver o perfil.');
+        await renderPublicProfile(targetUid);
+      }catch(err){console.error('requestPrivateFollow',err);ui.toast(err?.code==='PERMISSION_DENIED'||String(err?.message||'').toLowerCase().includes('permission')?'O Firebase bloqueou o pedido. Publique as regras v93 e tente novamente.':'Não foi possível enviar o pedido agora. Confira sua conexão e tente novamente.');}
+    }
+    async function respondPrivateFollowRequest(requesterUid,accept,notificationId=''){
+      if(!requireMember())return;requesterUid=String(requesterUid||'');notificationId=String(notificationId||'');if(!requesterUid||requesterUid===state.user.uid)return;
+      const ownerUid=state.user.uid,reqPath='followRequests/'+ownerUid+'/'+requesterUid,accessPath='privateAccess/'+ownerUid+'/'+requesterUid,buttons=$$('[data-follow-request-accept],[data-follow-request-reject]').filter(b=>(b.dataset.followRequestAccept||b.dataset.followRequestReject)===requesterUid);buttons.forEach(b=>b.disabled=true);
+      try{
+        const [req,existingAccess]=await Promise.all([dbGet(reqPath).catch(()=>null),dbGet(accessPath).catch(()=>null)]);
+        if((!req||req.status!=='pending')&&!(accept&&existingAccess?.granted===true)){
+          if(notificationId)await dbUpdate('notificacoes/'+ownerUid+'/'+notificationId,{lida:true,requestStatus:req?.status||'cancelled'}).catch(()=>{});
+          ui.toast(req?.status==='accepted'?'Esse pedido já foi aceito.':'Esse pedido já não está pendente.');await renderNotifications();return;
+        }
+        const stamp=now();
+        if(accept){
+          // A autorização privada é agora a fonte principal de verdade. É uma única
+          // gravação simples, independente das listas de seguidores, evitando falhas
+          // parciais e updates multi-caminho no celular.
+          if(existingAccess?.granted!==true)await dbSet(accessPath,{granted:true,data:stamp,requesterUid,targetUid:ownerUid});
+          if(req?.status!=='accepted')await dbUpdate(reqPath,{status:'accepted',respondidoEm:stamp,atualizadoEm:stamp}).catch(err=>console.warn('Status do pedido será reparado depois:',err));
+
+          const freshOwner=await dbGet('usuarios/'+ownerUid).catch(()=>null);if(freshOwner)state.profile={...(state.profile||{}),...freshOwner};
+          if(state.profile?.publico===false){try{await ensureOwnPrivateProfileSnapshot();}catch(snapshotErr){console.warn('Snapshot privado pendente:',snapshotErr);}}
+
+          // As listas são espelhos para contagem/abas. Se uma delas falhar, o acesso
+          // continua aprovado e será reparado quando o seguidor abrir o perfil.
+          await Promise.allSettled([
+            dbSet('seguindo/'+requesterUid+'/'+ownerUid,{data:stamp,aprovado:true}),
+            dbSet('seguidores/'+ownerUid+'/'+requesterUid,{data:stamp,aprovado:true})
+          ]);
+          if(notificationId)await dbUpdate('notificacoes/'+ownerUid+'/'+notificationId,{lida:true,requestStatus:'accepted'}).catch(()=>{});
+          await sendNotification(requesterUid,{tipo:'follow_request_accepted',titulo:'Pedido aceito',texto:(state.profile?.nome||'A pessoa')+' aceitou seu pedido. Agora você pode ver o perfil privado.',link:'/perfil/'+ownerUid});
+          ui.toast('Pedido aceito. O acesso privado foi liberado.');
+        }else{
+          await dbUpdate(reqPath,{status:'rejected',respondidoEm:stamp,atualizadoEm:stamp});
+          await Promise.allSettled([
+            dbRemove(accessPath),
+            dbRemove('seguindo/'+requesterUid+'/'+ownerUid),
+            dbRemove('seguidores/'+ownerUid+'/'+requesterUid)
+          ]);
+          if(notificationId)await dbUpdate('notificacoes/'+ownerUid+'/'+notificationId,{lida:true,requestStatus:'rejected'}).catch(()=>{});
+          await sendNotification(requesterUid,{tipo:'follow_request_rejected',titulo:'Pedido para seguir',texto:'Seu pedido para acessar este perfil privado não foi aprovado.',link:'/perfil/'+ownerUid});
+          ui.toast('Pedido recusado. O perfil continua privado para essa pessoa.');
+        }
+        await renderNotifications();updateNotificationBadge();
+      }catch(err){
+        console.error('respondPrivateFollowRequest',err);
+        const permission=err?.code==='PERMISSION_DENIED'||String(err?.message||'').toLowerCase().includes('permission');
+        ui.toast(permission?'O Firebase bloqueou a permissão privada. Publique as regras v93 antes de testar.':'Não foi possível salvar a permissão agora. Confira a conexão e tente novamente.');buttons.forEach(b=>b.disabled=false);
+      }
+    }
+
+    async function renderCollection(ownerUid,id){
+      const el=$('#collectionDetailContent');if(!el)return;if(!isMember()){el.innerHTML="<div class='empty'>Entre para ver coleções.</div>";return;}
+      const own=ownerUid===state.user.uid,path=own?'colecoes/'+ownerUid+'/'+id:'colecoesPublicas/'+ownerUid+'/'+id,c=await dbGet(path);
+      if(!c){el.innerHTML="<div class='empty'>Coleção não encontrada.</div>";return;}
+      const works=Object.keys(c.obras||{}).map(wid=>state.workMap[wid]).filter(Boolean),owner=own?(state.profile||{}):await safePublicProfile(ownerUid),cover=c.capa||(works.find(w=>w.cover)?.cover||''),bg=cover?"background-image:url('"+String(cover).replace(/'/g,'%27')+"')":"",ownerPhoto=owner?.foto?"<img src='"+escapeAttr(owner.foto)+"' alt=''/>":'',privacy=c.publico?'🌐 Pública':'🔒 Privada';
+      el.innerHTML="<div class='collection-detail-hero'><div class='collection-detail-bg' style=\""+bg+"\"></div><div class='collection-detail-copy'><span class='collection-privacy "+(c.publico?'public':'')+"'>"+privacy+"</span><h1>"+escapeHtml(c.nome||'Coleção')+"</h1><div>"+escapeHtml(c.descricao||'')+"</div><div class='collection-owner-line'>"+(ownerPhoto||'<span>👤</span>')+"<a href='#/perfil/"+ownerUid+"' data-route='/perfil/"+ownerUid+"'>"+escapeHtml(owner?.nome||'Leitor')+"</a><span>• "+works.length+" "+(works.length===1?'obra':'obras')+"</span></div></div></div>"+(own?"<div class='collection-detail-actions'><button type='button' class='btn primary' data-edit-collection='"+id+"'>Editar coleção</button><button type='button' class='btn danger' data-delete-collection='"+id+"'>Excluir coleção</button></div>":'')+"<div class='cards'>"+(works.length?works.map(w=>workCard(w)).join(''):"<div class='empty'>Esta coleção está vazia.</div>")+"</div>";
+      document.title=(c.nome||'Coleção')+' — MP SCAN';
+    }
+
+    const WORK_WEEKDAYS=[['Domingo','domingo'],['Segunda-feira','segunda'],['Terça-feira','terça'],['Quarta-feira','quarta'],['Quinta-feira','quinta'],['Sexta-feira','sexta'],['Sábado','sábado']];
+    function normalizeWorkSchedule(v={}){const s=v&&typeof v==='object'?v:{};const type=['weekly','monthly'].includes(String(s.tipo||s.type||''))?String(s.tipo||s.type):'none';const days=Array.isArray(s.dias)?s.dias.map(Number).filter(n=>n>=0&&n<=6):Object.keys(s.dias||{}).filter(k=>s.dias[k]).map(Number).filter(n=>n>=0&&n<=6);const day=Math.max(1,Math.min(31,num(s.diaMes||s.dayOfMonth)||1));return {type,days:[...new Set(days)].sort((a,b)=>a-b),day};}
+    function scheduleDescription(w){const s=normalizeWorkSchedule(w?.schedule||w?.agendaAtualizacao||w?.raw?.agendaAtualizacao||{});if(s.type==='weekly'&&s.days.length){const labels=s.days.map(d=>d===0?'domingo':d===6?'sábado':WORK_WEEKDAYS[d][1]+'-feira');if(labels.length===1)return (s.days[0]===0||s.days[0]===6?'Todo ':'Toda ')+labels[0];if(labels.length===2)return 'Atualiza '+labels[0]+' e '+labels[1];return 'Atualiza '+labels.slice(0,-1).join(', ')+' e '+labels[labels.length-1];}if(s.type==='monthly')return 'Todo dia '+s.day+' de cada mês';return 'Sem dia fixo';}
+    function workSchedulePayload(){const type=$('#workUpdateScheduleType')?.value||'none';if(type==='weekly')return {tipo:'weekly',dias:[...state.adminUpdateDays].map(Number).sort((a,b)=>a-b)};if(type==='monthly'){const raw=Number($('#workUpdateMonthDay')?.value||0);return {tipo:'monthly',diaMes:raw>=1&&raw<=31?raw:0};}return {tipo:'none'};}
+    function updateWorkScheduleUI(){const type=$('#workUpdateScheduleType')?.value||'none';$$('[data-work-schedule-mode]').forEach(b=>b.classList.toggle('active',b.dataset.workScheduleMode===type));$('#workScheduleWeekly')?.classList.toggle('hidden',type!=='weekly');$('#workScheduleMonthly')?.classList.toggle('hidden',type!=='monthly');$$('[data-work-update-day]').forEach(b=>b.classList.toggle('active',state.adminUpdateDays.has(Number(b.dataset.workUpdateDay))));const preview={schedule:workSchedulePayload()},summary=$('#workScheduleSummary');if(summary){if(type==='weekly'&&!state.adminUpdateDays.size)summary.textContent='Escolha pelo menos um dia da semana.';else if(type==='monthly'&&!preview.schedule.diaMes)summary.textContent='Digite um dia entre 1 e 31.';else summary.textContent=scheduleDescription(preview);}}
+    function setWorkScheduleEditor(value={}){const s=normalizeWorkSchedule(value);state.adminUpdateDays=new Set(s.days);const type=$('#workUpdateScheduleType');if(type)type.value=s.type;const day=$('#workUpdateMonthDay');if(day)day.value=s.type==='monthly'?String(s.day):'';updateWorkScheduleUI();}
+    function localDateKey(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+day;}
+    function dateFromLocalKey(key){const [y,m,d]=String(key||'').split('-').map(Number);return new Date(y||new Date().getFullYear(),(m||1)-1,d||1,12,0,0,0);}
+    function scheduledOnDate(w,date){const s=normalizeWorkSchedule(w?.schedule||w?.raw?.agendaAtualizacao||{});if(s.type==='weekly')return s.days.includes(date.getDay());if(s.type==='monthly')return s.day===date.getDate();return false;}
+    function nextScheduledDate(w,start=new Date(),maxDays=370){const base=new Date(start.getFullYear(),start.getMonth(),start.getDate(),12);for(let i=0;i<=maxDays;i++){const d=new Date(base);d.setDate(base.getDate()+i);if(scheduledOnDate(w,d))return d;}return null;}
+    function calendarWorksForDate(date){return state.works.filter(w=>scheduledOnDate(w,date)).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));}
+    function calendarWorkItem(w){return "<a class='calendar-work-item' href='#"+workRoute(w.id)+"' data-route='"+workRoute(w.id)+"'><span class='calendar-work-cover'>"+(w.cover?"<img src='"+escapeAttr(w.cover)+"' alt='' loading='lazy'/>":'')+"</span><span class='calendar-work-copy'><strong>"+escapeHtml(w.name)+"</strong><span>"+escapeHtml(scheduleDescription(w))+"</span></span><span class='calendar-work-go'>›</span></a>";}
+    function renderCalendar(){const grid=$('#calendarMonthGrid');if(!grid)return;const nowD=new Date(),view=new Date(nowD.getFullYear(),nowD.getMonth()+num(state.calendarMonthOffset),1,12),year=view.getFullYear(),month=view.getMonth();if(!state.calendarSelectedKey)state.calendarSelectedKey=localDateKey(nowD);const selected=dateFromLocalKey(state.calendarSelectedKey);const title=$('#calendarMonthTitle');if(title)title.textContent=view.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});const sub=$('#calendarMonthSubtitle');if(sub)sub.textContent=state.works.filter(w=>normalizeWorkSchedule(w.schedule).type!=='none').length+' obras com agenda';const start=new Date(year,month,1,12);start.setDate(1-start.getDay());let cells='';for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const key=localDateKey(d),works=calendarWorksForDate(d),other=d.getMonth()!==month,today=key===localDateKey(nowD),active=key===state.calendarSelectedKey;cells+="<button type='button' class='calendar-day-cell "+(other?'other ':'')+(today?'today ':'')+(active?'active':'')+"' data-calendar-date='"+key+"'><span class='calendar-day-num'>"+d.getDate()+"</span>"+(works.length?"<span class='calendar-day-dots'>"+[0,1,2].slice(0,Math.min(3,works.length)).map(()=>"<i class='calendar-dot'></i>").join('')+"<b class='calendar-count-mini'>"+works.length+"</b></span>":'')+"</button>";}grid.innerHTML=cells;const selectedWorks=calendarWorksForDate(selected),selTitle=$('#calendarSelectedTitle'),selSub=$('#calendarSelectedSubtitle'),selCount=$('#calendarSelectedCount'),selList=$('#calendarSelectedWorks');if(selTitle)selTitle.textContent=selected.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});if(selSub)selSub.textContent=selectedWorks.length?(selectedWorks.length===1?'1 obra prevista para atualizar.':selectedWorks.length+' obras previstas para atualizar.'):'Nenhuma obra está programada para este dia.';if(selCount)selCount.textContent=String(selectedWorks.length);if(selList)selList.innerHTML=selectedWorks.length?selectedWorks.map(calendarWorkItem).join(''):"<div class='empty'>Nenhuma obra prevista para este dia.</div>";const upcoming=$('#calendarUpcomingList');if(upcoming){let groups=[];for(let i=0;i<14;i++){const d=new Date(nowD.getFullYear(),nowD.getMonth(),nowD.getDate()+i,12),works=calendarWorksForDate(d);if(works.length)groups.push({d,works});if(groups.length>=6)break;}upcoming.innerHTML=groups.length?groups.map(g=>"<button type='button' class='calendar-upcoming-group' data-calendar-date='"+localDateKey(g.d)+"'><span class='calendar-upcoming-date'><strong>"+escapeHtml(g.d.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'}))+"</strong><span>"+g.works.length+" "+(g.works.length===1?'obra':'obras')+"</span></span><span class='calendar-upcoming-works'>"+g.works.slice(0,5).map(w=>"<span class='calendar-upcoming-thumb'>"+(w.cover?"<img src='"+escapeAttr(w.cover)+"' alt='' loading='lazy'/>":'')+"</span>").join('')+(g.works.length>5?"<span class='calendar-upcoming-more'>+"+(g.works.length-5)+"</span>":'')+"</span></button>").join(''):"<div class='empty'>Nenhuma atualização programada nos próximos dias.</div>";}document.title='Calendário de atualizações — MP SCAN';}
+
+    function setWorkSaveStatus(message,kind=''){
+      const el=$('#workSaveStatus');if(!el)return;el.className='work-save-status'+(kind?' '+kind:'');el.textContent=message||'';
+    }
+    function setWorkSaving(on){
+      ['saveDraftWork','publishWork','clearWorkForm'].forEach(id=>{const b=$('#'+id);if(b)b.disabled=!!on;});
+      const pub=$('#publishWork'),draft=$('#saveDraftWork');
+      if(pub){if(on){pub.dataset.oldText=pub.dataset.oldText||pub.textContent;pub.textContent='Salvando…';}else if(pub.dataset.oldText){pub.textContent=pub.dataset.oldText;delete pub.dataset.oldText;}}
+      if(draft){if(on){draft.dataset.oldText=draft.dataset.oldText||draft.textContent;draft.textContent='Salvando…';}else if(draft.dataset.oldText){draft.textContent=draft.dataset.oldText;delete draft.dataset.oldText;}}
+    }
+    function bindAdminWorkFlagControl(cardId,inputId,labelText){
+      const card=$('#'+cardId),input=$('#'+inputId);if(!card||!input)return;
+      card.setAttribute('role','switch');card.setAttribute('tabindex','0');
+      const toggle=()=>{input.checked=!input.checked;syncAdminWorkFlagUI();setWorkSaveStatus(labelText+' '+(input.checked?'ATIVADO':'DESATIVADO')+'. Salve a obra para aplicar.','pending');};
+      card.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();toggle();});
+      card.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;e.preventDefault();e.stopPropagation();toggle();});
+      input.addEventListener('change',e=>{e.stopPropagation();syncAdminWorkFlagUI();});
+    }
+    function savedWorkFlagsMatch(saved,sensitive,adult,status,published){
+      if(!saved||typeof saved!=='object')return false;
+      const s=('sensivel' in saved)?boolFlag(saved.sensivel):boolFlag(saved.sensitive),a=('maior18' in saved)?boolFlag(saved.maior18):boolFlag(saved.adult),st=canonicalStatus(saved.status),pub=saved.publicado!==false&&saved.published!==false;
+      return s===!!sensitive&&a===!!adult&&st===canonicalStatus(status)&&pub===!!published;
+    }
+    function workClassificationSummary(sensitive,adult,status){const items=[];if(sensitive)items.push('Sensível');if(adult)items.push('Restrição etária');if(canonicalStatus(status)==='future')items.push('Estreia/Futura');return items.length?items.join(' • '):'Sem classificação especial';}
+
+    function syncAdminWorkFlagUI(){
+      const pairs=[['workSensitive','workSensitiveCard','workSensitiveState'],['workAdult','workAdultCard','workAdultState']];
+      pairs.forEach(([inputId,cardId,stateId])=>{const input=$('#'+inputId),card=$('#'+cardId),label=$('#'+stateId),on=!!input?.checked;card?.classList.toggle('active',on);if(card)card.setAttribute('aria-checked',on?'true':'false');if(label)label.textContent=on?'ATIVADO':'DESATIVADO';});
+    }
+    function syncAdminWorkStatusUI(){
+      const v=$('#workStatus')?.value||'ongoing',title=$('#workStatusPreviewTitle'),desc=$('#workStatusPreviewText'),box=$('#workStatusPreview');
+      const map={ongoing:['Em andamento','A obra continua recebendo capítulos.'],complete:['Completa','A publicação principal desta obra foi concluída.'],paused:['Pausada','A obra está temporariamente sem novas atualizações.'],cancelled:['Cancelada','A obra foi marcada como cancelada.'],future:['Futura','Estreia ou publicação programada para mais adiante.']},info=map[v]||[labelStatus(v)||'Status selecionado','O status escolhido será salvo com a obra.'];
+      if(title)title.textContent=info[0];if(desc)desc.textContent=info[1];if(box)box.dataset.status=v;
+    }
+    function setAdminMediaUploadState(previewSel,on){const box=$(previewSel)?.closest?.('.admin-media-upload');if(box)box.classList.toggle('has-file',!!on);}
+    async function saveWork(published){
+      if(!isAdmin()){ui.toast('Sem permissão administrativa.');return;}
+      const name=$('#workName')?.value.trim()||'';if(!name){ui.toast('Digite o nome da obra.');setWorkSaveStatus('Digite o nome da obra antes de salvar.','error');return;}
+      const schedule=workSchedulePayload();if(schedule.tipo==='weekly'&&!schedule.dias.length){ui.toast('Escolha pelo menos um dia da semana para a atualização.');return;}if(schedule.tipo==='monthly'&&(!schedule.diaMes||schedule.diaMes<1||schedule.diaMes>31)){ui.toast('Informe um dia do mês entre 1 e 31.');return;}
+      const sensitive=!!$('#workSensitive')?.checked,adult=!!$('#workAdult')?.checked,status=canonicalStatus($('#workStatus')?.value||'ongoing');
+      setWorkSaving(true);setWorkSaveStatus('Salvando a obra e confirmando as classificações no Firebase…','saving');
+      try{
+        const id=$('#editingWorkId')?.value||push(pathRef('obras')).key,existing=state.allWorkMap[id]?.raw||{},coverFile=$('#workCoverFile')?.files?.[0],bannerFile=$('#workBannerFile')?.files?.[0];
+        const cover=coverFile?await fileData(coverFile):(existing.capa||existing.cover||''),banner=bannerFile?await fileData(bannerFile):(existing.banner||'');
+        const genres=[...state.adminSelectedGenres],tags=($('#workTags')?.value||'').split(',').map(x=>x.trim()).filter(Boolean);
+        const payload={...existing,id,nome:name,nomeAlternativo:$('#workAltName')?.value.trim()||'',sinopse:$('#workSynopsis')?.value.trim()||'',tipo:$('#workType')?.value||'other',status,autor:$('#workAuthor')?.value.trim()||'',artista:$('#workArtist')?.value.trim()||'',scan:$('#workScan')?.value.trim()||'',idioma:$('#workLanguage')?.value.trim()||'Português',generos:genres,tags,capa:cover,banner,sensivel:sensitive,maior18:adult,agendaAtualizacao:schedule,publicado:!!published,criadoEm:existing.criadoEm||now(),atualizadoEm:now()};
+        await dbSet('obras/'+id,payload);
+        const confirmed=await dbGet('obras/'+id);
+        if(!savedWorkFlagsMatch(confirmed,sensitive,adult,status,published))throw new Error('As classificações salvas não correspondem ao formulário.');
+        for(const g of genres){if(!state.genres.includes(g)){const gp=push(pathRef('config/generos'));await set(gp,g);}}
+        setWorkSaveStatus((published?'Obra publicada':'Rascunho salvo')+' com sucesso. '+workClassificationSummary(sensitive,adult,status)+' confirmado no Firebase.','success');
+        ui.toast((published?'Obra publicada. ':'Rascunho salvo. ')+workClassificationSummary(sensitive,adult,status)+'.');
+        setTimeout(()=>clearWorkForm(true),850);
+      }catch(e){console.error(e);setWorkSaveStatus('Não foi possível confirmar o salvamento. Nada será marcado como concluído até o Firebase responder corretamente.','error');ui.toast('Não foi possível salvar a obra. Confira a conexão e tente novamente.');}
+      finally{setWorkSaving(false);}
+    }
+
+    function clearWorkForm(preserveSaveStatus=false){['workName','workAltName','workSynopsis','workAuthor','workArtist','workScan','workTags','editingWorkId'].forEach(id=>{if($('#'+id))$('#'+id).value='';});state.adminSelectedGenres.clear();renderAdminGenrePicker();if($('#workLanguage'))$('#workLanguage').value='Português';if($('#workStatus'))$('#workStatus').value='ongoing';if($('#workSensitive'))$('#workSensitive').checked=false;if($('#workAdult'))$('#workAdult').checked=false;syncAdminWorkFlagUI();syncAdminWorkStatusUI();setWorkScheduleEditor({tipo:'none'});if($('#workCoverFile'))$('#workCoverFile').value='';if($('#workBannerFile'))$('#workBannerFile').value='';clearAdminSinglePreview('#workCoverPreview','#workCoverStatus','Nenhuma capa nova selecionada.');clearAdminSinglePreview('#workBannerPreview','#workBannerStatus','Nenhum banner novo selecionado.');if(!preserveSaveStatus)setWorkSaveStatus('Formulário limpo. As classificações estão desativadas até você marcá-las.','');}
+    function editWork(id){const w=state.allWorkMap[id];if(!w)return;$('#editingWorkId').value=id;$('#workName').value=w.name;$('#workAltName').value=w.altName;$('#workSynopsis').value=w.synopsis;$('#workType').value=w.type;$('#workStatus').value=w.status;$('#workAuthor').value=w.author;$('#workArtist').value=w.artist;$('#workScan').value=w.scan;$('#workLanguage').value=w.language||'Português';state.adminSelectedGenres=new Set(w.genres||[]);renderAdminGenrePicker();$('#workTags').value=w.tags.join(', ');$('#workSensitive').checked=!!w.sensitive;$('#workAdult').checked=!!w.adult;syncAdminWorkFlagUI();syncAdminWorkStatusUI();setWorkScheduleEditor(w.schedule||w.raw?.agendaAtualizacao||{});showStoredAdminImage('#workCoverPreview','#workCoverStatus',w.cover,'Capa atual da obra');showStoredAdminImage('#workBannerPreview','#workBannerStatus',w.banner,'Banner atual da obra');setWorkSaveStatus('Configuração carregada: '+workClassificationSummary(w.sensitive,w.adult,w.status)+'.','success');window.scrollTo({top:0,behavior:'smooth'});}
+    function renderAdminWorks(){
+      const el=$('#adminWorksList');if(!el)return;
+      el.innerHTML=state.allWorks.length?state.allWorks.map(w=>{const flags=(w.sensitive?"<span class='admin-work-flag sensitive'>⚠ Sensível</span>":'')+(w.adult?"<span class='admin-work-flag adult'>18+ Restrita</span>":'')+(w.status==='future'?"<span class='admin-work-flag premiere'>✦ Estreia</span>":'');return "<div class='admin-item'><div class='admin-work-card-pro'><div class='admin-work-thumb'>"+(w.cover?"<img src='"+escapeAttr(w.cover)+"' alt=''/>":'▣')+"</div><div class='admin-work-info'><h4>"+escapeHtml(w.name)+"</h4><div class='tiny'>"+escapeHtml(labelStatus(w.status))+" • "+(state.chapters[w.id]?.length||0)+" capítulos</div><div class='tiny' style='margin-top:4px'>"+(w.published?'Publicado':'Rascunho')+" • "+escapeHtml(scheduleDescription(w))+"</div>"+(flags?"<div class='admin-work-flags'>"+flags+"</div>":'')+"</div></div><div class='row'><button type='button' class='btn' data-edit-work='"+w.id+"'>Editar</button><a class='btn ghost' href='#"+workRoute(w.id)+"' data-route='"+workRoute(w.id)+"'>Abrir</a><button type='button' class='btn danger' data-delete-work='"+w.id+"'>Excluir</button></div></div>";}).join(''):"<div class='empty'>Nenhuma obra cadastrada.</div>";
+    }
+
+    async function updateAdminChrome(){
+      if(!isAdmin())return;
+      const role=$('#adminRoleText');if(role)role.textContent=state.role==='moderator'?'Moderador':'Administrador';
+      let users={};try{users=await dbGet('usuarios')||{};}catch(_e){}
+      let chapters=0,reads=0;for(const w of state.allWorks){chapters+=(state.chapters[w.id]?.length||0);reads+=num(w.reads);}
+      const memberCount=objEntries(users).filter(([,u])=>u&&typeof u==='object'&&u.anonimo!==true).length;
+      const vals=[state.allWorks.length,chapters,memberCount,reads];
+      $$('#adminQuickStats .admin-quick-stat strong').forEach((el,i)=>el.textContent=String(vals[i]??0));
+    }
+    async function renderAdminDashboard(el){
+      let users={},comments={};try{[users,comments]=await Promise.all([dbGet('usuarios').catch(()=>({})),dbGet('comentariosV1').catch(()=>({}))]);}catch(_e){}
+      let chapterCount=0,reads=0,commentCount=0;
+      for(const w of state.allWorks){chapterCount+=(state.chapters[w.id]?.length||0);reads+=num(w.reads);}
+      const countObj=o=>{for(const v of Object.values(o||{})){if(v&&typeof v==='object'&&'uid'in v)commentCount++;else if(v&&typeof v==='object')countObj(v);}};countObj(comments);
+      const members=objEntries(users).filter(([,u])=>u&&typeof u==='object'&&u.anonimo!==true).length;
+      el.dataset.adminView='dashboard';
+      el.innerHTML="<div class='admin-section-card'><div class='admin-dashboard-welcome'><h2>Visão geral</h2><p>Acompanhe o estado do MP SCAN e acesse rapidamente as áreas administrativas.</p></div><div class='stats-grid' style='margin-top:14px'><div class='stat'><strong>"+state.allWorks.length+"</strong><span>Obras cadastradas</span></div><div class='stat'><strong>"+chapterCount+"</strong><span>Capítulos</span></div><div class='stat'><strong>"+members+"</strong><span>Usuários</span></div><div class='stat'><strong>"+reads+"</strong><span>Leituras</span></div><div class='stat'><strong>"+commentCount+"</strong><span>Comentários</span></div></div><div class='admin-overview-actions'><a class='admin-action-card' href='#/adm/obras' data-route='/adm/obras'><span class='admin-action-icon'>＋</span><span><strong>Nova obra</strong><span>Cadastre ou edite obras</span></span></a><a class='admin-action-card' href='#/adm/capitulos' data-route='/adm/capitulos'><span class='admin-action-icon'>☷</span><span><strong>Novo capítulo</strong><span>Publique páginas e extras</span></span></a><a class='admin-action-card' href='#/adm/usuarios' data-route='/adm/usuarios'><span class='admin-action-icon'>👥</span><span><strong>Usuários</strong><span>Permissões e solicitações</span></span></a><a class='admin-action-card' href='#/adm/notificacoes' data-route='/adm/notificacoes'><span class='admin-action-icon'>🔔</span><span><strong>Aviso</strong><span>Envie notificações</span></span></a><a class='admin-action-card' href='#/adm/reacoes' data-route='/adm/reacoes'><span class='admin-action-icon'>✨</span><span><strong>Reações</strong><span>Crie reações para obras e capítulos</span></span></a><a class='admin-action-card' href='#/adm/molduras' data-route='/adm/molduras'><span class='admin-action-icon'>🖼</span><span><strong>Molduras</strong><span>Crie molduras para comentários</span></span></a><a class='admin-action-card' href='#/adm/documentos' data-route='/adm/documentos'><span class='admin-action-icon'>▤</span><span><strong>Documentos</strong><span>Termos, privacidade e segurança</span></span></a></div><div class='admin-health'><span class='admin-health-dot'></span><span>Firebase conectado • dados exibidos em tempo real</span></div></div>";
+    }
+    async function renderAdmin(sub){
+      if(!isAdmin())return;
+      renderAdminWorks();
+      await updateAdminChrome().catch(e=>console.warn('admin chrome',e));
+      const dyn=$('#adminDynamic');if(!dyn)return;
+      const key=({'visao-geral':'dashboard',dashboard:'dashboard',capitulos:'chapters',usuarios:'users',comentarios:'comments',reacoes:'reactions',molduras:'frames',banners:'banners',notificacoes:'notifications',divulgacao:'referrals',documentos:'documents',estatisticas:'stats',obras:'works','':'dashboard'})[sub]||sub;
+      try{
+        if(key==='dashboard'){await renderAdminDashboard(dyn);}
+        else if(key==='chapters'){if(dyn.dataset.adminView!=='chapters'||!$('#chapterWork')){dyn.dataset.adminView='chapters';renderAdminChapters(dyn);}else{refreshChapterWorkOptions();renderAdminChapterList();}}
+        else if(key==='users'){dyn.dataset.adminView='users';await renderAdminUsers(dyn);}
+        else if(key==='comments'){dyn.dataset.adminView='comments';await renderAdminComments(dyn);}
+        else if(key==='reactions'){if(dyn.dataset.adminView==='reactions'&&document.getElementById('adminReactionLabel'))return;dyn.dataset.adminView='reactions';await renderAdminContentReactions(dyn);}
+        else if(key==='frames'){dyn.dataset.adminView='frames';await renderAdminCommentFrames(dyn);}
+        else if(key==='banners'){dyn.dataset.adminView='banners';renderAdminBanners(dyn);}
+        else if(key==='notifications'){if(dyn.dataset.adminView==='notifications'&&document.getElementById('adminNotifyTitle')){return;}dyn.dataset.adminView='notifications';await renderAdminNotifications(dyn);}
+        else if(key==='referrals'){dyn.dataset.adminView='referrals';await renderAdminReferralEvent(dyn);}
+        else if(key==='documents'){if(dyn.dataset.adminView==='documents'&&document.getElementById('adminDocumentsEditor')){return;}dyn.dataset.adminView='documents';await renderAdminDocuments(dyn);}
+        else if(key==='stats'){dyn.dataset.adminView='stats';await renderAdminStats(dyn);}
+      }catch(e){
+        console.error('Painel ADM '+key,e);
+        dyn.innerHTML="<div class='admin-section-card'><div class='admin-section-title'><div><h2>Não foi possível carregar esta área</h2><p>O restante do painel continua funcionando. Tente novamente ou confira a permissão desta conta no Firebase.</p></div></div><div class='admin-status-box error'>"+escapeHtml(String(e?.code||e?.message||'Erro desconhecido'))+"</div><div class='row' style='margin-top:12px'><button type='button' class='btn primary' data-route='/adm/"+escapeAttr(sub||'visao-geral')+"'>Tentar novamente</button><a class='btn ghost' href='#/adm/visao-geral' data-route='/adm/visao-geral'>Voltar à visão geral</a></div></div>";
+      }
+    }
+    function renderAdminChapters(el){
+      const options=state.allWorks.map(w=>"<option value='"+w.id+"'>"+escapeHtml(w.name)+"</option>").join('');
+      el.dataset.adminView='chapters';
+      el.innerHTML="<div class='admin-section-card admin-panel-stable'><div class='admin-section-title'><div><h2>Capítulos</h2><p>Publique, edite e organize capítulos sem sair do painel.</p></div></div><div class='field'><label>Obra</label><select id='chapterWork'>"+options+"</select></div><div class='field'><label>Número</label><input id='chapterNumber' inputmode='decimal' placeholder='Ex.: 15'/></div><div class='field'><label>Título livre</label><input id='chapterTitle' placeholder='Ex.: Extra, Especial...'/></div><div class='field'><label>Imagens do capítulo</label><div class='admin-upload'><button class='admin-file-pick' id='chapterFilesPick' type='button'>📚 Selecionar páginas</button><input id='chapterFiles' class='admin-file-hidden' type='file' accept='image/*' multiple='multiple'/><div class='admin-file-status' id='chapterFilesStatus'>Nenhuma página selecionada.</div><div class='admin-upload-tip'>Você pode escolher várias imagens de uma vez. A prévia aparece abaixo e você pode usar ↑ e ↓ para corrigir a ordem.</div></div></div><input id='editingChapterId' type='hidden'/><div id='chapterPreview' class='preview-grid'></div><div class='chapter-upload-progress hidden' id='chapterUploadProgress'><div class='chapter-upload-progress-head'><strong id='chapterUploadLabel'>Preparando envio…</strong><span id='chapterUploadPercent'>0%</span></div><div class='chapter-upload-track'><span id='chapterUploadBar'></span></div></div><div class='row' style='margin-top:12px'><button class='btn primary' type='button' id='publishChapter'>Publicar capítulo</button><button class='btn ghost' type='button' id='clearChapter'>Limpar</button></div><div class='section-head' style='margin-top:22px'><h3 class='section-title'>Capítulos cadastrados</h3></div><div id='adminChapterList' class='admin-grid'></div></div>";
+      $('#publishChapter')?.addEventListener('click',saveChapter);
+      $('#clearChapter')?.addEventListener('click',()=>clearChapterForm());
+      $('#chapterWork')?.addEventListener('change',renderAdminChapterList);
+      const chapterInput=$('#chapterFiles'),chapterPick=$('#chapterFilesPick');
+      chapterInput?.addEventListener('change',e=>{e.stopPropagation();handleChapterFiles(e.currentTarget);});
+      chapterPick?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(!chapterInput)return;try{if(typeof chapterInput.showPicker==='function')chapterInput.showPicker();else chapterInput.click();}catch(err){console.error(err);try{chapterInput.click();}catch(_err){ui.toast('Não foi possível abrir a galeria neste navegador.');}}});
+      renderAdminChapterList();
+    }
+    function formatFileSize(bytes){const n=Number(bytes)||0;if(n<1024)return n+' B';if(n<1024*1024)return (n/1024).toFixed(1)+' KB';return (n/(1024*1024)).toFixed(1)+' MB';}
+    function clearAdminSinglePreview(previewSel,statusSel,statusText){const box=$(previewSel),status=$(statusSel);if(box){const old=box.dataset.objectUrl;if(old){try{URL.revokeObjectURL(old);}catch(e){}delete box.dataset.objectUrl;}box.classList.remove('has-image');box.innerHTML='';}setAdminMed

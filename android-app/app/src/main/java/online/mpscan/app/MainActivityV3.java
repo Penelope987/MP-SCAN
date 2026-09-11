@@ -65,7 +65,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class MainActivityV3 extends ComponentActivity {
-    private static final String HOME = "https://www.mpscan.online/";
+    private static final String HOME = "https://appassets.androidplatform.net/";
     private static final String OFFLINE_DIR = "mp_scan_offline";
     private static final String NOTIFICATION_CHANNEL = "mp_scan_updates";
 
@@ -262,7 +262,7 @@ public class MainActivityV3 extends ComponentActivity {
         }
 
         String host = uri.getHost() == null ? "" : uri.getHost();
-        if (host.endsWith("mpscan.online") || host.endsWith("firebaseapp.com") || host.endsWith("googleapis.com")) return false;
+        if (host.equals("appassets.androidplatform.net") || host.endsWith("mpscan.online") || host.endsWith("firebaseapp.com") || host.endsWith("googleapis.com")) return false;
         try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (Exception ignored) {}
         return true;
     }
@@ -277,7 +277,9 @@ public class MainActivityV3 extends ComponentActivity {
         nativeScreen = "online";
         nativeWorkKey = "";
         try {
-            web.loadUrl(HOME);
+            StringBuilder html = new StringBuilder(1400000);
+            for (int i = 0; i < 10; i++) html.append(readAsset(String.format("site/index.part%02d", i)));
+            web.loadDataWithBaseURL(HOME, html.toString(), "text/html", "UTF-8", HOME);
         } catch (Exception e) {
             Toast.makeText(this, "Não foi possível abrir a tela inicial.", Toast.LENGTH_SHORT).show();
             showOfflineLibrary();
