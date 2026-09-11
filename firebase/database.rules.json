@@ -1,0 +1,462 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "obras": {
+      ".read": true,
+      "$obraId": {
+        ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+        "cliques": {
+          ".write": "auth != null"
+        },
+        "leituras": {
+          ".write": "auth != null"
+        }
+      }
+    },
+    "capitulos": {
+      ".read": true,
+      "$obraId": {
+        "$chapterId": {
+          ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')"
+        }
+      }
+    },
+    "capitulosPaginas": {
+      ".read": true,
+      "$obraId": {
+        "$chapterId": {
+          ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')"
+        }
+      }
+    },
+    "usuarios": {
+      ".read": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+        ".write": "auth != null && (auth.uid == $uid || auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+        ".validate": "auth != null && ((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador') || (auth.uid == $uid && ((!data.exists() && newData.child('admin').val() != true && newData.child('papel').val() != 'ADM' && newData.child('papel').val() != 'Administrador' && newData.child('ageVerified').val() != true && newData.child('minorSensitiveApproved').val() != true) || (data.exists() && newData.child('admin').val() == data.child('admin').val() && newData.child('papel').val() == data.child('papel').val() && (newData.child('ageVerified').val() == data.child('ageVerified').val() || (data.child('ageVerified').val() != true && newData.child('ageVerified').val() == true && newData.child('ageVerificationStatus').val() == 'adult-auto' && newData.child('dataNascimentoTs').isNumber() && newData.child('dataNascimentoTs').val() <= now - 567993600000)) && (newData.child('minorSensitiveApproved').val() == data.child('minorSensitiveApproved').val() || (!data.child('minorSensitiveApproved').exists() && newData.child('minorSensitiveApproved').val() != true)) && (newData.child('minorSensitiveRequestStatus').val() == data.child('minorSensitiveRequestStatus').val() || newData.child('minorSensitiveRequestStatus').val() == 'pending' || (!data.child('minorSensitiveRequestStatus').exists() && !newData.child('minorSensitiveRequestStatus').exists())))) && (newData.child('sensivelPermitido').val() != true || newData.child('ageVerified').val() == true)))",
+        "molduraComentarioId": {
+          ".validate": "!newData.exists() || newData.val() == data.val() || newData.val() == '' || (newData.isString() && root.child('commentFrameInventory').child($uid).child(newData.val()).exists() && root.child('config').child('commentFrames').child(newData.val()).child('ativo').val() == true)"
+        }
+      }
+    },
+    "nomesUsuario": {
+      ".read": true,
+      "$nomeUsuario": {
+        ".write": "auth != null && ((!data.exists() && newData.val() == auth.uid) || (data.exists() && data.val() == auth.uid && (!newData.exists() || newData.val() == auth.uid)) || auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')"
+      }
+    },
+    "perfisPublicos": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+        ".write": "auth != null && (auth.uid == $uid || auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')"
+      }
+    },
+    "comentariosV1": {
+      ".read": true,
+      "obra": {
+        "$obraId": {
+          "$comentarioId": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((!data.exists() && newData.child('uid').val() == auth.uid) || (data.exists() && data.child('uid').val() == auth.uid) || auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador' || root.child('usuarios').child(auth.uid).child('papel').val() == 'moderador' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Moderador')",
+            "reacoes": {
+              "$uid": {
+                ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid == $uid"
+              }
+            },
+            "respostas": {
+              "$respostaId": {
+                ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((!data.exists() && newData.child('uid').val() == auth.uid) || (data.exists() && data.child('uid').val() == auth.uid) || auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador' || root.child('usuarios').child(auth.uid).child('papel').val() == 'moderador' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Moderador')",
+                "reacoes": {
+                  "$uid": {
+                    ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid == $uid"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "capitulo": {
+        "$obraId": {
+          "$chapterId": {
+            "$comentarioId": {
+              ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((!data.exists() && newData.child('uid').val() == auth.uid) || (data.exists() && data.child('uid').val() == auth.uid) || auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador' || root.child('usuarios').child(auth.uid).child('papel').val() == 'moderador' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Moderador')",
+              "reacoes": {
+                "$uid": {
+                  ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid == $uid"
+                }
+              },
+              "respostas": {
+                "$respostaId": {
+                  ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((!data.exists() && newData.child('uid').val() == auth.uid) || (data.exists() && data.child('uid').val() == auth.uid) || auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador' || root.child('usuarios').child(auth.uid).child('papel').val() == 'moderador' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Moderador')",
+                  "reacoes": {
+                    "$uid": {
+                      ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid == $uid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ratings": {
+      ".read": true,
+      "$obraId": {
+        "$uid": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid == $uid",
+          ".validate": "!newData.exists() || (newData.hasChildren(['nota','data']) && newData.child('nota').isNumber() && newData.child('nota').val() >= 1 && newData.child('nota').val() <= 5 && newData.child('data').isNumber())"
+        }
+      }
+    },
+    "favoritos": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
+        ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'"
+      }
+    },
+    "historico_leitura": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "colecoes": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
+        ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'"
+      }
+    },
+    "colecoesPublicas": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+        ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'"
+      },
+      ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'"
+    },
+    "seguindo": {
+      ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+      "$uid": {
+        "$targetUid": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $uid != $targetUid && (((!newData.exists()) && data.exists() && (auth.uid == $uid || auth.uid == $targetUid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))) || (newData.exists() && ((auth.uid == $uid && ((root.child('perfisPublicos').child($targetUid).child('publico').val() != false) || root.child('privateAccess').child($targetUid).child($uid).child('granted').val() == true || root.child('followRequests').child($targetUid).child($uid).child('status').val() == 'accepted')) || (auth.uid == $targetUid && (root.child('privateAccess').child($targetUid).child($uid).child('granted').val() == true || root.child('followRequests').child($targetUid).child($uid).child('status').val() == 'accepted' || root.child('followRequests').child($targetUid).child($uid).child('status').val() == 'pending')) || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))))",
+          ".validate": "!newData.exists() || newData.child('data').isNumber()"
+        }
+      }
+    },
+    "seguidores": {
+      ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+      "$targetUid": {
+        "$followerUid": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $targetUid != $followerUid && (((!newData.exists()) && data.exists() && (auth.uid == $followerUid || auth.uid == $targetUid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))) || (newData.exists() && ((auth.uid == $followerUid && ((root.child('perfisPublicos').child($targetUid).child('publico').val() != false) || root.child('privateAccess').child($targetUid).child($followerUid).child('granted').val() == true || root.child('followRequests').child($targetUid).child($followerUid).child('status').val() == 'accepted')) || (auth.uid == $targetUid && (root.child('privateAccess').child($targetUid).child($followerUid).child('granted').val() == true || root.child('followRequests').child($targetUid).child($followerUid).child('status').val() == 'accepted' || root.child('followRequests').child($targetUid).child($followerUid).child('status').val() == 'pending')) || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))))",
+          ".validate": "!newData.exists() || newData.child('data').isNumber()"
+        }
+      }
+    },
+    "notificacoesPreferencias": {
+      ".read": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+        ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'"
+      }
+    },
+    "notificacoes": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
+        "$id": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (auth.uid == $uid || !data.exists() || auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')"
+        }
+      }
+    },
+    "denuncias": {
+      ".read": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+      "usuarios": {
+        "$id": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (!data.exists() || auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')"
+        }
+      }
+    },
+    "config": {
+      "generos": {
+        ".read": true,
+        ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')"
+      },
+      "banners": {
+        ".read": true,
+        ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')"
+      },
+      "termos": {
+        ".read": true,
+        ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')"
+      },
+      "support": {
+        ".read": true,
+        ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')"
+      },
+      "commentFrames": {
+        ".read": true,
+        ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')"
+      }
+    },
+    "pedidosAcessoSensivel": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+        ".write": "auth != null && ((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador') || (auth.uid == $uid && newData.child('uid').val() == auth.uid && newData.child('status').val() == 'pending' && newData.child('mensagem').isString() && newData.child('mensagem').val().length >= 5 && newData.child('mensagem').val().length <= 800))"
+      }
+    },
+    "identidadesComentarios": {
+      ".read": true,
+      "$uid": {
+        ".write": "auth != null && (auth.uid == $uid || auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+        ".validate": "!newData.exists() || (newData.child('uid').val() == $uid && newData.child('nome').isString() && newData.child('nomeUsuario').isString() && newData.child('foto').isString())",
+        "molduraComentarioId": {
+          ".validate": "!newData.exists() || newData.val() == data.val() || newData.val() == '' || (newData.isString() && root.child('commentFrameInventory').child($uid).child(newData.val()).exists() && root.child('config').child('commentFrames').child(newData.val()).child('ativo').val() == true)"
+        }
+      }
+    },
+    "supportChats": {
+      ".read": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+        "meta": {
+          ".write": "auth != null && (auth.uid == $uid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+          ".validate": "!newData.exists() || (newData.child('uid').val() == $uid && newData.child('atualizadoEm').isNumber())"
+        },
+        "mensagens": {
+          "$id": {
+            ".write": "auth != null && (auth.uid == $uid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+            ".validate": "!newData.exists() || (newData.hasChildren(['senderUid','papel','texto','data','lidoUsuario','lidoAdm']) && newData.child('senderUid').isString() && newData.child('papel').isString() && newData.child('texto').isString() && newData.child('texto').val().length >= 1 && newData.child('texto').val().length <= 3000 && newData.child('data').isNumber() && newData.child('lidoUsuario').isBoolean() && newData.child('lidoAdm').isBoolean() && ((!data.exists() && newData.child('senderUid').val() == auth.uid && (((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador') && newData.child('papel').val() == 'adm') || (!((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')) && auth.uid == $uid && newData.child('papel').val() == 'usuario'))) || (data.exists() && newData.child('senderUid').val() == data.child('senderUid').val() && newData.child('papel').val() == data.child('papel').val() && newData.child('texto').val() == data.child('texto').val() && newData.child('data').val() == data.child('data').val())))"
+          }
+        }
+      }
+    },
+    "supportWorkRequests": {
+      ".read": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+        "$id": {
+          ".write": "auth != null && ((auth.uid == $uid && !data.exists() && newData.child('uid').val() == auth.uid) || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+          ".validate": "!newData.exists() || (newData.child('uid').val() == $uid && newData.child('nome').isString() && newData.child('nome').val().length >= 2 && newData.child('nome').val().length <= 180 && newData.child('data').isNumber())"
+        }
+      }
+    },
+    "supportBotSessions": {
+      ".read": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+        "$id": {
+          ".write": "auth != null && (auth.uid == $uid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+          ".validate": "!newData.exists() || (newData.child('uid').val() == $uid && newData.child('problema').isString() && newData.child('resposta').isString() && newData.child('data').isNumber())"
+        }
+      }
+    },
+    "commentFrameInventory": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
+        "$frameId": {
+          ".write": "auth != null && ((auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous') || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+          ".validate": "!newData.exists() || (root.child('config').child('commentFrames').child($frameId).child('ativo').val() == true && newData.child('data').isNumber() && (!root.child('config').child('commentFrames').child($frameId).child('exclusiveToUid').exists() || root.child('config').child('commentFrames').child($frameId).child('exclusiveToUid').val() == $uid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')))"
+        }
+      }
+    },
+    "eventoDivulgacao": {
+      "codigos": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.token.email_verified == true",
+        "$codigo": {
+          ".write": "auth != null && ((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador') || (auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.token.email_verified == true && ((!data.exists() && newData.val() == auth.uid) || (data.exists() && data.val() == auth.uid && newData.val() == auth.uid))))",
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length >= 8 && newData.val().length <= 128)"
+        }
+      },
+      "perfis": {
+        ".read": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+        "$uid": {
+          ".read": "auth != null && (auth.uid == $uid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+          ".write": "auth != null && ((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador') || (auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous' && auth.token.email_verified == true))",
+          ".validate": "!newData.exists() || (newData.child('uid').val() == $uid && newData.child('codigo').isString() && newData.child('codigo').val().length >= 8 && newData.child('codigo').val().length <= 24 && newData.child('nome').isString() && newData.child('nome').val().length >= 1 && newData.child('nome').val().length <= 180 && newData.child('nomeUsuario').isString() && newData.child('nomeUsuario').val().length <= 80 && newData.child('criadoEm').isNumber() && newData.child('atualizadoEm').isNumber() && root.child('eventoDivulgacao').child('codigos').child(newData.child('codigo').val()).val() == $uid)"
+        }
+      },
+      "usos": {
+        ".read": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+        "$uid": {
+          ".read": "auth != null && (auth.uid == $uid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+          ".write": "auth != null && ((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador') || (auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous' && auth.token.email_verified == true && !data.exists() && (!root.child('eventoDivulgacao').child('vagas50').child('1').child('uid').exists() || !root.child('eventoDivulgacao').child('vagas50').child('2').child('uid').exists() || !root.child('eventoDivulgacao').child('vagas50').child('3').child('uid').exists())))",
+          ".validate": "!newData.exists() || (newData.child('uid').val() == $uid && newData.child('ownerUid').isString() && newData.child('ownerUid').val() != $uid && newData.child('codigo').isString() && newData.child('criadoEm').isNumber() && root.child('eventoDivulgacao').child('codigos').child(newData.child('codigo').val()).val() == newData.child('ownerUid').val())"
+        }
+      },
+      "indicacoes": {
+        ".read": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+        "$ownerUid": {
+          ".read": "auth != null && (auth.uid == $ownerUid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+          "$referredUid": {
+            ".write": "auth != null && ((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador') || (auth.uid == $referredUid && auth.token.firebase.sign_in_provider != 'anonymous' && auth.token.email_verified == true && !data.exists() && root.child('eventoDivulgacao').child('usos').child($referredUid).child('ownerUid').val() == $ownerUid && (!root.child('eventoDivulgacao').child('vagas50').child('1').child('uid').exists() || !root.child('eventoDivulgacao').child('vagas50').child('2').child('uid').exists() || !root.child('eventoDivulgacao').child('vagas50').child('3').child('uid').exists())))",
+            ".validate": "!newData.exists() || (newData.child('uid').val() == $referredUid && newData.child('ownerUid').val() == $ownerUid && newData.child('codigo').isString() && newData.child('criadoEm').isNumber())"
+          }
+        }
+      },
+      "premios": {
+        ".read": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+        "$uid": {
+          ".read": "auth != null && (auth.uid == $uid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+          "$tier": {
+            ".write": "auth != null && ((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador') || (auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous' && auth.token.email_verified == true && !data.exists() && newData.child('status').val() == 'pendente' && ($tier == '10' || $tier == '20' || $tier == '30' || $tier == '40' || $tier == '50')))",
+            ".validate": "!newData.exists() || (newData.child('uid').val() == $uid && newData.child('status').isString() && (newData.child('status').val() == 'pendente' || newData.child('status').val() == 'aprovado' || newData.child('status').val() == 'entregue' || newData.child('status').val() == 'recusado') && newData.child('titulo').isString() && newData.child('data').isNumber() && newData.child('atualizadoEm').isNumber() && (($tier == '10' && newData.child('tier').val() == 10 && newData.child('observacoes').isString()) || ($tier == '20' && newData.child('tier').val() == 20) || ($tier == '30' && newData.child('tier').val() == 30) || ($tier == '40' && newData.child('tier').val() == 40) || ($tier == '50' && newData.child('tier').val() == 50 && newData.child('obraNome').isString() && (root.child('eventoDivulgacao').child('vagas50').child('1').child('uid').val() == $uid || root.child('eventoDivulgacao').child('vagas50').child('2').child('uid').val() == $uid || root.child('eventoDivulgacao').child('vagas50').child('3').child('uid').val() == $uid) && newData.child('obraNome').val().length >= 2 && newData.child('obraNome').val().length <= 180 && (!newData.hasChild('obraLink') || (newData.child('obraLink').isString() && newData.child('obraLink').val().length <= 600)))))"
+          }
+        }
+      },
+      "vagas50": {
+        ".read": "auth != null && ((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador') || (auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.token.email_verified == true))",
+        "$slot": {
+          ".write": "auth != null && ((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador') || (auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.token.email_verified == true && !data.exists() && ($slot == '1' || $slot == '2' || $slot == '3') && (newData.child('uid').val() == auth.uid || root.child('eventoDivulgacao').child('usos').child(auth.uid).child('ownerUid').val() == newData.child('uid').val()) && ($slot == '1' || root.child('eventoDivulgacao').child('vagas50').child('1').child('uid').val() != newData.child('uid').val()) && ($slot == '2' || root.child('eventoDivulgacao').child('vagas50').child('2').child('uid').val() != newData.child('uid').val()) && ($slot == '3' || root.child('eventoDivulgacao').child('vagas50').child('3').child('uid').val() != newData.child('uid').val())))",
+          ".validate": "!newData.exists() || (($slot == '1' || $slot == '2' || $slot == '3') && newData.child('uid').isString() && newData.child('uid').val().length >= 8 && newData.child('uid').val().length <= 128 && newData.child('atingiuEm').isNumber() && newData.child('confirmadoPor').isString())"
+        }
+      },
+      "ativos": {
+        ".read": "auth != null && ((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador') || (auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.token.email_verified == true))",
+        "$uid": {
+          ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+          "selo": {
+            ".validate": "!newData.exists() || (newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 80 && newData.child('effect').isString() && newData.child('atualizadoEm').isNumber())"
+          },
+          "banner": {
+            ".validate": "!newData.exists() || (newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 80 && newData.child('effect').isString() && newData.child('atualizadoEm').isNumber())"
+          },
+          "titulo": {
+            ".validate": "!newData.exists() || (newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 80 && newData.child('effect').isString() && newData.child('atualizadoEm').isNumber())"
+          }
+        }
+      }
+    },
+    "contentReactions": {
+      "definitions": {
+        "work": {
+          "$workId": {
+            ".read": true,
+            "$reactionId": {
+              ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+              ".validate": "!newData.exists() || (newData.child('id').val() == $reactionId && newData.child('label').isString() && newData.child('label').val().length >= 1 && newData.child('label').val().length <= 80 && newData.child('imageUrl').isString() && newData.child('imageUrl').val().length <= 3000000 && newData.child('active').isBoolean() && newData.child('createdAt').isNumber() && newData.child('updatedAt').isNumber())"
+            }
+          }
+        },
+        "chapter": {
+          "$workId": {
+            "$chapterId": {
+              ".read": true,
+              "$reactionId": {
+                ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+                ".validate": "!newData.exists() || (newData.child('id').val() == $reactionId && newData.child('label').isString() && newData.child('label').val().length >= 1 && newData.child('label').val().length <= 80 && newData.child('imageUrl').isString() && newData.child('imageUrl').val().length <= 3000000 && newData.child('active').isBoolean() && newData.child('createdAt').isNumber() && newData.child('updatedAt').isNumber())"
+              }
+            }
+          }
+        },
+        "global": {
+          "work": {
+            ".read": true,
+            "$reactionId": {
+              ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+              ".validate": "!newData.exists() || (newData.child('id').val() == $reactionId && newData.child('label').isString() && newData.child('label').val().length >= 1 && newData.child('label').val().length <= 80 && newData.child('imageUrl').isString() && newData.child('imageUrl').val().length <= 3000000 && newData.child('active').isBoolean() && newData.child('createdAt').isNumber() && newData.child('updatedAt').isNumber())"
+            }
+          },
+          "chapter": {
+            ".read": true,
+            "$reactionId": {
+              ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+              ".validate": "!newData.exists() || (newData.child('id').val() == $reactionId && newData.child('label').isString() && newData.child('label').val().length >= 1 && newData.child('label').val().length <= 80 && newData.child('imageUrl').isString() && newData.child('imageUrl').val().length <= 3000000 && newData.child('active').isBoolean() && newData.child('createdAt').isNumber() && newData.child('updatedAt').isNumber())"
+            }
+          }
+        }
+      },
+      "votes": {
+        "work": {
+          "$workId": {
+            ".read": true,
+            "$uid": {
+              ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous' && newData.exists()",
+              ".validate": "newData.hasChildren(['uid','reactionId','data']) && newData.child('uid').val() == $uid && newData.child('reactionId').isString() && newData.child('data').isNumber() && (!newData.hasChild('source') || (newData.child('source').isString() && (newData.child('source').val() == 'global' || newData.child('source').val() == 'specific'))) && ((newData.child('source').val() == 'global' && root.child('contentReactions').child('definitions').child('global').child('work').child(newData.child('reactionId').val()).child('active').val() == true) || ((!newData.hasChild('source') || newData.child('source').val() == 'specific') && root.child('contentReactions').child('definitions').child('work').child($workId).child(newData.child('reactionId').val()).child('active').val() == true))"
+            }
+          }
+        },
+        "chapter": {
+          "$workId": {
+            "$chapterId": {
+              ".read": true,
+              "$uid": {
+                ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous' && newData.exists()",
+                ".validate": "newData.hasChildren(['uid','reactionId','data']) && newData.child('uid').val() == $uid && newData.child('reactionId').isString() && newData.child('data').isNumber() && (!newData.hasChild('source') || (newData.child('source').isString() && (newData.child('source').val() == 'global' || newData.child('source').val() == 'specific'))) && ((newData.child('source').val() == 'global' && root.child('contentReactions').child('definitions').child('global').child('chapter').child(newData.child('reactionId').val()).child('active').val() == true) || ((!newData.hasChild('source') || newData.child('source').val() == 'specific') && root.child('contentReactions').child('definitions').child('chapter').child($workId).child($chapterId).child(newData.child('reactionId').val()).child('active').val() == true))"
+              }
+            }
+          }
+        }
+      }
+    },
+    "perfisPrivados": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (auth.uid == $uid || root.child('privateAccess').child($uid).child(auth.uid).child('granted').val() == true || root.child('followRequests').child($uid).child(auth.uid).child('status').val() == 'accepted' || root.child('seguindo').child(auth.uid).child($uid).exists() || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+        ".write": "auth != null && (auth.uid == $uid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+        ".validate": "!newData.exists() || (newData.child('uid').val() == $uid && newData.child('publico').val() == false)"
+      }
+    },
+    "followRequests": {
+      "$targetUid": {
+        "$requesterUid": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (auth.uid == $targetUid || auth.uid == $requesterUid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $requesterUid != $targetUid && ((auth.uid == $requesterUid && (!newData.exists() || (newData.child('requesterUid').val() == $requesterUid && newData.child('targetUid').val() == $targetUid && newData.child('status').val() == 'pending' && root.child('perfisPublicos').child($targetUid).exists() && root.child('perfisPublicos').child($targetUid).child('publico').val() == false))) || (auth.uid == $targetUid && data.exists() && (!newData.exists() || (newData.child('requesterUid').val() == $requesterUid && newData.child('targetUid').val() == $targetUid && (newData.child('status').val() == 'accepted' || newData.child('status').val() == 'rejected')))) || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+          ".validate": "!newData.exists() || (newData.hasChildren(['requesterUid','targetUid','status','data','atualizadoEm']) && newData.child('requesterUid').val() == $requesterUid && newData.child('targetUid').val() == $targetUid && newData.child('requesterUid').isString() && newData.child('targetUid').isString() && newData.child('status').isString() && (newData.child('status').val() == 'pending' || newData.child('status').val() == 'accepted' || newData.child('status').val() == 'rejected') && newData.child('data').isNumber() && newData.child('atualizadoEm').isNumber())"
+        }
+      }
+    },
+    "privateProfileRefreshRequests": {
+      "$targetUid": {
+        "$requesterUid": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (auth.uid == $targetUid || auth.uid == $requesterUid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $targetUid != $requesterUid && ((auth.uid == $requesterUid && root.child('seguindo').child($requesterUid).child($targetUid).exists() && (!newData.exists() || (newData.child('targetUid').val() == $targetUid && newData.child('requesterUid').val() == $requesterUid))) || (auth.uid == $targetUid && data.exists() && !newData.exists()) || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+          ".validate": "!newData.exists() || (newData.hasChildren(['targetUid','requesterUid','data']) && newData.child('targetUid').val() == $targetUid && newData.child('requesterUid').val() == $requesterUid && newData.child('targetUid').isString() && newData.child('requesterUid').isString() && newData.child('data').isNumber())"
+        }
+      }
+    },
+    "privateAccess": {
+      "$targetUid": {
+        "$viewerUid": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (auth.uid == $targetUid || auth.uid == $viewerUid || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $targetUid != $viewerUid && ((auth.uid == $targetUid) || (auth.uid == $viewerUid && !newData.exists()) || (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador'))",
+          ".validate": "!newData.exists() || (newData.hasChildren(['granted','data','requesterUid','targetUid']) && newData.child('granted').val() == true && newData.child('granted').isBoolean() && newData.child('data').isNumber() && newData.child('requesterUid').val() == $viewerUid && newData.child('targetUid').val() == $targetUid && newData.child('requesterUid').isString() && newData.child('targetUid').isString())"
+        }
+      }
+    },
+    "gameCatalog": {
+      ".read": true,
+      ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')"
+    },
+    "gameInventory": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || ((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')))",
+        "$itemId": {
+          ".write": "auth != null && (auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')",
+          ".validate": "!newData.exists() || newData.val() == true"
+        }
+      }
+    },
+    "gameLoadouts": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || ((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')))",
+        ".write": "auth != null && (auth.uid == $uid || ((auth.uid == 'eHLv7TlUOAW5rLsMwWVCGeu1KSI2' || auth.uid == 'pc87zkEpz0Ra7HfKvRIwLkbl5K13' || auth.token.email == 'meowscann@gmail.com' || auth.token.email == 'mpscan@gmail.com' || root.child('usuarios').child(auth.uid).child('admin').val() == true || root.child('usuarios').child(auth.uid).child('papel').val() == 'ADM' || root.child('usuarios').child(auth.uid).child('papel').val() == 'Administrador')))"
+      }
+    },
+    "gameMatchmaking": {
+      "$mode": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+        "$uid": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid == $uid",
+          ".validate": "!newData.exists() || (newData.hasChildren(['uid','name','size','status','joinedAt']) && newData.child('uid').val() == $uid && newData.child('uid').isString() && newData.child('name').isString() && newData.child('size').isNumber() && newData.child('size').val() >= 1 && newData.child('size').val() <= 4 && newData.child('status').val() == 'waiting' && newData.child('joinedAt').isNumber())"
+        }
+      }
+    },
+    "gameRooms": {
+      "$roomId": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && data.child('members').child(auth.uid).exists()",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((!data.exists() && newData.child('members').child(auth.uid).exists()) || (data.exists() && data.child('members').child(auth.uid).exists()))",
+        ".validate": "newData.hasChildren(['id','mode','size','status','createdAt','members']) && newData.child('id').val() == $roomId && newData.child('id').isString() && newData.child('mode').isString() && newData.child('size').isNumber() && newData.child('size').val() >= 1 && newData.child('size').val() <= 4 && newData.child('status').isString() && newData.child('createdAt').isNumber() && newData.child('members').hasChildren([auth.uid])"
+      }
+    }
+  }
+}
