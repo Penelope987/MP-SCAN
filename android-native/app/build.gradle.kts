@@ -11,8 +11,8 @@ android {
         applicationId = "online.mpscan.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 9
-        versionName = "4.0.0-alpha09-community"
+        versionCode = 10
+        versionName = "4.0.0-alpha10-reactions"
     }
     buildFeatures { compose = true }
     compileOptions {

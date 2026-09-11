@@ -109,9 +109,17 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
 
     fun loadComments(workId: String) = viewModelScope.launch {
         state = state.copy(commentsLoading = true)
-        runCatching { community.comments(workId) }
+        runCatching { community.comments(workId, auth.current(getApplication())?.uid) }
             .onSuccess { state = state.copy(comments = it, commentsLoading = false) }
             .onFailure { state = state.copy(commentsLoading = false) }
+    }
+
+    fun reactToComment(workId: String, comment: WorkComment, emoji: String) = viewModelScope.launch {
+        val session = auth.current(getApplication())
+        if (session == null) { state = state.copy(error = "Entre na sua conta para reagir."); return@launch }
+        runCatching { community.react(workId, comment.id, session, emoji, comment.myReaction == emoji) }
+            .onSuccess { loadComments(workId) }
+            .onFailure { state = state.copy(error = it.message ?: "Não foi possível registrar a reação.") }
     }
 
     fun postComment(workId: String, text: String, spoiler: Boolean) = viewModelScope.launch {
@@ -225,7 +233,7 @@ private fun MpScanApp(vm: CatalogViewModel = viewModel()) {
         Box(Modifier.fillMaxSize().padding(padding)) {
             when {
                 state.reader != null -> ReaderScreen(state.reader, vm::closeReader, { vm.download(state.reader.work, state.reader.chapter) }, state.downloadProgress["${state.reader.work.id}__${state.reader.chapter.id}"])
-                state.selected != null -> WorkScreen(state.selected, state.chapters, state.loading, state.downloadProgress, state.selected.id in state.libraryIds, state.comments, state.commentsLoading, vm::closeWork, { vm.openChapter(state.selected, it) }, { vm.download(state.selected, it) }, { vm.downloadAll(state.selected, state.chapters) }, { vm.toggleLibrary(state.selected) }, { text, spoiler -> vm.postComment(state.selected.id, text, spoiler) })
+                state.selected != null -> WorkScreen(state.selected, state.chapters, state.loading, state.downloadProgress, state.selected.id in state.libraryIds, state.comments, state.commentsLoading, vm::closeWork, { vm.openChapter(state.selected, it) }, { vm.download(state.selected, it) }, { vm.downloadAll(state.selected, state.chapters) }, { vm.toggleLibrary(state.selected) }, { text, spoiler -> vm.postComment(state.selected.id, text, spoiler) }, { comment, emoji -> vm.reactToComment(state.selected.id, comment, emoji) })
                 tab == Tab.Home -> HomeScreen(state, vm::open, vm::refresh)
                 tab == Tab.Search -> SearchScreen(state.works, query, { query = it }, vm::open)
                 tab == Tab.Library -> LibraryScreen(state.works.filter { it.id in state.libraryIds }, state.downloads, vm::loadDownloads, vm::open, { vm.openChapter(it.work, it.chapter) }, vm::removeDownload)
@@ -476,7 +484,7 @@ private fun SearchScreen(works: List<Work>, query: String, change: (String) -> U
 }
 
 @Composable
-private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, progress: Map<String, Int>, inLibrary: Boolean, comments: List<WorkComment>, commentsLoading: Boolean, close: () -> Unit, openChapter: (Chapter) -> Unit, download: (Chapter) -> Unit, downloadAll: () -> Unit, toggleLibrary: () -> Unit, postComment: (String, Boolean) -> Unit) {
+private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, progress: Map<String, Int>, inLibrary: Boolean, comments: List<WorkComment>, commentsLoading: Boolean, close: () -> Unit, openChapter: (Chapter) -> Unit, download: (Chapter) -> Unit, downloadAll: () -> Unit, toggleLibrary: () -> Unit, postComment: (String, Boolean) -> Unit, react: (WorkComment, String) -> Unit) {
     var commentText by rememberSaveable(work.id) { mutableStateOf("") }
     var spoiler by rememberSaveable(work.id) { mutableStateOf(false) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 30.dp)) {
@@ -526,10 +534,17 @@ private fun WorkScreen(work: Work, chapters: List<Chapter>, loading: Boolean, pr
         if (commentsLoading) item { LinearProgressIndicator(Modifier.fillMaxWidth().padding(16.dp)) }
         if (!commentsLoading && comments.isEmpty()) item { Text("Ainda não há comentários nesta obra.", color = Muted, modifier = Modifier.padding(16.dp)) }
         items(comments, key = { it.id }) { comment ->
+            var revealed by rememberSaveable(comment.id) { mutableStateOf(!comment.spoiler) }
             Surface(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp), color = Card, shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) {
                 Column(Modifier.padding(14.dp)) {
                     Text(comment.author + comment.username.takeIf { it.isNotBlank() }?.let { "  @$it" }.orEmpty(), fontWeight = FontWeight.Bold)
-                    Text(if (comment.spoiler) "⚠ SPOILER — toque não é necessário: conteúdo ocultado nesta versão." else comment.text, color = if (comment.spoiler) Pink else Color.White, modifier = Modifier.padding(top = 7.dp))
+                    if (!revealed) Button(onClick = { revealed = true }, modifier = Modifier.padding(top = 8.dp)) { Text("⚠ SPOILER — tocar para revelar") }
+                    else Text(comment.text, color = Color.White, modifier = Modifier.padding(top = 7.dp))
+                    LazyRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(listOf("👍", "❤️", "😂", "😮", "😢", "🔥")) { emoji ->
+                            FilterChip(selected = comment.myReaction == emoji, onClick = { react(comment, emoji) }, label = { Text(emoji + comment.reactions[emoji]?.let { " $it" }.orEmpty()) })
+                        }
+                    }
                 }
             }
         }
