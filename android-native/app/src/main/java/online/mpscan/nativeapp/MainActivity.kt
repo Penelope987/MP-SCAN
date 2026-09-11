@@ -577,24 +577,38 @@ private fun ReaderScreen(reader: ReaderState, close: () -> Unit, download: () ->
     val positionPrefs = remember { context.getSharedPreferences("mp_scan_reader_progress", android.content.Context.MODE_PRIVATE) }
     val positionKey = "${reader.work.id}__${reader.chapter.id}"
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = positionPrefs.getInt("${positionKey}_index", 0), initialFirstVisibleItemScrollOffset = positionPrefs.getInt("${positionKey}_offset", 0))
+    var controlsVisible by rememberSaveable(positionKey) { mutableStateOf(true) }
+    var settingsOpen by rememberSaveable(positionKey) { mutableStateOf(false) }
+    var pageWidth by rememberSaveable(positionKey) { mutableFloatStateOf(positionPrefs.getFloat("${positionKey}_width", 100f)) }
+    var pageGap by rememberSaveable(positionKey) { mutableFloatStateOf(positionPrefs.getFloat("${positionKey}_gap", 0f)) }
+    val readingProgress by remember { derivedStateOf { if (reader.pages.isEmpty()) 0f else ((listState.firstVisibleItemIndex + 1f) / reader.pages.size).coerceIn(0f, 1f) } }
     LaunchedEffect(positionKey) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }.collect { (index, offset) ->
             positionPrefs.edit().putInt("${positionKey}_index", index).putInt("${positionKey}_offset", offset).apply()
         }
     }
-    Column(Modifier.fillMaxSize().background(Color.Black)) {
-        Row(Modifier.fillMaxWidth().background(Color(0xF517111D)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxSize().background(Color(0xFF050507))) {
+        if (controlsVisible) Row(Modifier.fillMaxWidth().background(Color(0xE60B0B0D)).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             FilledTonalButton(onClick = close) { Text("←") }
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) { Text(reader.work.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold); Text(reader.chapter.label, color = Muted, style = MaterialTheme.typography.bodySmall) }
             if (!reader.downloaded) Button(onClick = download, enabled = progress == null) { Text(progress?.let { "$it%" } ?: "Baixar") }
             else AssistChip(onClick = {}, label = { Text("Offline ✓") })
+            IconButton(onClick = { settingsOpen = true }) { Text("⚙") }
         }
+        if (controlsVisible) LinearProgressIndicator(progress = { readingProgress }, modifier = Modifier.fillMaxWidth(), color = Purple, trackColor = Card2)
         if (reader.pages.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Nenhuma página encontrada.") }
-        else LazyColumn(Modifier.fillMaxSize(), state = listState, horizontalAlignment = Alignment.CenterHorizontally) {
-            items(reader.pages) { page -> AsyncImage(model = page, contentDescription = null, modifier = Modifier.fillMaxWidth(), contentScale = ContentScale.FillWidth) }
+        else LazyColumn(Modifier.fillMaxSize().clickable { controlsVisible = !controlsVisible }, state = listState, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(pageGap.dp)) {
+            items(reader.pages) { page -> AsyncImage(model = page, contentDescription = null, modifier = Modifier.fillParentMaxWidth(pageWidth / 100f), contentScale = ContentScale.FillWidth) }
             item { Text("Fim de ${reader.chapter.label}", modifier = Modifier.padding(28.dp), color = Muted) }
         }
     }
+    if (settingsOpen) AlertDialog(
+        onDismissRequest = { settingsOpen = false },
+        title = { Text("Configurações de leitura") },
+        text = { Column { Text("Largura das imagens: ${pageWidth.toInt()}%"); Slider(pageWidth, { pageWidth = it }, valueRange = 50f..100f, steps = 9); Spacer(Modifier.height(12.dp)); Text("Espaço entre páginas: ${pageGap.toInt()} px"); Slider(pageGap, { pageGap = it }, valueRange = 0f..40f, steps = 19) } },
+        confirmButton = { Button(onClick = { positionPrefs.edit().putFloat("${positionKey}_width", pageWidth).putFloat("${positionKey}_gap", pageGap).apply(); settingsOpen = false }) { Text("Salvar") } },
+        dismissButton = { TextButton(onClick = { settingsOpen = false }) { Text("Cancelar") } }
+    )
 }
 
 @Composable
