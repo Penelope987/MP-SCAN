@@ -10,6 +10,15 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
+data class OfflineChapter(
+    val workId: String,
+    val workTitle: String,
+    val workCover: String,
+    val chapterId: String,
+    val chapterLabel: String,
+    val pageCount: Int
+)
+
 class OfflineStore(context: Context) {
     private val root = File(context.filesDir, "mp_scan_downloads")
 
@@ -23,6 +32,32 @@ class OfflineStore(context: Context) {
                 File(folder, files.optString(index)).takeIf(File::isFile)?.toURI()?.toString()
             }.takeIf { it.size == files.length() } ?: emptyList()
         }.getOrDefault(emptyList())
+    }
+
+    fun downloads(): List<OfflineChapter> = root.listFiles()
+        ?.filter(File::isDirectory)
+        ?.flatMap { workFolder ->
+            workFolder.listFiles()?.filter(File::isDirectory)?.mapNotNull { chapterFolder ->
+                runCatching {
+                    val metadata = JSONObject(File(chapterFolder, "chapter.json").readText())
+                    val files = metadata.optJSONArray("files") ?: JSONArray()
+                    OfflineChapter(
+                        workId = metadata.getString("workId"),
+                        workTitle = metadata.optString("workTitle", "Obra baixada"),
+                        workCover = metadata.optString("workCover"),
+                        chapterId = metadata.getString("chapterId"),
+                        chapterLabel = metadata.optString("chapterLabel", "Capítulo"),
+                        pageCount = files.length()
+                    )
+                }.getOrNull()
+            } ?: emptyList()
+        }
+        ?.sortedWith(compareBy<OfflineChapter> { it.workTitle.lowercase() }.thenBy { it.chapterLabel })
+        ?: emptyList()
+
+    fun delete(workId: String, chapterId: String) {
+        chapterFolder(workId, chapterId).deleteRecursively()
+        File(root, safe(workId)).takeIf { it.listFiles().isNullOrEmpty() }?.delete()
     }
 
     suspend fun download(
@@ -48,6 +83,7 @@ class OfflineStore(context: Context) {
                 JSONObject()
                     .put("workId", work.id)
                     .put("workTitle", work.title)
+                    .put("workCover", work.cover)
                     .put("chapterId", chapter.id)
                     .put("chapterLabel", chapter.label)
                     .put("files", JSONArray(names))
