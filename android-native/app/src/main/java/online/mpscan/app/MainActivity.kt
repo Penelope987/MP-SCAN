@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -67,7 +69,13 @@ private enum class LibraryTab(val label:String){Favorites("Favoritos"),Collectio
  Column(Modifier.fillMaxSize().padding(horizontal=16.dp)){
   Spacer(Modifier.height(16.dp));Header()
   Text("Biblioteca",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge,modifier=Modifier.padding(top=28.dp))
-  LazyRow(Modifier.padding(vertical=16.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){items(LibraryTab.values().toList()){item->FilterChip(tab==item,{tab=item},{Text(item.label)})}}
+  Row(Modifier.padding(vertical=16.dp).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+   FilterChip(tab==LibraryTab.Favorites,{tab=LibraryTab.Favorites},{Text(LibraryTab.Favorites.label)})
+   FilterChip(tab==LibraryTab.Collections,{tab=LibraryTab.Collections},{Text(LibraryTab.Collections.label)})
+   FilterChip(tab==LibraryTab.Downloads,{tab=LibraryTab.Downloads},{Text(LibraryTab.Downloads.label)})
+   FilterChip(tab==LibraryTab.Continue,{tab=LibraryTab.Continue},{Text(LibraryTab.Continue.label)})
+   FilterChip(tab==LibraryTab.History,{tab=LibraryTab.History},{Text(LibraryTab.History.label)})
+  }
   if(tab==LibraryTab.Favorites){
    val list=works.filter{favorites.contains(it.id)}
    if(list.isEmpty())LibraryEmpty("Você ainda não favoritou nenhuma obra","Use o botão Favoritar na tela da obra.")
