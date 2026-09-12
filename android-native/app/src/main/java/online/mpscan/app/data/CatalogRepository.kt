@@ -20,6 +20,12 @@ class CatalogRepository(private val base:String="https://nnnsss-23f2f-default-rt
         val text=c.inputStream.bufferedReader().use{it.readText()};c.disconnect();val root=JSONObject(text)
         root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.let{o->Chapter(id,o.string("numero","number").replace(',','.').toDoubleOrNull(),o.string("titulo","title"),!o.has("publicado")||o.optBoolean("publicado",true),o.long("atualizadoEm","updatedAt"))}}.filter{it.published}.sortedByDescending{it.number?:-1.0}.toList()
     }
+    suspend fun pages(workId:String,chapterId:String):List<String> = withContext(Dispatchers.IO){
+        val c=URL("$base/capitulosPaginas/$workId/$chapterId.json").openConnection() as HttpURLConnection;c.connectTimeout=15000;c.readTimeout=30000
+        val text=c.inputStream.bufferedReader().use{it.readText()};c.disconnect()
+        val raw=if(text.trim().startsWith("["))JSONArray(text)else JSONObject(text)
+        when(raw){is JSONArray->(0 until raw.length()).mapNotNull{raw.optString(it).takeIf(String::isNotBlank)};is JSONObject->raw.keys().asSequence().mapNotNull{k->val v=raw.opt(k);when(v){is String->v;is JSONObject->v.string("dataUrl","url","imagemUrl","imagem","src");else->null}.takeIf{!it.isNullOrBlank()}}.toList();else->emptyList()}
+    }
     private fun JSONObject.toWork(id:String)=Work(id,string("nome","name","titulo"),string("sinopse","synopsis"),string("capa","cover","coverURL"),string("banner","bannerURL"),string("tipo","type"),string("status"),string("autor","author"),strings(opt("generos")?:opt("genres")),long("atualizadoEm","updatedAt"),long("cliques","leituras","reads"))
     private fun JSONObject.string(vararg k:String)=k.firstNotNullOfOrNull{optString(it).trim().takeIf(String::isNotBlank)}?:""
     private fun JSONObject.long(vararg k:String)=k.firstNotNullOfOrNull{opt(it)?.toString()?.toLongOrNull()}?:0L
