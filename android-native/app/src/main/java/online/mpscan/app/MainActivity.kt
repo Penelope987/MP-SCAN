@@ -57,34 +57,33 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
 @Composable private fun ProfileScreen(){val context=LocalContext.current;val reading=remember{ReadingStore(context.applicationContext)};val favorites=remember{FavoritesStore(context.applicationContext)};val offline=remember{OfflineStore(context.applicationContext)};val history=reading.history();LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(bottom=30.dp)){item{Box(Modifier.fillMaxWidth().height(245.dp).background(Brush.linearGradient(listOf(Color(0xFF36206D),MpAccent,Color(0xFFB13B80))))){Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent,MpBackground))));Text("MP SCAN",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall,modifier=Modifier.padding(18.dp));Box(Modifier.align(Alignment.BottomStart).padding(start=18.dp).size(98.dp).clip(RoundedCornerShape(30.dp)).background(MpSurface2),contentAlignment=Alignment.Center){Text("MP",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge,color=MpAccent)}}};item{Column(Modifier.padding(horizontal=18.dp)){Text("Seu perfil",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineMedium);Text("Entre na sua conta para carregar foto, capa, nome, arroba e bio do Firebase.",color=MpMuted,modifier=Modifier.padding(top=5.dp));Row(Modifier.fillMaxWidth().padding(top=18.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){ProfileStat("${favorites.ids().size}","Favoritos",Modifier.weight(1f));ProfileStat("${history.map{it.workId}.distinct().size}","Obras lidas",Modifier.weight(1f));ProfileStat("${offline.downloads().size}","Downloads",Modifier.weight(1f))};Text("Conta e aplicativo",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge,modifier=Modifier.padding(top=26.dp,bottom=10.dp));ProfileMenu("♙","Entrar ou criar conta","Sincronize perfil, comentários e biblioteca");ProfileMenu("⚙","Configurações","Leitura, downloads, privacidade e aparência");ProfileMenu("♡","Editar perfil","Foto, capa, nome, arroba e bio");ProfileMenu("♢","Notificações","Capítulos novos, respostas e avisos")}}}
 @Composable private fun ProfileStat(value:String,label:String,modifier:Modifier){Surface(modifier,color=MpSurface,shape=RoundedCornerShape(17.dp),border=androidx.compose.foundation.BorderStroke(1.dp,MpLine)){Column(Modifier.padding(vertical=13.dp),horizontalAlignment=Alignment.CenterHorizontally){Text(value,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text(label,color=MpMuted,style=MaterialTheme.typography.labelSmall)}}}
 @Composable private fun ProfileMenu(icon:String,title:String,subtitle:String){Surface(Modifier.fillMaxWidth().padding(vertical=5.dp),color=MpSurface,shape=RoundedCornerShape(18.dp),border=androidx.compose.foundation.BorderStroke(1.dp,MpLine)){Row(Modifier.padding(15.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(MpSurface2),contentAlignment=Alignment.Center){Text(icon,color=MpAccent)};Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text(title,fontWeight=FontWeight.Bold);Text(subtitle,color=MpMuted,style=MaterialTheme.typography.bodySmall)};Text("›",color=MpMuted)}}}
-private enum class LibraryTab(val label:String){Favorites("Favoritos"),Collections("Coleções"),Downloads("Downloads"),Continue("Continuar lendo"),History("Histórico")}
 @Composable private fun OfflineLibrary(works:List<Work>,openWork:(Work)->Unit,open:(Work,Chapter)->Unit){
  val context=LocalContext.current
  val store=remember{OfflineStore(context.applicationContext)}
  val readingStore=remember{ReadingStore(context.applicationContext)}
  val favorites=remember{FavoritesStore(context.applicationContext)}
  var downloads by remember{mutableStateOf(store.downloads())}
- var tab by remember{mutableStateOf(LibraryTab.Favorites)}
+ var tab by remember{mutableStateOf("favorites")}
  val history=readingStore.history()
  Column(Modifier.fillMaxSize().padding(horizontal=16.dp)){
   Spacer(Modifier.height(16.dp));Header()
   Text("Biblioteca",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge,modifier=Modifier.padding(top=28.dp))
   Row(Modifier.padding(vertical=16.dp).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-   FilterChip(tab==LibraryTab.Favorites,{tab=LibraryTab.Favorites},{Text(LibraryTab.Favorites.label)})
-   FilterChip(tab==LibraryTab.Collections,{tab=LibraryTab.Collections},{Text(LibraryTab.Collections.label)})
-   FilterChip(tab==LibraryTab.Downloads,{tab=LibraryTab.Downloads},{Text(LibraryTab.Downloads.label)})
-   FilterChip(tab==LibraryTab.Continue,{tab=LibraryTab.Continue},{Text(LibraryTab.Continue.label)})
-   FilterChip(tab==LibraryTab.History,{tab=LibraryTab.History},{Text(LibraryTab.History.label)})
+   FilterChip(tab=="favorites",{tab="favorites"},{Text("Favoritos")})
+   FilterChip(tab=="collections",{tab="collections"},{Text("Coleções")})
+   FilterChip(tab=="downloads",{tab="downloads"},{Text("Downloads")})
+   FilterChip(tab=="continue",{tab="continue"},{Text("Continuar lendo")})
+   FilterChip(tab=="history",{tab="history"},{Text("Histórico")})
   }
-  if(tab==LibraryTab.Favorites){
+  if(tab=="favorites"){
    val list=works.filter{favorites.contains(it.id)}
    if(list.isEmpty())LibraryEmpty("Você ainda não favoritou nenhuma obra","Use o botão Favoritar na tela da obra.")
    else LazyVerticalGrid(GridCells.Adaptive(140.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(18.dp)){gridItems(list,key={it.id}){Card(it,openWork)}}
-  }else if(tab==LibraryTab.Collections) CollectionsPanel(works,openWork)
-  else if(tab==LibraryTab.Downloads){
+  }else if(tab=="collections") CollectionsPanel(works,openWork)
+  else if(tab=="downloads"){
    if(downloads.isEmpty())LibraryEmpty("Nenhum capítulo baixado","Abra uma obra e toque em Baixar dentro do capítulo.")
    else LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp),contentPadding=PaddingValues(bottom=24.dp)){items(downloads,key={it.workId+it.chapterId}){item->DownloadedRow(item,{open(item.toWork(),item.toChapter())}){store.delete(item.workId,item.chapterId);downloads=store.downloads()}}}
-  }else if(tab==LibraryTab.Continue) ProgressList(history.filter{it.percent<100}.distinctBy{it.workId},open,"Nenhuma leitura em andamento.")
+  }else if(tab=="continue") ProgressList(history.filter{it.percent<100}.distinctBy{it.workId},open,"Nenhuma leitura em andamento.")
   else ProgressList(history,open,"Seu histórico ainda está vazio.")
  }
 }
