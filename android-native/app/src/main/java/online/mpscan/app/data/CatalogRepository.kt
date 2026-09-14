@@ -15,6 +15,10 @@ class CatalogRepository(private val base:String="https://nnnsss-23f2f-default-rt
         val root=JSONObject(text)
         root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.let{it.toWork(id)}}.filter{it.title.isNotBlank()}.sortedByDescending{it.updatedAt}.toList()
     }
+    suspend fun recentUpdates(works:List<Work>,limit:Int=4):List<RecentUpdate>{
+        val candidates=works.distinctBy{it.id}.sortedByDescending{it.updatedAt}.take(12)
+        return candidates.mapNotNull{work->runCatching{chapters(work.id).maxByOrNull{it.updatedAt.takeIf{time->time>0}?:((it.number?:0.0)*1000).toLong()}?.let{RecentUpdate(work,it,maxOf(work.updatedAt,it.updatedAt))}}.getOrNull()}.sortedByDescending{it.updatedAt}.take(limit)
+    }
     suspend fun chapters(workId:String):List<Chapter> = withContext(Dispatchers.IO){
         val c=URL("$base/capitulos/$workId.json").openConnection() as HttpURLConnection;c.connectTimeout=15000;c.readTimeout=25000
         val text=c.inputStream.bufferedReader().use{it.readText()};c.disconnect();val root=JSONObject(text)
