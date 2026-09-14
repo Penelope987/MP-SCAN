@@ -66,7 +66,10 @@ import online.mpscan.app.ui.theme.*
    if(admin)item{AdminCard()}
    item{LazyRow(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=14.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){items(listOf("Visão geral","Atividade","Seguidores","Seguindo","Favoritos","Coleções","Molduras")){name->FilterChip(tab==name,{tab=name},{Text(name)})}}}
    item{when(tab){
-    "Molduras"->FramesPanel(frames,p?.frameId.orEmpty()){frame->val current=profile?:return@FramesPanel;scope.launch{busy=true;val updated=current.copy(frameId=frame.id);runCatching{repo.selectFrame(session!!,current,frame.id)}.onSuccess{profile=updated;frames=frames.map{it.copy(owned=it.owned||it.id==frame.id)};error=""}.onFailure{error=it.message?:"Não foi possível usar esta moldura."};busy=false}}
+    "Molduras"->FramesPanel(frames,p?.frameId.orEmpty(),
+     action={frame,claim->val current=profile?:return@FramesPanel;scope.launch{busy=true;runCatching{if(claim)repo.claimFrame(session!!,current,frame)else repo.selectFrame(session!!,current,frame.id)}.onSuccess{profile=current.copy(frameId=frame.id);frames=frames.map{it.copy(owned=it.owned||it.id==frame.id)};error=""}.onFailure{error=it.message?:"Não foi possível usar esta moldura."};busy=false}},
+     clear={val current=profile?:return@FramesPanel;scope.launch{busy=true;runCatching{repo.clearFrame(session!!,current)}.onSuccess{profile=current.copy(frameId="");error=""}.onFailure{error=it.message?:"Não foi possível remover a moldura."};busy=false}}
+    )
     "Seguidores"->PeoplePanel("Seus seguidores",extras.followers)
     "Seguindo"->PeoplePanel("Pessoas que você segue",extras.following)
     "Atividade"->ActivitiesPanel(extras.activities)
@@ -79,19 +82,31 @@ import online.mpscan.app.ui.theme.*
 }
 @Composable private fun AchievementCard(){Surface(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=10.dp),color=Color(0xff18171d),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,Color(0xff715a2a))){Column(Modifier.padding(20.dp)){Text("✦ Galeria de conquistas",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text("Medalhas de jornada e presentes especiais entregues pela equipe MP SCAN.",color=MpMuted,modifier=Modifier.padding(top=6.dp));LinearProgressIndicator(progress={.43f},Modifier.fillMaxWidth().padding(top=18.dp),color=Color(0xffffc13d));Text("A primeira conquista de jornada chegará após um mês de cadastro.",color=MpMuted,modifier=Modifier.padding(top=16.dp))}}}
 @Composable private fun AdminCard(){Surface(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=10.dp),color=Color(0xff21131b),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,Color(0xff7f294f))){Column(Modifier.padding(20.dp)){Text("🛠 Painel administrativo",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text("Gerencie obras, capítulos, usuários, comentários, banners e notificações.",color=MpMuted,modifier=Modifier.padding(top=5.dp));Button({},Modifier.fillMaxWidth().padding(top=16.dp)){Text("Abrir painel ADM")}}}}
-@Composable private fun FramesPanel(frames:List<CommentFrame>,selected:String,use:(CommentFrame)->Unit){
+@Composable private fun FramesPanel(frames:List<CommentFrame>,selected:String,action:(CommentFrame,Boolean)->Unit,clear:()->Unit){
+ val owned=frames.filter{it.owned};val available=frames.filterNot{it.owned}
  Column(Modifier.padding(horizontal=18.dp)){
   Text("🖼 Moldura do comentário",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall)
   Text("Escolha uma moldura criada pelo ADM. Ela também aparecerá nos seus comentários.",color=MpMuted,modifier=Modifier.padding(top=5.dp,bottom=12.dp))
-  if(frames.isEmpty()){
-   Surface(Modifier.fillMaxWidth(),color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(1.dp,MpLine)){Column(Modifier.padding(20.dp)){Text("Minhas molduras",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text("Você ainda não possui uma moldura liberada pelo ADM.",color=MpMuted,modifier=Modifier.padding(top=8.dp))}}
-  }else{
-   for(frame in frames){
-    val chosen=selected==frame.id
-    Surface(Modifier.fillMaxWidth().padding(bottom=14.dp),color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(if(chosen)3.dp else 1.dp,if(chosen)MpAccent else MpLine)){
-     Column{
-      if(frame.image.isNotBlank())AsyncImage(frame.image,frame.name,Modifier.fillMaxWidth().height(220.dp),contentScale=ContentScale.Crop)
-      Column(Modifier.padding(16.dp)){Text(frame.name,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text(if(frame.owned)"NA COLEÇÃO" else "Bloqueada",color=if(frame.owned)MpAccent2 else MpMuted,style=MaterialTheme.typography.labelSmall);Button({use(frame)},Modifier.fillMaxWidth().padding(top=10.dp),enabled=frame.owned&&!chosen){Text(if(chosen)"Moldura em uso" else if(frame.owned)"Usar moldura" else "Moldura não liberada")}}
+  OutlinedButton(clear,Modifier.fillMaxWidth(),enabled=selected.isNotBlank()){Text(if(selected.isBlank())"Sem moldura" else "Remover moldura atual")}
+  FrameGroup("Minhas molduras","As molduras que você pegou ficam guardadas aqui.",owned,selected,action,true)
+  FrameGroup("Catálogo MP SCAN","Molduras publicadas pelo ADM e disponíveis para sua coleção.",available,selected,action,false)
+ }
+}
+@Composable private fun FrameGroup(title:String,subtitle:String,frames:List<CommentFrame>,selected:String,action:(CommentFrame,Boolean)->Unit,owned:Boolean){
+ Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge,modifier=Modifier.padding(top=22.dp))
+ Text(subtitle,color=MpMuted,modifier=Modifier.padding(top=4.dp,bottom=10.dp))
+ if(frames.isEmpty()){
+  Surface(Modifier.fillMaxWidth().padding(bottom=14.dp),color=MpSurface,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,MpLine)){Text(if(owned)"Você ainda não pegou nenhuma moldura." else "Não há novas molduras disponíveis.",color=MpMuted,modifier=Modifier.padding(18.dp))}
+ }else for(frame in frames){
+  val chosen=selected==frame.id
+  Surface(Modifier.fillMaxWidth().padding(bottom=14.dp),color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(if(chosen)3.dp else 1.dp,if(chosen)MpAccent else MpLine)){
+   Column{
+    if(frame.image.isNotBlank())AsyncImage(frame.image,frame.name,Modifier.fillMaxWidth().height(220.dp),contentScale=ContentScale.Crop)
+    Column(Modifier.padding(16.dp)){
+     Text(frame.name,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge)
+     Text(if(chosen)"USANDO" else if(owned)"NA COLEÇÃO" else "DISPONÍVEL",color=if(chosen||owned)MpAccent2 else MpAccent,style=MaterialTheme.typography.labelSmall)
+     Button({action(frame,!owned)},Modifier.fillMaxWidth().padding(top=10.dp),enabled=!chosen){
+      Text(if(chosen)"✓ Moldura em uso" else if(owned)"Usar moldura" else "＋ Pegar e usar")
      }
     }
    }
