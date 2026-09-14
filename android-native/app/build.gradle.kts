@@ -2,7 +2,7 @@ plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id(
 android {
     namespace = "online.mpscan.app"
     compileSdk = 35
-    defaultConfig { applicationId = "online.mpscan.app"; minSdk = 24; targetSdk = 35; versionCode = 15; versionName = "5.0.0-dev15-profile-frames" }
+    defaultConfig { applicationId = "online.mpscan.app"; minSdk = 24; targetSdk = 35; versionCode = 16; versionName = "5.0.0-dev16-frame-catalog" }
     buildFeatures { compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
@@ -18,5 +18,3 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-compose:3.1.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
-
-// Native profile/frame verification build.
