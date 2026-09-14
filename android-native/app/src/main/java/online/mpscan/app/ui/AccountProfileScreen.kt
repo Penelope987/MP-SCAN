@@ -66,7 +66,7 @@ import online.mpscan.app.ui.theme.*
    if(admin)item{AdminCard()}
    item{LazyRow(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=14.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){items(listOf("Visão geral","Atividade","Seguidores","Seguindo","Favoritos","Coleções","Molduras")){name->FilterChip(tab==name,{tab=name},{Text(name)})}}}
    item{when(tab){
-    "Molduras"->FramesPanel(frames,p?.frameId.orEmpty()){frame->val current=profile?:return@FramesPanel;scope.launch{busy=true;val updated=current.copy(frameId=frame.id);runCatching{repo.selectFrame(session!!,frame.id)}.onSuccess{profile=updated;frames=frames.map{it.copy(owned=it.owned||it.id==frame.id)};error=""}.onFailure{error=it.message?:"Não foi possível usar esta moldura."};busy=false}}
+    "Molduras"->FramesPanel(frames,p?.frameId.orEmpty()){frame->val current=profile?:return@FramesPanel;scope.launch{busy=true;val updated=current.copy(frameId=frame.id);runCatching{repo.selectFrame(session!!,current,frame.id)}.onSuccess{profile=updated;frames=frames.map{it.copy(owned=it.owned||it.id==frame.id)};error=""}.onFailure{error=it.message?:"Não foi possível usar esta moldura."};busy=false}}
     "Seguidores"->PeoplePanel("Seus seguidores",extras.followers)
     "Seguindo"->PeoplePanel("Pessoas que você segue",extras.following)
     "Atividade"->ActivitiesPanel(extras.activities)
