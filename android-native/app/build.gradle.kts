@@ -18,3 +18,5 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-compose:3.1.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
+
+// Native profile/frame verification build.
