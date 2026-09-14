@@ -57,7 +57,7 @@ class AccountRepository{
    if(active)CommentFrame(id,v("nome","name").ifBlank{"Moldura MP SCAN"},v("imageUrl","imagemUrl","imagem","backgroundImageUrl","backgroundImage","fundoImagem","fundoUrl","url","previewUrl"),v("borderColor","bordaCor","corBorda").ifBlank{"#8d2bff"},v("bgColor","fundoCor","backgroundColor","corFundo").ifBlank{"#17171d"},active,owned)else null
   }}.toList()
  }
- suspend fun selectFrame(s:AccountSession,frameId:String)=withContext(Dispatchers.IO){
+ suspend fun selectFrame(s:AccountSession,p:AccountProfile,frameId:String)=withContext(Dispatchers.IO){
   val id=frameId.trim();val auth="?auth=${e(s.token)}"
   if(id.isNotBlank()){
    val definition=req("$base/config/commentFrames/${e(id)}.json")
@@ -66,7 +66,7 @@ class AccountRepository{
    if(inventory.length()==0)error("Esta moldura não está liberada para esta conta.")
   }
   req("$base/usuarios/${e(s.uid)}/molduraComentarioId.json$auth","PUT",JSONObject.quote(id))
-  req("$base/identidadesComentarios/${e(s.uid)}/molduraComentarioId.json$auth","PUT",JSONObject.quote(id))
+  req("$base/identidadesComentarios/${e(s.uid)}.json$auth","PUT",JSONObject().put("uid",s.uid).put("nome",p.name).put("nomeUsuario",p.username.removePrefix("@")).put("foto",p.photo).put("molduraComentarioId",id).toString())
   runCatching{req("$base/perfisPublicos/${e(s.uid)}/molduraComentarioId.json$auth","PUT",JSONObject.quote(id))}
  }
  suspend fun extras(s:AccountSession)=withContext(Dispatchers.IO){
