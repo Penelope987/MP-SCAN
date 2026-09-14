@@ -1,4 +1,9 @@
 package online.mpscan.app.ui
+import android.content.Context
+import android.net.Uri
+import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
@@ -25,8 +30,13 @@ import online.mpscan.app.ui.theme.*
  fun load(){val ss=session?:return;scope.launch{busy=true;runCatching{Triple(repo.profile(ss),repo.frames(ss),repo.extras(ss))}.onSuccess{profile=it.first;frames=it.second;extras=it.third;error=""}.onFailure{error=it.message?:"Não foi possível carregar o perfil."};busy=false}}
  LaunchedEffect(session?.uid){if(session!=null)load()}
  if(login)LoginDialog({login=false}){e,p->scope.launch{busy=true;runCatching{repo.signIn(e,p)}.onSuccess{session=it;store.save(it);login=false}.onFailure{error=it.message?:"Não foi possível entrar."};busy=false}}
- if(edit&&profile!=null)EditDialog(profile!!,{edit=false}){p->scope.launch{busy=true;runCatching{repo.saveProfile(session!!,p)}.onSuccess{profile=p;edit=false}.onFailure{error=it.message?:"Não foi possível salvar."};busy=false}}
  val p=profile;val admin=p?.role.equals("ADM",true)||p?.role.equals("Administrador",true)
+ if(edit&&p!=null){
+  ProfileEditScreen(p,busy,error,{edit=false}){updated->
+   scope.launch{busy=true;runCatching{repo.saveProfile(session!!,updated)}.onSuccess{profile=updated;edit=false;error=""}.onFailure{error=it.message?:"Não foi possível salvar o perfil."};busy=false}
+  }
+  return
+ }
  LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(bottom=34.dp)){
   item{
    Box(Modifier.fillMaxWidth().height(330.dp).background(Brush.linearGradient(listOf(Color(0xff2b183d),MpAccent,Color(0xff111014))))){
@@ -56,7 +66,7 @@ import online.mpscan.app.ui.theme.*
    if(admin)item{AdminCard()}
    item{LazyRow(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=14.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){items(listOf("Visão geral","Atividade","Seguidores","Seguindo","Favoritos","Coleções","Molduras")){name->FilterChip(tab==name,{tab=name},{Text(name)})}}}
    item{when(tab){
-    "Molduras"->FramesPanel(frames,p?.frameId.orEmpty()){frame->val current=profile?:return@FramesPanel;scope.launch{busy=true;val updated=current.copy(frameId=frame.id);runCatching{repo.saveProfile(session!!,updated)}.onSuccess{profile=updated;error=""}.onFailure{error="Não foi possível usar esta moldura."};busy=false}}
+    "Molduras"->FramesPanel(frames,p?.frameId.orEmpty()){frame->val current=profile?:return@FramesPanel;scope.launch{busy=true;val updated=current.copy(frameId=frame.id);runCatching{repo.selectFrame(session!!,frame.id)}.onSuccess{profile=updated;frames=frames.map{it.copy(owned=it.owned||it.id==frame.id)};error=""}.onFailure{error=it.message?:"Não foi possível usar esta moldura."};busy=false}}
     "Seguidores"->PeoplePanel("Seus seguidores",extras.followers)
     "Seguindo"->PeoplePanel("Pessoas que você segue",extras.following)
     "Atividade"->ActivitiesPanel(extras.activities)
@@ -139,4 +149,77 @@ import online.mpscan.app.ui.theme.*
 @Composable private fun Panel(title:String,body:String){Surface(Modifier.fillMaxWidth().padding(start=18.dp,end=18.dp,bottom=18.dp),color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(1.dp,MpLine)){Column(Modifier.padding(20.dp)){Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text(body,color=MpMuted,modifier=Modifier.padding(top=8.dp))}}}
 @Composable private fun Stat(v:String,l:String,m:Modifier){Surface(m,color=MpSurface,shape=RoundedCornerShape(17.dp),border=BorderStroke(1.dp,MpLine)){Column(Modifier.padding(vertical=13.dp),horizontalAlignment=Alignment.CenterHorizontally){Text(v,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text(l,color=MpMuted,style=MaterialTheme.typography.labelSmall)}}}
 @Composable private fun LoginDialog(close:()->Unit,go:(String,String)->Unit){var e by remember{mutableStateOf("")};var p by remember{mutableStateOf("")};AlertDialog(onDismissRequest=close,title={Text("Entrar na MP SCAN")},text={Column{OutlinedTextField(e,{e=it},label={Text("E-mail")});OutlinedTextField(p,{p=it},label={Text("Senha")},visualTransformation=PasswordVisualTransformation())}},confirmButton={Button({go(e,p)},enabled=e.isNotBlank()&&p.isNotBlank()){Text("Entrar")}},dismissButton={TextButton(close){Text("Cancelar")}})}
-@Composable private fun EditDialog(x:AccountProfile,close:()->Unit,save:(AccountProfile)->Unit){var n by remember{mutableStateOf(x.name)};var u by remember{mutableStateOf(x.username)};var b by remember{mutableStateOf(x.bio)};var ph by remember{mutableStateOf(x.photo)};var co by remember{mutableStateOf(x.cover)};var pub by remember{mutableStateOf(x.isPublic)};AlertDialog(onDismissRequest=close,title={Text("Editar perfil")},text={Column(Modifier.verticalScroll(rememberScrollState())){OutlinedTextField(n,{n=it.take(40)},label={Text("Nome")});OutlinedTextField(u,{u=it.filterNot(Char::isWhitespace).take(24)},label={Text("@ de usuário")});OutlinedTextField(b,{b=it.take(180)},label={Text("Bio")},minLines=3);OutlinedTextField(ph,{ph=it},label={Text("URL da foto")});OutlinedTextField(co,{co=it},label={Text("URL da capa")});Row(verticalAlignment=Alignment.CenterVertically){Switch(pub,{pub=it});Text(if(pub)"Perfil público" else "Perfil privado",modifier=Modifier.padding(start=8.dp))}}},confirmButton={Button({save(x.copy(name=n.trim(),username=u.removePrefix("@"),bio=b.trim(),photo=ph.trim(),cover=co.trim(),isPublic=pub))},enabled=n.isNotBlank()){Text("Salvar")}},dismissButton={TextButton(close){Text("Cancelar")}})}
+private fun imageData(context:Context,uri:Uri,maxBytes:Int):String{
+ val bytes=context.contentResolver.openInputStream(uri)?.use{it.readBytes()}?:error("Não foi possível abrir a imagem.")
+ if(bytes.size>maxBytes)error("A imagem é maior que o limite permitido.")
+ val mime=context.contentResolver.getType(uri)?:"image/jpeg"
+ return "data:$mime;base64,"+Base64.encodeToString(bytes,Base64.NO_WRAP)
+}
+@Composable private fun ProfileEditScreen(x:AccountProfile,busy:Boolean,externalError:String,close:()->Unit,save:(AccountProfile)->Unit){
+ val context=LocalContext.current
+ var n by remember{x.let{mutableStateOf(it.name)}}
+ var u by remember{x.let{mutableStateOf(it.username.removePrefix("@"))}}
+ var b by remember{x.let{mutableStateOf(it.bio)}}
+ var ph by remember{x.let{mutableStateOf(it.photo)}}
+ var co by remember{x.let{mutableStateOf(it.cover)}}
+ var color by remember{x.let{mutableStateOf(it.color.ifBlank{"#8d2bff"})}}
+ var pub by remember{x.let{mutableStateOf(it.isPublic)}}
+ var imageError by remember{mutableStateOf("")}
+ val photoPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
+  if(uri!=null)runCatching{imageData(context,uri,4*1024*1024)}.onSuccess{ph=it;imageError=""}.onFailure{imageError=it.message.orEmpty()}
+ }
+ val coverPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
+  if(uri!=null)runCatching{imageData(context,uri,6*1024*1024)}.onSuccess{co=it;imageError=""}.onFailure{imageError=it.message.orEmpty()}
+ }
+ val colors=listOf("#8d2bff","#ff3d8d","#4285f4","#ad204d","#28b67a","#f1a20b")
+ LazyColumn(Modifier.fillMaxSize().background(MpBackground),contentPadding=PaddingValues(bottom=42.dp)){
+  item{
+   Box(Modifier.fillMaxWidth().height(330.dp).background(Brush.linearGradient(listOf(Color(0xff2b183d),MpAccent,Color(0xff111014))))){
+    if(co.isNotBlank())AsyncImage(co,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x22000000),Color(0xdd08080b)))))
+    OutlinedButton(close,Modifier.padding(16.dp),shape=RoundedCornerShape(16.dp)){Text("← Perfil")}
+    Row(Modifier.align(Alignment.BottomStart).padding(24.dp),verticalAlignment=Alignment.Bottom){
+     Surface(Modifier.size(108.dp),shape=RoundedCornerShape(28.dp),color=MpSurface2,border=BorderStroke(3.dp,runCatching{Color(android.graphics.Color.parseColor(color))}.getOrDefault(MpAccent))){
+      if(ph.isNotBlank())AsyncImage(ph,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)else Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(n.take(1).uppercase(),fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge)}
+     }
+     Column(Modifier.padding(start=14.dp,bottom=8.dp)){Text(n.ifBlank{"Seu perfil"},fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall);Text("@"+u.removePrefix("@"),color=MpMuted)}
+    }
+   }
+  }
+  item{
+   Surface(Modifier.fillMaxWidth().padding(18.dp),color=MpSurface,shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,MpLine)){
+    Column(Modifier.padding(20.dp)){
+     Text("Editar perfil",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineMedium)
+     Text("Personalize sua identidade no MP SCAN. Sua foto atualizada aparece automaticamente nos comentários.",color=MpMuted,modifier=Modifier.padding(top=8.dp,bottom=16.dp))
+     Button({photoPicker.launch("image/*")},Modifier.fillMaxWidth()){Text("📷 Escolher foto de perfil")}
+     if(ph.isNotBlank())TextButton({ph=""}){Text("Remover foto atual")}
+     OutlinedButton({coverPicker.launch("image/*")},Modifier.fillMaxWidth().padding(top=8.dp)){Text("🖼 Escolher capa do perfil")}
+     if(co.isNotBlank())TextButton({co=""}){Text("Remover capa atual")}
+     Text("Foto: até 4 MB • Capa: até 6 MB",color=MpMuted,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(bottom=18.dp))
+     OutlinedTextField(n,{n=it.take(40)},Modifier.fillMaxWidth(),label={Text("Nome")},singleLine=true)
+     OutlinedTextField(u,{u=it.filterNot(Char::isWhitespace).removePrefix("@").take(24)},Modifier.fillMaxWidth().padding(top=12.dp),label={Text("@username")},singleLine=true)
+     OutlinedTextField(b,{b=it.take(280)},Modifier.fillMaxWidth().padding(top=12.dp),label={Text("Bio")},minLines=4,supportingText={Text("${b.length}/280")})
+     Text("Cor de destaque do perfil",color=MpMuted,modifier=Modifier.padding(top=18.dp,bottom=10.dp))
+     Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){colors.forEach{hex->
+      val chosen=color.equals(hex,true);Box(Modifier.size(44.dp).clip(CircleShape).background(Color(android.graphics.Color.parseColor(hex))).border(if(chosen)3.dp else 1.dp,if(chosen)Color.White else MpLine,CircleShape).clickable{color=hex})
+     }}
+     Surface(Modifier.fillMaxWidth().padding(top=20.dp),color=MpSurface2,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,MpAccent.copy(.45f))){
+      Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically){
+       Text(if(pub)"🌐" else "🔒",style=MaterialTheme.typography.titleLarge)
+       Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text(if(pub)"Perfil público" else "Perfil privado",fontWeight=FontWeight.Bold);Text(if(pub)"Outras pessoas podem visualizar suas informações públicas." else "Somente seguidores aprovados verão o perfil completo.",color=MpMuted,style=MaterialTheme.typography.bodySmall)}
+       Switch(pub,{pub=it})
+      }
+     }
+     Text("Mesmo no modo privado, seu nome, foto e @ continuam aparecendo nos comentários.",color=MpMuted,modifier=Modifier.padding(top=14.dp))
+     if(imageError.isNotBlank())Text(imageError,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(top=10.dp))
+     if(externalError.isNotBlank())Text(externalError,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(top=10.dp))
+     Row(Modifier.fillMaxWidth().padding(top=20.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){
+      Button({save(x.copy(name=n.trim(),username=u.trim(),bio=b.trim(),photo=ph,cover=co,color=color,isPublic=pub))},Modifier.weight(1f),enabled=n.isNotBlank()&&u.isNotBlank()&&!busy){Text(if(busy)"Salvando..." else "Salvar alterações")}
+      OutlinedButton(close,enabled=!busy){Text("Cancelar")}
+     }
+     if(busy)LinearProgressIndicator(Modifier.fillMaxWidth().padding(top=12.dp))
+    }
+   }
+  }
+ }
+}
