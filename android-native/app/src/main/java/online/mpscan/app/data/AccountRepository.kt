@@ -6,7 +6,7 @@ import org.json.JSONObject
 import java.net.*
 
 data class AccountSession(val uid:String,val email:String,val token:String)
-data class CommentFrame(val id:String,val name:String,val image:String,val color:String,val background:String,val active:Boolean,val owned:Boolean)
+data class CommentFrame(val id:String,val name:String,val image:String,val color:String,val background:String,val active:Boolean,val owned:Boolean,val exclusiveToUid:String="")
 data class ProfilePerson(val uid:String,val name:String,val username:String,val photo:String)
 data class ProfileWork(val id:String,val title:String,val cover:String)
 data class ProfileCollection(val id:String,val name:String,val works:List<ProfileWork>)
@@ -54,9 +54,22 @@ class AccountRepository{
    val definitionId=v("id","frameId","molduraId")
    val active=!f.has("ativo")||f.optBoolean("ativo")||f.optString("ativo").equals("true",true)
    val owned=id in ownedIds||definitionId in ownedIds
-   if(active)CommentFrame(id,v("nome","name").ifBlank{"Moldura MP SCAN"},v("imageUrl","imagemUrl","imagem","backgroundImageUrl","backgroundImage","fundoImagem","fundoUrl","url","previewUrl"),v("borderColor","bordaCor","corBorda").ifBlank{"#8d2bff"},v("bgColor","fundoCor","backgroundColor","corFundo").ifBlank{"#17171d"},active,owned)else null
+   val exclusive=v("exclusiveToUid")
+   if(active&&(exclusive.isBlank()||exclusive==s.uid))CommentFrame(id,v("nome","name").ifBlank{"Moldura MP SCAN"},v("imageUrl","imagemUrl","imagem","backgroundImageUrl","backgroundImage","fundoImagem","fundoUrl","url","previewUrl"),v("borderColor","bordaCor","corBorda").ifBlank{"#8d2bff"},v("bgColor","fundoCor","backgroundColor","corFundo").ifBlank{"#17171d"},active,owned,exclusive)else null
   }}.toList()
  }
+ suspend fun claimFrame(s:AccountSession,p:AccountProfile,frame:CommentFrame)=withContext(Dispatchers.IO){
+  if(!frame.active)error("Esta moldura não está ativa.")
+  if(frame.exclusiveToUid.isNotBlank()&&frame.exclusiveToUid!=s.uid)error("Esta moldura é exclusiva de outra conta.")
+  val auth="?auth=${e(s.token)}"
+  val definition=req("$base/config/commentFrames/${e(frame.id)}.json")
+  if(definition.length()==0||definition.optString("ativo").equals("false",true))error("Esta moldura não está disponível.")
+  val exclusive=definition.optString("exclusiveToUid")
+  if(exclusive.isNotBlank()&&exclusive!=s.uid)error("Esta moldura é exclusiva de outra conta.")
+  req("$base/commentFrameInventory/${e(s.uid)}/${e(frame.id)}.json$auth","PUT",JSONObject().put("data",System.currentTimeMillis()).put("origem","app").toString())
+  selectFrame(s,p,frame.id)
+ }
+ suspend fun clearFrame(s:AccountSession,p:AccountProfile)=selectFrame(s,p,"")
  suspend fun selectFrame(s:AccountSession,p:AccountProfile,frameId:String)=withContext(Dispatchers.IO){
   val id=frameId.trim();val auth="?auth=${e(s.token)}"
   if(id.isNotBlank()){
