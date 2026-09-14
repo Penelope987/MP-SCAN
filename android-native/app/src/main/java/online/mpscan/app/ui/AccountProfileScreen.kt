@@ -20,9 +20,9 @@ import online.mpscan.app.ui.theme.*
 
 @Composable fun AccountProfileScreen(openSettings:()->Unit){
  val ctx=LocalContext.current;val store=remember{AccountStore(ctx)};val repo=remember{AccountRepository()};val scope=rememberCoroutineScope()
- var session by remember{mutableStateOf(store.session())};var profile by remember{mutableStateOf<AccountProfile?>(null)};var frames by remember{mutableStateOf<List<CommentFrame>>(emptyList())}
+ var session by remember{mutableStateOf(store.session())};var profile by remember{mutableStateOf<AccountProfile?>(null)};var frames by remember{mutableStateOf<List<CommentFrame>>(emptyList())};var extras by remember{mutableStateOf(ProfileExtras(emptyList(),emptyList(),emptyList(),emptyList(),emptyList()))}
  var tab by remember{mutableStateOf("Visão geral")};var busy by remember{mutableStateOf(session!=null)};var error by remember{mutableStateOf("")};var login by remember{mutableStateOf(false)};var edit by remember{mutableStateOf(false)}
- fun load(){val ss=session?:return;scope.launch{busy=true;runCatching{repo.profile(ss) to repo.frames(ss)}.onSuccess{profile=it.first;frames=it.second;error=""}.onFailure{error=it.message?:"Não foi possível carregar o perfil."};busy=false}}
+ fun load(){val ss=session?:return;scope.launch{busy=true;runCatching{Triple(repo.profile(ss),repo.frames(ss),repo.extras(ss))}.onSuccess{profile=it.first;frames=it.second;extras=it.third;error=""}.onFailure{error=it.message?:"Não foi possível carregar o perfil."};busy=false}}
  LaunchedEffect(session?.uid){if(session!=null)load()}
  if(login)LoginDialog({login=false}){e,p->scope.launch{busy=true;runCatching{repo.signIn(e,p)}.onSuccess{session=it;store.save(it);login=false}.onFailure{error=it.message?:"Não foi possível entrar."};busy=false}}
  if(edit&&profile!=null)EditDialog(profile!!,{edit=false}){p->scope.launch{busy=true;runCatching{repo.saveProfile(session!!,p)}.onSuccess{profile=p;edit=false}.onFailure{error=it.message?:"Não foi possível salvar."};busy=false}}
@@ -57,12 +57,12 @@ import online.mpscan.app.ui.theme.*
    item{LazyRow(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=14.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){items(listOf("Visão geral","Atividade","Seguidores","Seguindo","Favoritos","Coleções","Molduras")){name->FilterChip(tab==name,{tab=name},{Text(name)})}}}
    item{when(tab){
     "Molduras"->FramesPanel(frames,p?.frameId.orEmpty()){frame->val current=profile?:return@FramesPanel;scope.launch{busy=true;val updated=current.copy(frameId=frame.id);runCatching{repo.saveProfile(session!!,updated)}.onSuccess{profile=updated;error=""}.onFailure{error="Não foi possível usar esta moldura."};busy=false}}
-    "Seguidores"->Panel("Seus seguidores","${p?.followers?:0} pessoa(s) acompanham seu perfil.")
-    "Seguindo"->Panel("Pessoas que você segue","Você segue ${p?.following?:0} perfil(is).")
-    "Atividade"->Panel("Atividade recente","Comentários, avaliações e leituras aparecerão aqui.")
-    "Favoritos"->Panel("Favoritos","Suas obras favoritas ficam organizadas nesta aba.")
-    "Coleções"->Panel("Coleções","As coleções criadas na Biblioteca aparecem aqui.")
-    else->Panel("Resumo","Acompanhe sua leitura, participação, conexões e biblioteca em um só lugar.")
+    "Seguidores"->PeoplePanel("Seus seguidores",extras.followers)
+    "Seguindo"->PeoplePanel("Pessoas que você segue",extras.following)
+    "Atividade"->ActivitiesPanel(extras.activities)
+    "Favoritos"->WorksPanel("Favoritos",extras.favorites)
+    "Coleções"->CollectionsPanel(extras.collections)
+    else->OverviewPanel(extras)
    }}
   }
  }
@@ -81,13 +81,18 @@ import online.mpscan.app.ui.theme.*
     Surface(Modifier.fillMaxWidth().padding(bottom=14.dp),color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(if(chosen)3.dp else 1.dp,if(chosen)MpAccent else MpLine)){
      Column{
       if(frame.image.isNotBlank())AsyncImage(frame.image,frame.name,Modifier.fillMaxWidth().height(220.dp),contentScale=ContentScale.Crop)
-      Column(Modifier.padding(16.dp)){Text(frame.name,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Button({use(frame)},Modifier.fillMaxWidth().padding(top=10.dp),enabled=!chosen){Text(if(chosen)"Moldura em uso" else "Usar moldura")}}
+      Column(Modifier.padding(16.dp)){Text(frame.name,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text(if(frame.owned)"NA COLEÇÃO" else "Bloqueada",color=if(frame.owned)MpAccent2 else MpMuted,style=MaterialTheme.typography.labelSmall);Button({use(frame)},Modifier.fillMaxWidth().padding(top=10.dp),enabled=frame.owned&&!chosen){Text(if(chosen)"Moldura em uso" else if(frame.owned)"Usar moldura" else "Moldura não liberada")}}
      }
     }
    }
   }
  }
 }
+@Composable private fun PeoplePanel(title:String,people:List<ProfilePerson>){Column(Modifier.padding(horizontal=18.dp)){Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);if(people.isEmpty())Text("Nenhum perfil encontrado.",color=MpMuted,modifier=Modifier.padding(vertical=20.dp))else for(person in people){Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,MpLine)){Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically){Surface(Modifier.size(52.dp),shape=CircleShape,color=MpSurface2){if(person.photo.isNotBlank())AsyncImage(person.photo,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)};Column(Modifier.padding(start=12.dp)){Text(person.name,fontWeight=FontWeight.Bold);if(person.username.isNotBlank())Text("@"+person.username.removePrefix("@"),color=MpMuted)}}}}}}
+@Composable private fun WorksPanel(title:String,works:List<ProfileWork>){Column(Modifier.padding(horizontal=18.dp)){Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);if(works.isEmpty())Text("Nenhuma obra encontrada.",color=MpMuted,modifier=Modifier.padding(vertical=20.dp))else for(work in works){Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp)){Row(Modifier.padding(10.dp),verticalAlignment=Alignment.CenterVertically){if(work.cover.isNotBlank())AsyncImage(work.cover,null,Modifier.size(58.dp).clip(RoundedCornerShape(12.dp)),contentScale=ContentScale.Crop);Text(work.title,fontWeight=FontWeight.Bold,modifier=Modifier.padding(start=12.dp))}}}}
+@Composable private fun CollectionsPanel(collections:List<ProfileCollection>){Column(Modifier.padding(horizontal=18.dp)){Text("Coleções",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);if(collections.isEmpty())Text("Nenhuma coleção encontrada.",color=MpMuted,modifier=Modifier.padding(vertical=20.dp))else for(c in collections){Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp)){Column(Modifier.padding(15.dp)){Text(c.name,fontWeight=FontWeight.Bold);Text("${c.works.size} obra(s)",color=MpMuted)}}}}}
+@Composable private fun ActivitiesPanel(items:List<ProfileActivity>){Column(Modifier.padding(horizontal=18.dp)){Text("Atividade recente",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);if(items.isEmpty())Text("Nenhuma atividade encontrada.",color=MpMuted,modifier=Modifier.padding(vertical=20.dp))else for(a in items.take(40)){Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp)){Row(Modifier.padding(14.dp)){Text(if(a.type=="avaliacao")"★" else "●",color=MpAccent);Column(Modifier.padding(start=12.dp)){Text(a.title,fontWeight=FontWeight.Bold);Text(a.detail,color=MpMuted,maxLines=2)}}}}}}
+@Composable private fun OverviewPanel(x:ProfileExtras){Column{Panel("Resumo","Acompanhe sua leitura, participação, conexões e biblioteca em um só lugar.");Row(Modifier.fillMaxWidth().padding(horizontal=18.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){Stat("${x.activities.size}","Atividades",Modifier.weight(1f));Stat("${x.favorites.size}","Favoritos",Modifier.weight(1f));Stat("${x.collections.size}","Coleções",Modifier.weight(1f))}}}
 @Composable private fun Panel(title:String,body:String){Surface(Modifier.fillMaxWidth().padding(start=18.dp,end=18.dp,bottom=18.dp),color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(1.dp,MpLine)){Column(Modifier.padding(20.dp)){Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text(body,color=MpMuted,modifier=Modifier.padding(top=8.dp))}}}
 @Composable private fun Stat(v:String,l:String,m:Modifier){Surface(m,color=MpSurface,shape=RoundedCornerShape(17.dp),border=BorderStroke(1.dp,MpLine)){Column(Modifier.padding(vertical=13.dp),horizontalAlignment=Alignment.CenterHorizontally){Text(v,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text(l,color=MpMuted,style=MaterialTheme.typography.labelSmall)}}}
 @Composable private fun LoginDialog(close:()->Unit,go:(String,String)->Unit){var e by remember{mutableStateOf("")};var p by remember{mutableStateOf("")};AlertDialog(onDismissRequest=close,title={Text("Entrar na MP SCAN")},text={Column{OutlinedTextField(e,{e=it},label={Text("E-mail")});OutlinedTextField(p,{p=it},label={Text("Senha")},visualTransformation=PasswordVisualTransformation())}},confirmButton={Button({go(e,p)},enabled=e.isNotBlank()&&p.isNotBlank()){Text("Entrar")}},dismissButton={TextButton(close){Text("Cancelar")}})}
