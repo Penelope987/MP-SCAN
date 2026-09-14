@@ -25,8 +25,49 @@ class AccountRepository{
   AccountProfile(s.uid,value("nome","name").ifBlank{"Leitor MP SCAN"},value("nomeUsuario","username"),value("bio"),value("foto","photo"),value("capaPerfil","cover"),value("corPerfil","color").ifBlank{"#8d2bff"},if(u.has("publico"))u.optBoolean("publico") else pub.optBoolean("publico",true),value("molduraComentarioId"),if(u.optBoolean("admin"))"ADM" else value("papel","role").ifBlank{"Usuário"},followers,following,countOwn(s.uid))
  }
  suspend fun frames(s:AccountSession)=withContext(Dispatchers.IO){
-  val defs=req("$base/config/commentFrames.json");val inv=runCatching{req("$base/commentFrameInventory/${e(s.uid)}.json?auth=${e(s.token)}")}.getOrDefault(JSONObject());val current=runCatching{req("$base/usuarios/${e(s.uid)}/molduraComentarioId.json?auth=${e(s.token)}")}.getOrDefault(JSONObject()).optString("value")
-  defs.keys().asSequence().mapNotNull{id->defs.optJSONObject(id)?.let{f->fun v(vararg ks:String):String{ks.forEach{k->f.optString(k).takeIf{it.isNotBlank()}?.let{return it}};return ""};val active=!f.has("ativo")||f.optBoolean("ativo")||f.optString("ativo").equals("true",true);val owned=inv.has(id)||id==current;if(active)CommentFrame(id,v("nome","name").ifBlank{"Moldura MP SCAN"},v("imageUrl","imagemUrl","imagem","backgroundImageUrl","backgroundImage","fundoImagem","fundoUrl","url","previewUrl"),v("borderColor","bordaCor","corBorda").ifBlank{"#8d2bff"},v("bgColor","fundoCor","backgroundColor","corFundo").ifBlank{"#17171d"},active,owned)else null}}.toList()
+  val auth="?auth=${e(s.token)}"
+  val defs=req("$base/config/commentFrames.json")
+  val inv=runCatching{req("$base/commentFrameInventory/${e(s.uid)}.json$auth")}.getOrDefault(JSONObject())
+  fun scalar(path:String)=runCatching{req("$base/$path.json$auth").optString("value")}.getOrDefault("")
+  val selected=setOf(
+   scalar("usuarios/${e(s.uid)}/molduraComentarioId"),
+   scalar("identidadesComentarios/${e(s.uid)}/molduraComentarioId"),
+   scalar("perfisPublicos/${e(s.uid)}/molduraComentarioId")
+  ).filter{it.isNotBlank()}.toSet()
+  val ownedIds=mutableSetOf<String>()
+  fun collect(x:JSONObject){
+   x.keys().forEach{k->
+    val value=x.opt(k)
+    if(value!=false&&value!=JSONObject.NULL)ownedIds+=k
+    when(value){
+     is JSONObject->{
+      listOf("id","frameId","molduraId","molduraComentarioId").forEach{field->value.optString(field).takeIf{it.isNotBlank()}?.let(ownedIds::add)}
+      collect(value)
+     }
+     is String->if(value.isNotBlank())ownedIds+=value
+    }
+   }
+  }
+  collect(inv);ownedIds+=selected
+  defs.keys().asSequence().mapNotNull{id->defs.optJSONObject(id)?.let{f->
+   fun v(vararg ks:String):String{ks.forEach{k->f.optString(k).takeIf{it.isNotBlank()}?.let{return it}};return ""}
+   val definitionId=v("id","frameId","molduraId")
+   val active=!f.has("ativo")||f.optBoolean("ativo")||f.optString("ativo").equals("true",true)
+   val owned=id in ownedIds||definitionId in ownedIds
+   if(active)CommentFrame(id,v("nome","name").ifBlank{"Moldura MP SCAN"},v("imageUrl","imagemUrl","imagem","backgroundImageUrl","backgroundImage","fundoImagem","fundoUrl","url","previewUrl"),v("borderColor","bordaCor","corBorda").ifBlank{"#8d2bff"},v("bgColor","fundoCor","backgroundColor","corFundo").ifBlank{"#17171d"},active,owned)else null
+  }}.toList()
+ }
+ suspend fun selectFrame(s:AccountSession,frameId:String)=withContext(Dispatchers.IO){
+  val id=frameId.trim();val auth="?auth=${e(s.token)}"
+  if(id.isNotBlank()){
+   val definition=req("$base/config/commentFrames/${e(id)}.json")
+   if(definition.length()==0||definition.optString("ativo").equals("false",true)||(definition.has("ativo")&&!definition.optBoolean("ativo")&&!definition.optString("ativo").equals("true",true)))error("Esta moldura não está ativa.")
+   val inventory=req("$base/commentFrameInventory/${e(s.uid)}/${e(id)}.json$auth")
+   if(inventory.length()==0)error("Esta moldura não está liberada para esta conta.")
+  }
+  req("$base/usuarios/${e(s.uid)}/molduraComentarioId.json$auth","PUT",JSONObject.quote(id))
+  req("$base/identidadesComentarios/${e(s.uid)}/molduraComentarioId.json$auth","PUT",JSONObject.quote(id))
+  runCatching{req("$base/perfisPublicos/${e(s.uid)}/molduraComentarioId.json$auth","PUT",JSONObject.quote(id))}
  }
  suspend fun extras(s:AccountSession)=withContext(Dispatchers.IO){
   val auth="?auth=${e(s.token)}";val profiles=runCatching{req("$base/perfisPublicos.json$auth")}.getOrDefault(JSONObject());val works=runCatching{req("$base/obras.json")}.getOrDefault(JSONObject())
