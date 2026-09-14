@@ -39,7 +39,7 @@ private fun color(v:String,f:Color)=runCatching{Color(android.graphics.Color.par
  onDelete={scope.launch{session?.let{runCatching{api.delete(type,workId,chapterId,x.id,it)}.onSuccess{load()}.onFailure{err="Você não tem permissão para excluir."}}}},
  onPin={scope.launch{session?.let{runCatching{api.pin(type,workId,chapterId,x.id,it)}.onSuccess{load()}.onFailure{err="Não foi possível fixar."}}}}
 )}}}
-@Composable private fun Card(x:CM,viewerUid:String,viewerAdmin:Boolean,onEdit:(String)->Unit,onDelete:()->Unit,onPin:()->Unit){var editing by remember{x.mutableStateOf(false)};var editText by remember{x.mutableStateOf(x.text)};var confirmDelete by remember{x.mutableStateOf(false)};val canManage=viewerUid.isNotBlank()&&(viewerUid==x.uid||viewerAdmin);
+@Composable private fun Card(x:CM,viewerUid:String,viewerAdmin:Boolean,onEdit:(String)->Unit,onDelete:()->Unit,onPin:()->Unit){var editing by remember(x.id){mutableStateOf(false)};var editText by remember(x.id){mutableStateOf(x.text)};var confirmDelete by remember{x.mutableStateOf(false)};val canManage=viewerUid.isNotBlank()&&(viewerUid==x.uid||viewerAdmin);
  var show by remember(x.id){mutableStateOf(!x.spoiler)}
  val bc=color(x.frame.color,MpAccent);val bg=color(x.frame.background,MpSurface)
  val date=remember(x.date){if(x.date>0)SimpleDateFormat("dd/MM/yyyy 'às' HH:mm",Locale("pt","BR")).format(Date(x.date)) else ""}
