@@ -69,7 +69,25 @@ import online.mpscan.app.ui.theme.*
 }
 @Composable private fun AchievementCard(){Surface(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=10.dp),color=Color(0xff18171d),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,Color(0xff715a2a))){Column(Modifier.padding(20.dp)){Text("✦ Galeria de conquistas",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text("Medalhas de jornada e presentes especiais entregues pela equipe MP SCAN.",color=MpMuted,modifier=Modifier.padding(top=6.dp));LinearProgressIndicator(progress={.43f},Modifier.fillMaxWidth().padding(top=18.dp),color=Color(0xffffc13d));Text("A primeira conquista de jornada chegará após um mês de cadastro.",color=MpMuted,modifier=Modifier.padding(top=16.dp))}}}
 @Composable private fun AdminCard(){Surface(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=10.dp),color=Color(0xff21131b),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,Color(0xff7f294f))){Column(Modifier.padding(20.dp)){Text("🛠 Painel administrativo",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text("Gerencie obras, capítulos, usuários, comentários, banners e notificações.",color=MpMuted,modifier=Modifier.padding(top=5.dp));Button({},Modifier.fillMaxWidth().padding(top=16.dp)){Text("Abrir painel ADM")}}}}
-@Composable private fun FramesPanel(frames:List<CommentFrame>,selected:String,use:(CommentFrame)->Unit){Column(Modifier.padding(horizontal=18.dp)){Text("🖼 Moldura do comentário",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall);Text("Escolha uma moldura criada pelo ADM. Ela também aparecerá nos seus comentários.",color=MpMuted,modifier=Modifier.padding(top=5.dp,bottom=12.dp));if(frames.isEmpty())Panel("Minhas molduras","Você ainda não possui uma moldura liberada pelo ADM.")else frames.forEach{f->Surface(Modifier.fillMaxWidth().padding(bottom=14.dp),color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(if(selected==f.id)3.dp else 1.dp,if(selected==f.id)MpAccent else MpLine)){Column{if(f.image.isNotBlank())AsyncImage(f.image,f.name,Modifier.fillMaxWidth().height(220.dp),contentScale=ContentScale.Crop);Column(Modifier.padding(16.dp)){Text(f.name,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Button({use(f)},Modifier.fillMaxWidth().padding(top=10.dp),enabled=selected!=f.id){Text(if(selected==f.id)"Moldura em uso" else "Usar moldura")}}}}}}}
+@Composable private fun FramesPanel(frames:List<CommentFrame>,selected:String,use:(CommentFrame)->Unit){
+ Column(Modifier.padding(horizontal=18.dp)){
+  Text("🖼 Moldura do comentário",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall)
+  Text("Escolha uma moldura criada pelo ADM. Ela também aparecerá nos seus comentários.",color=MpMuted,modifier=Modifier.padding(top=5.dp,bottom=12.dp))
+  if(frames.isEmpty()){
+   Surface(Modifier.fillMaxWidth(),color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(1.dp,MpLine)){Column(Modifier.padding(20.dp)){Text("Minhas molduras",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text("Você ainda não possui uma moldura liberada pelo ADM.",color=MpMuted,modifier=Modifier.padding(top=8.dp))}}
+  }else{
+   for(frame in frames){
+    val chosen=selected==frame.id
+    Surface(Modifier.fillMaxWidth().padding(bottom=14.dp),color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(if(chosen)3.dp else 1.dp,if(chosen)MpAccent else MpLine)){
+     Column{
+      if(frame.image.isNotBlank())AsyncImage(frame.image,frame.name,Modifier.fillMaxWidth().height(220.dp),contentScale=ContentScale.Crop)
+      Column(Modifier.padding(16.dp)){Text(frame.name,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Button({use(frame)},Modifier.fillMaxWidth().padding(top=10.dp),enabled=!chosen){Text(if(chosen)"Moldura em uso" else "Usar moldura")}}
+     }
+    }
+   }
+  }
+ }
+}
 @Composable private fun Panel(title:String,body:String){Surface(Modifier.fillMaxWidth().padding(horizontal=18.dp,bottom=18.dp),color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(1.dp,MpLine)){Column(Modifier.padding(20.dp)){Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text(body,color=MpMuted,modifier=Modifier.padding(top=8.dp))}}}
 @Composable private fun Stat(v:String,l:String,m:Modifier){Surface(m,color=MpSurface,shape=RoundedCornerShape(17.dp),border=BorderStroke(1.dp,MpLine)){Column(Modifier.padding(vertical=13.dp),horizontalAlignment=Alignment.CenterHorizontally){Text(v,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text(l,color=MpMuted,style=MaterialTheme.typography.labelSmall)}}}
 @Composable private fun LoginDialog(close:()->Unit,go:(String,String)->Unit){var e by remember{mutableStateOf("")};var p by remember{mutableStateOf("")};AlertDialog(onDismissRequest=close,title={Text("Entrar na MP SCAN")},text={Column{OutlinedTextField(e,{e=it},label={Text("E-mail")});OutlinedTextField(p,{p=it},label={Text("Senha")},visualTransformation=PasswordVisualTransformation())}},confirmButton={Button({go(e,p)},enabled=e.isNotBlank()&&p.isNotBlank()){Text("Entrar")}},dismissButton={TextButton(close){Text("Cancelar")}})}
