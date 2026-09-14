@@ -88,11 +88,54 @@ import online.mpscan.app.ui.theme.*
   }
  }
 }
-@Composable private fun PeoplePanel(title:String,people:List<ProfilePerson>){Column(Modifier.padding(horizontal=18.dp)){Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);if(people.isEmpty())Text("Nenhum perfil encontrado.",color=MpMuted,modifier=Modifier.padding(vertical=20.dp))else for(person in people){Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,MpLine)){Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically){Surface(Modifier.size(52.dp),shape=CircleShape,color=MpSurface2){if(person.photo.isNotBlank())AsyncImage(person.photo,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)};Column(Modifier.padding(start=12.dp)){Text(person.name,fontWeight=FontWeight.Bold);if(person.username.isNotBlank())Text("@"+person.username.removePrefix("@"),color=MpMuted)}}}}}}
-@Composable private fun WorksPanel(title:String,works:List<ProfileWork>){Column(Modifier.padding(horizontal=18.dp)){Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);if(works.isEmpty())Text("Nenhuma obra encontrada.",color=MpMuted,modifier=Modifier.padding(vertical=20.dp))else for(work in works){Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp)){Row(Modifier.padding(10.dp),verticalAlignment=Alignment.CenterVertically){if(work.cover.isNotBlank())AsyncImage(work.cover,null,Modifier.size(58.dp).clip(RoundedCornerShape(12.dp)),contentScale=ContentScale.Crop);Text(work.title,fontWeight=FontWeight.Bold,modifier=Modifier.padding(start=12.dp))}}}}
-@Composable private fun CollectionsPanel(collections:List<ProfileCollection>){Column(Modifier.padding(horizontal=18.dp)){Text("Coleções",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);if(collections.isEmpty())Text("Nenhuma coleção encontrada.",color=MpMuted,modifier=Modifier.padding(vertical=20.dp))else for(c in collections){Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp)){Column(Modifier.padding(15.dp)){Text(c.name,fontWeight=FontWeight.Bold);Text("${c.works.size} obra(s)",color=MpMuted)}}}}}
-@Composable private fun ActivitiesPanel(items:List<ProfileActivity>){Column(Modifier.padding(horizontal=18.dp)){Text("Atividade recente",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);if(items.isEmpty())Text("Nenhuma atividade encontrada.",color=MpMuted,modifier=Modifier.padding(vertical=20.dp))else for(a in items.take(40)){Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp)){Row(Modifier.padding(14.dp)){Text(if(a.type=="avaliacao")"★" else "●",color=MpAccent);Column(Modifier.padding(start=12.dp)){Text(a.title,fontWeight=FontWeight.Bold);Text(a.detail,color=MpMuted,maxLines=2)}}}}}}
-@Composable private fun OverviewPanel(x:ProfileExtras){Column{Panel("Resumo","Acompanhe sua leitura, participação, conexões e biblioteca em um só lugar.");Row(Modifier.fillMaxWidth().padding(horizontal=18.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){Stat("${x.activities.size}","Atividades",Modifier.weight(1f));Stat("${x.favorites.size}","Favoritos",Modifier.weight(1f));Stat("${x.collections.size}","Coleções",Modifier.weight(1f))}}}
+@Composable private fun PeoplePanel(title:String,people:List<ProfilePerson>){
+ Column(Modifier.padding(horizontal=18.dp)){
+  Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge)
+  if(people.isEmpty()) Text("Nenhum perfil encontrado.",color=MpMuted,modifier=Modifier.padding(vertical=20.dp))
+  else for(person in people){
+   Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,MpLine)){
+    Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically){
+     Surface(Modifier.size(52.dp),shape=CircleShape,color=MpSurface2){if(person.photo.isNotBlank())AsyncImage(person.photo,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)}
+     Column(Modifier.padding(start=12.dp)){Text(person.name,fontWeight=FontWeight.Bold);if(person.username.isNotBlank())Text("@"+person.username.removePrefix("@"),color=MpMuted)}
+    }
+   }
+  }
+ }
+}
+@Composable private fun WorksPanel(title:String,works:List<ProfileWork>){
+ Column(Modifier.padding(horizontal=18.dp)){
+  Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge)
+  if(works.isEmpty()) Text("Nenhuma obra encontrada.",color=MpMuted,modifier=Modifier.padding(vertical=20.dp))
+  else for(work in works){
+   Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp)){
+    Row(Modifier.padding(10.dp),verticalAlignment=Alignment.CenterVertically){
+     if(work.cover.isNotBlank())AsyncImage(work.cover,null,Modifier.size(58.dp).clip(RoundedCornerShape(12.dp)),contentScale=ContentScale.Crop)
+     Text(work.title,fontWeight=FontWeight.Bold,modifier=Modifier.padding(start=12.dp))
+    }
+   }
+  }
+ }
+}
+@Composable private fun CollectionsPanel(collections:List<ProfileCollection>){
+ Column(Modifier.padding(horizontal=18.dp)){
+  Text("Coleções",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge)
+  if(collections.isEmpty())Text("Nenhuma coleção encontrada.",color=MpMuted,modifier=Modifier.padding(vertical=20.dp))
+  else for(item in collections){Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp)){Column(Modifier.padding(15.dp)){Text(item.name,fontWeight=FontWeight.Bold);Text("${item.works.size} obra(s)",color=MpMuted)}}}
+ }
+}
+@Composable private fun ActivitiesPanel(items:List<ProfileActivity>){
+ Column(Modifier.padding(horizontal=18.dp)){
+  Text("Atividade recente",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge)
+  if(items.isEmpty())Text("Nenhuma atividade encontrada.",color=MpMuted,modifier=Modifier.padding(vertical=20.dp))
+  else for(activity in items.take(40)){Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp)){Row(Modifier.padding(14.dp)){Text(if(activity.type=="avaliacao")"★" else "●",color=MpAccent);Column(Modifier.padding(start=12.dp)){Text(activity.title,fontWeight=FontWeight.Bold);Text(activity.detail,color=MpMuted,maxLines=2)}}}}
+ }
+}
+@Composable private fun OverviewPanel(x:ProfileExtras){
+ Column{
+  Panel("Resumo","Acompanhe sua leitura, participação, conexões e biblioteca em um só lugar.")
+  Row(Modifier.fillMaxWidth().padding(horizontal=18.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){Stat("${x.activities.size}","Atividades",Modifier.weight(1f));Stat("${x.favorites.size}","Favoritos",Modifier.weight(1f));Stat("${x.collections.size}","Coleções",Modifier.weight(1f))}
+ }
+}
 @Composable private fun Panel(title:String,body:String){Surface(Modifier.fillMaxWidth().padding(start=18.dp,end=18.dp,bottom=18.dp),color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(1.dp,MpLine)){Column(Modifier.padding(20.dp)){Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text(body,color=MpMuted,modifier=Modifier.padding(top=8.dp))}}}
 @Composable private fun Stat(v:String,l:String,m:Modifier){Surface(m,color=MpSurface,shape=RoundedCornerShape(17.dp),border=BorderStroke(1.dp,MpLine)){Column(Modifier.padding(vertical=13.dp),horizontalAlignment=Alignment.CenterHorizontally){Text(v,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text(l,color=MpMuted,style=MaterialTheme.typography.labelSmall)}}}
 @Composable private fun LoginDialog(close:()->Unit,go:(String,String)->Unit){var e by remember{mutableStateOf("")};var p by remember{mutableStateOf("")};AlertDialog(onDismissRequest=close,title={Text("Entrar na MP SCAN")},text={Column{OutlinedTextField(e,{e=it},label={Text("E-mail")});OutlinedTextField(p,{p=it},label={Text("Senha")},visualTransformation=PasswordVisualTransformation())}},confirmButton={Button({go(e,p)},enabled=e.isNotBlank()&&p.isNotBlank()){Text("Entrar")}},dismissButton={TextButton(close){Text("Cancelar")}})}
