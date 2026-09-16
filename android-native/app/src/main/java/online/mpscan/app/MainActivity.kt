@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -43,6 +44,7 @@ import online.mpscan.app.data.ReadingProgress
 import online.mpscan.app.data.FavoritesStore
 import online.mpscan.app.data.CollectionsStore
 import online.mpscan.app.data.AccountStore
+import online.mpscan.app.data.AccountRepository
 import online.mpscan.app.data.WorkRating
 import online.mpscan.app.data.WorkReaction
 import online.mpscan.app.data.WorkSocialRepository
@@ -62,6 +64,7 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
 @Composable private fun HomeRoot(){
  var selected by remember{mutableStateOf(Destination.Home)};var selectedWork by remember{mutableStateOf<Work?>(null)};var directReader by remember{mutableStateOf<Pair<Work,Chapter>?>(null)};var settingsOpen by remember{mutableStateOf(false)};var works by remember{mutableStateOf<List<Work>>(emptyList())};var loading by remember{mutableStateOf(true)};var error by remember{mutableStateOf("")}
  LaunchedEffect(Unit){runCatching{CatalogRepository().works()}.onSuccess{works=it}.onFailure{error="Não foi possível carregar o catálogo."};loading=false}
+ BackHandler(settingsOpen||directReader!=null||selectedWork!=null){when{settingsOpen->settingsOpen=false;directReader!=null->directReader=null;selectedWork!=null->selectedWork=null}}
  Scaffold(containerColor=MpBackground,bottomBar={if(selectedWork==null&&directReader==null&&!settingsOpen)NavigationBar(containerColor=MpSurface){Destination.entries.forEach{x->NavigationBarItem(selected=selected==x,onClick={selected=x},icon={Text(x.icon)},label={Text(x.label)})}}}){p->
   Box(Modifier.fillMaxSize().padding(p)){when{settingsOpen->SettingsScreen{settingsOpen=false};directReader!=null->Reader(directReader!!.first,directReader!!.second){directReader=null};selectedWork!=null->WorkDetails(selectedWork!!,{selectedWork=null});selected==Destination.Library->OfflineLibrary(works,{selectedWork=it}){w,c->directReader=w to c};selected==Destination.Profile->AccountProfileScreen{settingsOpen=true};loading->Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){CircularProgressIndicator()};error.isNotBlank()->Message(error);works.isEmpty()->Message("As obras publicadas aparecerão aqui.");selected==Destination.Home->Home(works,Modifier,{selectedWork=it}){w,c->directReader=w to c};selected==Destination.Search->Search(works){selectedWork=it}}}
  }
@@ -121,20 +124,20 @@ private fun formatUpdateDate(value:Long):String{if(value<=0)return "Atualizaçã
  Column(Modifier.fillMaxSize().padding(horizontal=16.dp,vertical=14.dp)){Header();Spacer(Modifier.height(18.dp));OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),singleLine=true,shape=RoundedCornerShape(16.dp),leadingIcon={Text("⌕")},label={Text("Nome, gênero ou autor")});LazyRow(Modifier.padding(vertical=12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){item{FilterChip(status.isBlank(),{status=""},{Text("Todos")})};items(listOf("Em andamento","Completa","Em pausa","Futura","Cancelada")){s->FilterChip(status==s,{status=if(status==s)"" else s},{Text(s)})}};if(genres.isNotEmpty())LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){items(genres){g->FilterChip(genre==g,{genre=if(genre==g)"" else g},{Text(g)})}};Text("${filtered.size} obras",color=MpMuted,modifier=Modifier.padding(vertical=10.dp));LazyVerticalGrid(GridCells.Adaptive(140.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(18.dp)){gridItems(filtered,key={it.id}){Card(it,open)}}}
 }
 @Composable private fun WorkDetails(work:Work,back:()->Unit){
- val context=LocalContext.current;val favorites=remember{FavoritesStore(context.applicationContext)};val readingStore=remember{ReadingStore(context.applicationContext)};val offlineStore=remember{OfflineStore(context.applicationContext)};val repository=remember{CatalogRepository()};val social=remember{WorkSocialRepository()};val session=remember{AccountStore(context.applicationContext).session()};val scope=rememberCoroutineScope()
+ val context=LocalContext.current;val favorites=remember{FavoritesStore(context.applicationContext)};val readingStore=remember{ReadingStore(context.applicationContext)};val offlineStore=remember{OfflineStore(context.applicationContext)};val repository=remember{CatalogRepository()};val social=remember{WorkSocialRepository()};val accountStore=remember{AccountStore(context.applicationContext)};var session by remember{mutableStateOf(accountStore.session())};val accountRepository=remember{AccountRepository()};val scope=rememberCoroutineScope()
  var favorite by remember(work.id){mutableStateOf(favorites.contains(work.id))};var chapters by remember(work.id){mutableStateOf<List<Chapter>>(emptyList())};var loading by remember(work.id){mutableStateOf(true)};var reading by remember(work.id){mutableStateOf<Chapter?>(null)}
  var tab by remember(work.id){mutableStateOf("Capítulos")};var rating by remember(work.id){mutableStateOf(WorkRating())};var reactions by remember(work.id){mutableStateOf<List<WorkReaction>>(emptyList())};var socialError by remember{mutableStateOf("")}
  var downloadingAll by remember(work.id){mutableStateOf(false)};var bulkProgress by remember(work.id){mutableIntStateOf(0)};var bulkMessage by remember(work.id){mutableStateOf("")};var bulkError by remember(work.id){mutableStateOf("")}
- if(reading!=null){Reader(work,reading!!){reading=null};return}
- LaunchedEffect(work.id){val saved=offlineStore.downloads().filter{it.workId==work.id}.map{it.toChapter()};runCatching{repository.chapters(work.id)}.onSuccess{remote->chapters=(remote+saved).distinctBy{it.id}.sortedByDescending{it.number?:-1.0}}.onFailure{chapters=saved};rating=runCatching{social.rating(work.id,session)}.getOrDefault(WorkRating());reactions=runCatching{social.reactions(work.id,session)}.getOrDefault(emptyList());loading=false}
+ if(reading!=null){BackHandler{reading=null};Reader(work,reading!!){reading=null};return}
+ LaunchedEffect(work.id){session?.let{old->runCatching{accountRepository.refresh(old)}.onSuccess{fresh->session=fresh;accountStore.save(fresh)}};val saved=offlineStore.downloads().filter{it.workId==work.id}.map{it.toChapter()};runCatching{repository.chapters(work.id)}.onSuccess{remote->chapters=(remote+saved).distinctBy{it.id}.sortedByDescending{it.number?:-1.0}}.onFailure{chapters=saved};rating=runCatching{social.rating(work.id,session)}.getOrDefault(WorkRating());reactions=runCatching{social.reactions(work.id,session)}.getOrDefault(emptyList());loading=false}
  val progress=remember(work.id,chapters){readingStore.history().filter{it.workId==work.id}.associateBy{it.chapterId}}
  val continueChapter=chapters.firstOrNull{(progress[it.id]?.percent?:0)<100}?:chapters.firstOrNull()
  val knownAdmin=session?.uid in setOf("eHLv7TlUOAW5rLsMwWVCGeu1KSI2","pc87zkEpz0Ra7HfKvRIwLkbl5K13")||session?.email in setOf("meowscann@gmail.com","mpscan@gmail.com")
  LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(bottom=30.dp)){
   item{WorkHero(work,chapters.size,rating.average,back)}
   item{Column(Modifier.padding(horizontal=12.dp,vertical=14.dp)){Button({continueChapter?.let{reading=it}},Modifier.fillMaxWidth().height(58.dp),enabled=continueChapter!=null,shape=RoundedCornerShape(17.dp)){Text(if(progress.isNotEmpty())"▶ Continuar lendo" else "▶ Começar a ler",fontWeight=FontWeight.Black)};Row(Modifier.padding(top=10.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){OutlinedButton({favorite=favorites.toggle(work.id)}){Text(if(favorite)"♥" else "♡")};OutlinedButton({}){Text("♢")};OutlinedButton({}){Text("＋")}}}}
-  if(reactions.isNotEmpty())item{WorkReactions(reactions){chosen->if(session==null){socialError="Entre na conta para escolher uma reação."}else scope.launch{runCatching{social.react(work.id,chosen,session)}.onSuccess{reactions=social.reactions(work.id,session);socialError=""}.onFailure{socialError="Não foi possível salvar sua reação."}}}}
-  item{RatingPanel(rating,knownAdmin,session!=null){note->if(session==null)socialError="Entre na conta para avaliar." else scope.launch{runCatching{social.rate(work.id,note,session)}.onSuccess{rating=social.rating(work.id,session);socialError=""}.onFailure{socialError="Esta conta não pode avaliar ou ocorreu um erro."}}}}
+  if(reactions.isNotEmpty())item{WorkReactions(reactions){chosen->val current=session;if(current==null){socialError="Entre na conta para escolher uma reação."}else scope.launch{runCatching{accountRepository.refresh(current)}.mapCatching{fresh->session=fresh;accountStore.save(fresh);social.react(work.id,chosen,fresh);fresh}.onSuccess{fresh->reactions=social.reactions(work.id,fresh);socialError="Reação registrada com sucesso."}.onFailure{socialError=it.message?:"Não foi possível salvar sua reação."}}}}
+  item{RatingPanel(rating,knownAdmin,session!=null){note->val current=session;if(current==null)socialError="Entre na conta para avaliar." else scope.launch{runCatching{accountRepository.refresh(current)}.mapCatching{fresh->session=fresh;accountStore.save(fresh);social.rate(work.id,note,fresh);fresh}.onSuccess{fresh->rating=social.rating(work.id,fresh);socialError="Avaliação salva com sucesso."}.onFailure{socialError=it.message?:"Não foi possível salvar a avaliação."}}}}
   if(socialError.isNotBlank())item{Text(socialError,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(horizontal=16.dp,vertical=8.dp))}
   item{WorkTabs(tab,chapters.size){tab=it}}
   when(tab){
