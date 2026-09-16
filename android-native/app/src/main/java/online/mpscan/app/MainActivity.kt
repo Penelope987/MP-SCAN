@@ -150,7 +150,42 @@ private fun formatUpdateDate(value:Long):String{if(value<=0)return "Atualizaçã
 @Composable private fun RatingPanel(rating:WorkRating,admin:Boolean,logged:Boolean,rate:(Int)->Unit){Surface(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),color=Color(0xff18171d),shape=RoundedCornerShape(24.dp),border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xff715a2a))){Column(Modifier.padding(20.dp)){Text("AVALIAÇÃO DOS LEITORES",color=Color(0xffff6e9c),fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelMedium);Row(verticalAlignment=Alignment.Bottom){Text("${"%.1f".format(Locale.US,rating.average)}",fontWeight=FontWeight.Black,style=MaterialTheme.typography.displayMedium);Text("★",color=Color(0xffffc13d),style=MaterialTheme.typography.headlineMedium,modifier=Modifier.padding(bottom=8.dp))};Text("${rating.total} ${if(rating.total==1)"avaliação" else "avaliações"} no total",color=MpMuted);Spacer(Modifier.height(14.dp));for(note in 5 downTo 1){val count=rating.counts[note]?:0;val part=if(rating.total==0)0f else count.toFloat()/rating.total;Row(Modifier.fillMaxWidth().padding(vertical=4.dp),verticalAlignment=Alignment.CenterVertically){Text("$note★",Modifier.width(42.dp));LinearProgressIndicator(progress={part},Modifier.weight(1f),color=Color(0xffffc13d),trackColor=MpSurface2);Text("$count",Modifier.width(32.dp),textAlign=androidx.compose.ui.text.style.TextAlign.End,color=MpMuted)}};HorizontalDivider(Modifier.padding(vertical=16.dp),color=MpLine);Text("Avaliações dos leitores",fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium);Text(if(admin)"A conta ADM visualiza as notas, mas não participa da avaliação." else if(logged)"Toque em uma estrela para avaliar. Você pode mudar quando quiser." else "Entre na conta para participar da avaliação.",color=MpMuted,style=MaterialTheme.typography.bodySmall);Row(Modifier.padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(9.dp)){for(note in 1..5){OutlinedButton({rate(note)},enabled=logged&&!admin,contentPadding=PaddingValues(0.dp),modifier=Modifier.size(52.dp),border=androidx.compose.foundation.BorderStroke(1.dp,if(note<=rating.mine)Color(0xffffc13d)else MpLine)){Text("★",color=if(note<=rating.mine)Color(0xffffc13d)else MpMuted)}}}}}}
 @Composable private fun WorkTabs(selected:String,count:Int,change:(String)->Unit){Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=12.dp).clip(RoundedCornerShape(20.dp)).background(MpSurface2).padding(5.dp),horizontalArrangement=Arrangement.spacedBy(5.dp)){listOf("Sobre","Capítulos","Comentários").forEach{name->Surface(Modifier.weight(1f).clickable{change(name)},color=if(selected==name)Color(0xff2b1822)else Color.Transparent,shape=RoundedCornerShape(15.dp)){Column(Modifier.padding(vertical=12.dp),horizontalAlignment=Alignment.CenterHorizontally){Text(if(name=="Capítulos")"Capítulos $count" else name,fontWeight=FontWeight.Bold,color=if(selected==name)Color.White else MpMuted);if(selected==name)Box(Modifier.padding(top=7.dp).width(58.dp).height(3.dp).background(MpAccent2,RoundedCornerShape(2.dp)))}}}}}
 @Composable private fun SynopsisCard(work:Work){Surface(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),color=MpSurface,shape=RoundedCornerShape(24.dp),border=androidx.compose.foundation.BorderStroke(1.dp,MpLine)){Column(Modifier.padding(20.dp)){Text("SINOPSE",color=MpAccent2,fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelMedium);Text(work.synopsis.ifBlank{"Sinopse ainda não informada."},modifier=Modifier.padding(top=14.dp),lineHeight=28.sp);if(work.genres.isNotEmpty())LazyRow(Modifier.padding(top=18.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){items(work.genres){genre->Surface(color=Color(0xff2a1720),shape=RoundedCornerShape(18.dp),border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xff5b2b42))){Text(genre,Modifier.padding(horizontal=14.dp,vertical=8.dp),fontWeight=FontWeight.Bold)}}}}}}
-@Composable private fun WorkInformation(work:Work,lastUpdate:Long){val rows=listOf("TIPO" to localizedType(work.type),"STATUS" to localizedStatus(work.status),"AGENDA" to work.schedule,"ÚLTIMA ATUALIZAÇÃO" to formatWorkDate(lastUpdate),"AUTOR" to work.author,"ARTISTA" to work.artist,"SCAN" to work.scan,"IDIOMA" to work.language).filter{it.second.isNotBlank()};Column(Modifier.padding(horizontal=12.dp,vertical=4.dp)){rows.forEach{(label,value)->Surface(Modifier.fillMaxWidth().padding(vertical=6.dp),color=MpSurface,shape=RoundedCornerShape(20.dp),border=androidx.compose.foundation.BorderStroke(1.dp,if(label=="ÚLTIMA ATUALIZAÇÃO")Color(0xff62263f)else MpLine)){Column(Modifier.padding(18.dp)){Text(label,color=MpMuted,fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelSmall);Text(value.ifBlank{"—"},fontWeight=FontWeight.SemiBold,style=MaterialTheme.typography.titleMedium,modifier=Modifier.padding(top=3.dp))}}}}
+@Composable
+private fun WorkInformation(work: Work, lastUpdate: Long) {
+    val rows = listOf(
+        "TIPO" to localizedType(work.type),
+        "STATUS" to localizedStatus(work.status),
+        "AGENDA" to work.schedule,
+        "ÚLTIMA ATUALIZAÇÃO" to formatWorkDate(lastUpdate),
+        "AUTOR" to work.author,
+        "ARTISTA" to work.artist,
+        "SCAN" to work.scan,
+        "IDIOMA" to work.language
+    ).filter { it.second.isNotBlank() }
+    Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+        rows.forEach { (label, value) ->
+            Surface(
+                Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                color = MpSurface,
+                shape = RoundedCornerShape(20.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (label == "ÚLTIMA ATUALIZAÇÃO") Color(0xff62263f) else MpLine
+                )
+            ) {
+                Column(Modifier.padding(18.dp)) {
+                    Text(label, color = MpMuted, fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        value.ifBlank { "—" },
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 3.dp)
+                    )
+                }
+            }
+        }
+    }
+}
 @Composable private fun ChapterRow(chapter:Chapter,progress:ReadingProgress?,saved:Boolean,open:()->Unit){val fresh=System.currentTimeMillis()-normalizeMillis(maxOf(chapter.updatedAt,chapter.createdAt))<14L*24*60*60*1000;Surface(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=6.dp).clickable{open()},color=MpSurface,shape=RoundedCornerShape(20.dp),border=androidx.compose.foundation.BorderStroke(1.dp,if((progress?.percent?:0)>0)Color(0xff245944)else MpLine)){Row(Modifier.padding(14.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.size(58.dp).clip(RoundedCornerShape(17.dp)).background(Color(0xff261722)),contentAlignment=Alignment.Center){Text(chapter.number?.toString()?.removeSuffix(".0")?:"—",color=MpAccent2,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge)};Column(Modifier.weight(1f).padding(horizontal=14.dp)){Text(if(chapter.title.isBlank())chapter.label else chapter.title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleMedium);Row(horizontalArrangement=Arrangement.spacedBy(7.dp),verticalAlignment=Alignment.CenterVertically){Text(formatWorkDate(maxOf(chapter.updatedAt,chapter.createdAt)),color=MpMuted,style=MaterialTheme.typography.bodySmall);if(fresh)Text("NOVO",color=MpAccent2,fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelSmall);if(progress!=null)Text(if(progress.percent>=100)"● LIDO" else "● LENDO ${progress.percent}%",color=Color(0xff32bd84),fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelSmall);if(saved)Text("OFFLINE",color=MpAccent,style=MaterialTheme.typography.labelSmall)}};Text("›",style=MaterialTheme.typography.headlineSmall)}}}
 private fun localizedType(value:String)=when(value.trim().lowercase(Locale.ROOT)){"manga","mangá"->"Mangá";"manhwa"->"Manhwa";"manhua"->"Manhua";"novel"->"Novel";"webtoon"->"Webtoon";"oneshot","one-shot"->"One-shot";"hq"->"HQ";else->value.ifBlank{"—"}}
 private fun normalizeMillis(value:Long)=if(value in 1..99_999_999_999L)value*1000 else value
