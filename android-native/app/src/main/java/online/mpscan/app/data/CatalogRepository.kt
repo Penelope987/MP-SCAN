@@ -8,6 +8,16 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class CatalogRepository(private val base:String="https://nnnsss-23f2f-default-rtdb.firebaseio.com"){
+    suspend fun newBadge():NewBadgeStyle = withContext(Dispatchers.IO){
+        val c=URL("$base/config/newBadge.json").openConnection() as HttpURLConnection;c.connectTimeout=15000;c.readTimeout=25000
+        val text=c.inputStream.bufferedReader().use{it.readText()};c.disconnect();if(text.isBlank()||text=="null")return@withContext NewBadgeStyle()
+        val x=JSONObject(text);NewBadgeStyle(
+            x.optBoolean("enabled",true),x.optString("text","NOVO").take(18).ifBlank{"NOVO"},x.optString("imageUrl"),x.optString("backgroundMode","both"),
+            x.optString("bgColor","#ff3f79"),x.optString("bgColor2","#8d2bff"),x.optString("textColor","#ffffff"),x.optString("glowColor","#ff4fa3"),
+            x.optString("effect","pulse"),x.optString("textPosition","center"),x.optInt("fontSize",100).coerceIn(70,160),x.optInt("fontWeight",900).coerceIn(400,1000),
+            x.optInt("letterSpacing",7).coerceIn(0,18),x.optInt("radius",999).coerceIn(4,999),x.optInt("size",100).coerceIn(80,145)
+        )
+    }
     suspend fun works():List<Work> = withContext(Dispatchers.IO){
         val c=URL("$base/obras.json").openConnection() as HttpURLConnection
         c.connectTimeout=15000;c.readTimeout=25000
