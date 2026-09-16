@@ -5,7 +5,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.*
 
-data class AccountSession(val uid:String,val email:String,val token:String)
+data class AccountSession(val uid:String,val email:String,val token:String,val refreshToken:String="")
 data class CommentFrame(val id:String,val name:String,val image:String,val color:String,val background:String,val active:Boolean,val owned:Boolean,val exclusiveToUid:String="")
 data class ProfilePerson(val uid:String,val name:String,val username:String,val photo:String)
 data class ProfileWork(val id:String,val title:String,val cover:String)
@@ -13,10 +13,19 @@ data class ProfileCollection(val id:String,val name:String,val works:List<Profil
 data class ProfileActivity(val type:String,val title:String,val detail:String,val date:Long)
 data class ProfileExtras(val followers:List<ProfilePerson>,val following:List<ProfilePerson>,val favorites:List<ProfileWork>,val collections:List<ProfileCollection>,val activities:List<ProfileActivity>)
 data class AccountProfile(val uid:String,val name:String,val username:String,val bio:String,val photo:String,val cover:String,val color:String,val isPublic:Boolean,val frameId:String,val role:String,val followers:Int=0,val following:Int=0,val comments:Int=0)
-class AccountStore(c:Context){private val p=c.getSharedPreferences("mp_account",Context.MODE_PRIVATE);fun session():AccountSession?{val u=p.getString("uid","").orEmpty();val t=p.getString("token","").orEmpty();return if(u.isBlank()||t.isBlank())null else AccountSession(u,p.getString("email","").orEmpty(),t)};fun save(s:AccountSession){p.edit().putString("uid",s.uid).putString("email",s.email).putString("token",s.token).apply()};fun clear(){p.edit().clear().apply()}}
+class AccountStore(c:Context){private val p=c.getSharedPreferences("mp_account",Context.MODE_PRIVATE);fun session():AccountSession?{val u=p.getString("uid","").orEmpty();val t=p.getString("token","").orEmpty();return if(u.isBlank()||t.isBlank())null else AccountSession(u,p.getString("email","").orEmpty(),t,p.getString("refresh_token","").orEmpty())};fun save(s:AccountSession){p.edit().putString("uid",s.uid).putString("email",s.email).putString("token",s.token).putString("refresh_token",s.refreshToken).apply()};fun clear(){p.edit().clear().apply()}}
 class AccountRepository{
  private val base="https://nnnsss-23f2f-default-rtdb.firebaseio.com";private val key="AIzaSyAbpqQIxWuEnFolv3lNjNDoPKTGm0mtrxU";private fun e(v:String)=URLEncoder.encode(v,"UTF-8")
- suspend fun signIn(email:String,password:String)=withContext(Dispatchers.IO){val x=req("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$key","POST",JSONObject().put("email",email.trim()).put("password",password).put("returnSecureToken",true).toString());AccountSession(x.getString("localId"),x.optString("email",email),x.getString("idToken"))}
+ suspend fun signIn(email:String,password:String)=withContext(Dispatchers.IO){val x=req("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$key","POST",JSONObject().put("email",email.trim()).put("password",password).put("returnSecureToken",true).toString());AccountSession(x.getString("localId"),x.optString("email",email),x.getString("idToken"),x.optString("refreshToken"))}
+ suspend fun refresh(s:AccountSession)=withContext(Dispatchers.IO){
+  if(s.refreshToken.isBlank())return@withContext s
+  val body="grant_type=refresh_token&refresh_token="+e(s.refreshToken)
+  val c=URL("https://securetoken.googleapis.com/v1/token?key=$key").openConnection() as HttpURLConnection
+  c.requestMethod="POST";c.connectTimeout=15000;c.readTimeout=25000;c.doOutput=true;c.setRequestProperty("Content-Type","application/x-www-form-urlencoded");c.outputStream.use{it.write(body.toByteArray())}
+  val ok=c.responseCode in 200..299;val text=(if(ok)c.inputStream else c.errorStream)?.bufferedReader()?.use{it.readText()}.orEmpty();c.disconnect()
+  if(!ok)error("Sua sessão expirou. Entre novamente na conta.")
+  val x=JSONObject(text);AccountSession(x.optString("user_id",s.uid),s.email,x.getString("id_token"),x.optString("refresh_token",s.refreshToken))
+ }
  suspend fun profile(s:AccountSession)=withContext(Dispatchers.IO){
   val u=req("$base/usuarios/${e(s.uid)}.json?auth=${e(s.token)}")
   val pub=runCatching{req("$base/perfisPublicos/${e(s.uid)}.json?auth=${e(s.token)}")}.getOrDefault(JSONObject())
