@@ -10,5 +10,11 @@ data class WorkRating(
     val mine: Int = 0
 )
 data class WorkReaction(val id:String,val label:String,val image:String,val source:String,val votes:Int,val selected:Boolean)
+data class NewBadgeStyle(
+ val enabled:Boolean=true,val text:String="NOVO",val imageUrl:String="",val backgroundMode:String="both",
+ val bgColor:String="#ff3f79",val bgColor2:String="#8d2bff",val textColor:String="#ffffff",
+ val glowColor:String="#ff4fa3",val effect:String="pulse",val textPosition:String="center",
+ val fontSize:Int=100,val fontWeight:Int=900,val letterSpacing:Int=7,val radius:Int=999,val size:Int=100
+)
 
 data class RecentUpdate(val work:Work,val chapter:Chapter,val updatedAt:Long)
