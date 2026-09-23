@@ -2,7 +2,7 @@ plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id(
 android {
     namespace = "online.mpscan.app"
     compileSdk = 35
-    defaultConfig { applicationId = "online.mpscan.app"; minSdk = 24; targetSdk = 35; versionCode = 24; versionName = "5.0.0-dev24-background-downloads" }
+    defaultConfig { applicationId = "online.mpscan.app"; minSdk = 24; targetSdk = 35; versionCode = 25; versionName = "5.0.0-dev25-synced-library" }
     buildFeatures { compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
