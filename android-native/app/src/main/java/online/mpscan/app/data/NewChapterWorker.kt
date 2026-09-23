@@ -1,6 +1,8 @@
 package online.mpscan.app.data
 
 
+
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -11,11 +13,14 @@ import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.Constraints
 import online.mpscan.app.MainActivity
 import java.util.concurrent.TimeUnit
+
+
 
 
 class NewChapterWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -35,11 +40,26 @@ class NewChapterWorker(context: Context, params: WorkerParameters) : CoroutineWo
                     notifyNewChapter(item.optString("titulo", "Novo capítulo"), item.optString("texto", "Um novo capítulo está disponível."), id)
                     seen += id
                 }
+            val chapterState = applicationContext.getSharedPreferences("mp_scan_chapter_watch", Context.MODE_PRIVATE)
+            val subscribed = LibraryRepository().notificationWorkIds(session)
+            val works = CatalogRepository().works().associateBy { it.id }
+            subscribed.forEach { workId ->
+                val latest = CatalogRepository().chapters(workId).maxByOrNull { maxOf(it.updatedAt, it.createdAt) } ?: return@forEach
+                val stateKey = "latest_$workId"
+                val previous = chapterState.getString(stateKey, null)
+                if (previous != null && previous != latest.id) {
+                    val title = works[workId]?.title ?: "Nova atualização"
+                    notifyNewChapter(title, "${latest.label} já está disponível.", "chapter-$workId-${latest.id}")
+                }
+                chapterState.edit().putString(stateKey, latest.id).apply()
+            }
             applicationContext.getSharedPreferences("mp_scan_remote_notifications", Context.MODE_PRIVATE)
                 .edit().putStringSet("shown", seen.toList().takeLast(200).toSet()).apply()
             Result.success()
         }.getOrElse { Result.retry() }
     }
+
+
 
 
     private fun notifyNewChapter(title: String, text: String, notificationId: String) {
@@ -56,6 +76,8 @@ class NewChapterWorker(context: Context, params: WorkerParameters) : CoroutineWo
     }
 
 
+
+
     companion object {
         private const val CHANNEL = "new_chapters"
         fun schedule(context: Context) {
@@ -63,5 +85,11 @@ class NewChapterWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork("new-chapter-watch", ExistingPeriodicWorkPolicy.UPDATE, request)
         }
+        fun runNow(context: Context) {
+            val request = OneTimeWorkRequestBuilder<NewChapterWorker>()
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build()
+            WorkManager.getInstance(context).enqueue(request)
+        }
     }
 }
+
