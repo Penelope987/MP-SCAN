@@ -1,6 +1,8 @@
 package online.mpscan.app.data
 
 
+
+
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.Data
@@ -12,10 +14,11 @@ import androidx.work.WorkerParameters
 import androidx.work.Constraints
 
 
+
+
 class ChapterDownloadWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val workId = inputData.getString(WORK_ID) ?: return Result.failure()
-        val chapterId = inputData.getString(CHAPTER_ID) ?: return Result.failure()
         val work = Work(
             id = workId,
             title = inputData.getString(WORK_TITLE).orEmpty(),
@@ -23,6 +26,28 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
             cover = inputData.getString(WORK_COVER).orEmpty(),
             banner = "", type = "", status = "", author = "", genres = emptyList(), updatedAt = 0, reads = 0
         )
+        if (inputData.getBoolean(DOWNLOAD_ALL, false)) {
+            return runCatching {
+                val chapters = CatalogRepository().chapters(workId).filter { it.published }
+                check(chapters.isNotEmpty()) { "Nenhum capítulo disponível para baixar." }
+                val store = OfflineStore(applicationContext)
+                val saved = store.downloads().filter { it.workId == workId }.map { it.chapterId }.toSet()
+                chapters.forEachIndexed { index, chapter ->
+                    if (chapter.id !in saved) {
+                        val pages = CatalogRepository().pages(workId, chapter.id)
+                        store.download(work, chapter, pages) { chapterValue ->
+                            val total = (((index * 100) + chapterValue) / chapters.size).coerceIn(0, 100)
+                            setProgressAsync(Data.Builder().putInt(PROGRESS, total).build())
+                        }
+                    }
+                    setProgressAsync(Data.Builder().putInt(PROGRESS, ((index + 1) * 100) / chapters.size).build())
+                }
+                Result.success()
+            }.getOrElse { error ->
+                Result.failure(Data.Builder().putString(ERROR, error.message ?: "Não foi possível baixar a obra.").build())
+            }
+        }
+        val chapterId = inputData.getString(CHAPTER_ID) ?: return Result.failure()
         val chapter = Chapter(
             id = chapterId,
             number = inputData.getDouble(CHAPTER_NUMBER, Double.NaN).takeUnless(Double::isNaN),
@@ -40,10 +65,13 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
     }
 
 
+
+
     companion object {
         const val WORK_ID = "workId"; const val WORK_TITLE = "workTitle"; const val WORK_COVER = "workCover"
         const val CHAPTER_ID = "chapterId"; const val CHAPTER_NUMBER = "chapterNumber"; const val CHAPTER_TITLE = "chapterTitle"
         const val PROGRESS = "progress"; const val ERROR = "error"
+        const val DOWNLOAD_ALL = "downloadAll"
         fun uniqueName(workId: String, chapterId: String) = "chapter-download-$workId-$chapterId"
         fun enqueue(context: Context, work: Work, chapter: Chapter) {
             val data = Data.Builder().putString(WORK_ID, work.id).putString(WORK_TITLE, work.title)
@@ -54,6 +82,13 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
                 .setInputData(data).addTag("work-download-${work.id}").addTag(uniqueName(work.id, chapter.id)).build()
             WorkManager.getInstance(context).enqueueUniqueWork(uniqueName(work.id, chapter.id), ExistingWorkPolicy.REPLACE, request)
         }
+        fun enqueueAll(context: Context, work: Work) {
+            val data = Data.Builder().putString(WORK_ID, work.id).putString(WORK_TITLE, work.title)
+                .putString(WORK_COVER, work.cover).putBoolean(DOWNLOAD_ALL, true).build()
+            val request = OneTimeWorkRequestBuilder<ChapterDownloadWorker>()
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .setInputData(data).addTag("work-download-" + work.id).addTag("work-download-all-" + work.id).build()
+            WorkManager.getInstance(context).enqueueUniqueWork("work-download-all-" + work.id, ExistingWorkPolicy.REPLACE, request)
+        }
     }
 }
-
