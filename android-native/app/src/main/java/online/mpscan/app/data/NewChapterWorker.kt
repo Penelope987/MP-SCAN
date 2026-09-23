@@ -18,30 +18,38 @@ import java.util.concurrent.TimeUnit
 
 class NewChapterWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        val store = WorkSubscriptionsStore(applicationContext)
-        val subscribed = store.ids()
-        if (subscribed.isEmpty()) return Result.success()
+        if (!SettingsStore(applicationContext).notifications) return Result.success()
+        val accountStore = AccountStore(applicationContext)
+        val oldSession = accountStore.session() ?: return Result.success()
         return runCatching {
-            val works = CatalogRepository().works().associateBy { it.id }
-            subscribed.forEach { workId ->
-                val chapters = CatalogRepository().chapters(workId)
-                val newest = chapters.maxOfOrNull { maxOf(it.updatedAt, it.createdAt, ((it.number ?: 0.0) * 1000).toLong()) } ?: 0L
-                val previous = store.lastSeen(workId)
-                if (previous > 0 && newest > previous) notifyNewChapter(works[workId]?.title ?: "MP SCAN", workId)
-                if (newest > 0) store.setLastSeen(workId, newest)
-            }
+            val account = AccountRepository()
+            val session = account.refresh(oldSession).also(accountStore::save)
+            val notifications = LibraryRepository().notifications(session)
+            val seen = applicationContext.getSharedPreferences("mp_scan_remote_notifications", Context.MODE_PRIVATE)
+                .getStringSet("shown", emptySet())?.toMutableSet() ?: mutableSetOf()
+            notifications.keys().asSequence().mapNotNull { id -> notifications.optJSONObject(id)?.let { id to it } }
+                .filter { (id, item) -> id !in seen && item.optString("tipo") == "chapter" }
+                .sortedBy { it.second.optLong("data") }.forEach { (id, item) ->
+                    notifyNewChapter(item.optString("titulo", "Novo capítulo"), item.optString("texto", "Um novo capítulo está disponível."), id)
+                    seen += id
+                }
+            applicationContext.getSharedPreferences("mp_scan_remote_notifications", Context.MODE_PRIVATE)
+                .edit().putStringSet("shown", seen.takeLast(200).toSet()).apply()
             Result.success()
         }.getOrElse { Result.retry() }
     }
 
-    private fun notifyNewChapter(title: String, workId: String) {
+    private fun notifyNewChapter(title: String, text: String, notificationId: String) {
         val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.createNotificationChannel(NotificationChannel(CHANNEL, "Novos capítulos", NotificationManager.IMPORTANCE_DEFAULT))
+        if (android.os.Build.VERSION.SDK_INT >= 26) {
+            manager.createNotificationChannel(NotificationChannel(CHANNEL, "Novos capítulos", NotificationManager.IMPORTANCE_DEFAULT))
+        }
         val intent = Intent(applicationContext, MainActivity::class.java)
-        val pending = PendingIntent.getActivity(applicationContext, workId.hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val pending = PendingIntent.getActivity(applicationContext, notificationId.hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL).setSmallIcon(online.mpscan.app.R.mipmap.ic_launcher)
-            .setContentTitle("Novo capítulo disponível").setContentText(title).setAutoCancel(true).setContentIntent(pending).build()
-        manager.notify(workId.hashCode(), notification)
+            .setContentTitle(title).setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setAutoCancel(true).setContentIntent(pending).build()
+        manager.notify(notificationId.hashCode(), notification)
     }
 
     companion object {
