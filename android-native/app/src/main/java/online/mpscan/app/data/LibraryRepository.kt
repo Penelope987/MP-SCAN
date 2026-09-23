@@ -1,5 +1,6 @@
 package online.mpscan.app.data
 
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -7,6 +8,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.util.UUID
+
 
 data class UserCollection(
     val id: String,
@@ -17,9 +19,11 @@ data class UserCollection(
     val workIds: Set<String>
 )
 
+
 class LibraryRepository(private val base: String = "https://nnnsss-23f2f-default-rtdb.firebaseio.com") {
     private fun e(value: String) = URLEncoder.encode(value, "UTF-8")
     private fun url(path: String, session: AccountSession) = "$base/$path.json?auth=${e(session.token)}"
+
 
     suspend fun collections(session: AccountSession): List<UserCollection> = withContext(Dispatchers.IO) {
         val root = request(url("colecoes/${e(session.uid)}", session))
@@ -31,6 +35,7 @@ class LibraryRepository(private val base: String = "https://nnnsss-23f2f-default
         }}.sortedBy { it.name.lowercase() }.toList()
     }
 
+
     suspend fun createCollection(session: AccountSession, name: String, isPublic: Boolean): UserCollection = withContext(Dispatchers.IO) {
         val clean = name.trim(); require(clean.isNotBlank()) { "Dê um nome para a coleção." }
         val id = "app_${UUID.randomUUID().toString().replace("-", "")}"
@@ -40,6 +45,7 @@ class LibraryRepository(private val base: String = "https://nnnsss-23f2f-default
         if (isPublic) request(url("colecoesPublicas/${e(session.uid)}/$id", session), "PUT", payload.toString())
         UserCollection(id, clean, "", isPublic, "", emptySet())
     }
+
 
     suspend fun setWork(session: AccountSession, collection: UserCollection, workId: String, selected: Boolean) = withContext(Dispatchers.IO) {
         val privatePath = "colecoes/${e(session.uid)}/${e(collection.id)}/obras/${e(workId)}"
@@ -54,8 +60,15 @@ class LibraryRepository(private val base: String = "https://nnnsss-23f2f-default
         }
     }
 
+
     suspend fun notificationEnabled(session: AccountSession, workId: String): Boolean = withContext(Dispatchers.IO) {
         request(url("notificacoesPreferencias/${e(session.uid)}/${e(workId)}", session)).length() > 0
+    }
+
+
+    suspend fun notificationWorkIds(session: AccountSession): Set<String> = withContext(Dispatchers.IO) {
+        val root = request(url("notificacoesPreferencias/${e(session.uid)}", session))
+        root.keys().asSequence().toSet()
     }
 
     suspend fun setNotification(session: AccountSession, workId: String, enabled: Boolean) = withContext(Dispatchers.IO) {
@@ -63,7 +76,9 @@ class LibraryRepository(private val base: String = "https://nnnsss-23f2f-default
         if (enabled) request(target, "PUT", JSONObject().put("data", System.currentTimeMillis()).toString()) else request(target, "DELETE")
     }
 
+
     fun notifications(session: AccountSession): JSONObject = request(url("notificacoes/${e(session.uid)}", session))
+
 
     private fun request(target: String, method: String = "GET", body: String? = null): JSONObject {
         val connection = URL(target).openConnection() as HttpURLConnection
@@ -77,3 +92,4 @@ class LibraryRepository(private val base: String = "https://nnnsss-23f2f-default
         return if (text.isBlank() || text == "null") JSONObject() else runCatching { JSONObject(text) }.getOrElse { JSONObject().put("value", text.trim('"')) }
     }
 }
+
