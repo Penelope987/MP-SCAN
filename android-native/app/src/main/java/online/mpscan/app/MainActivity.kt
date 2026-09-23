@@ -1,10 +1,15 @@
 package online.mpscan.app
 
 import android.os.Bundle
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -49,17 +54,25 @@ import online.mpscan.app.data.WorkRating
 import online.mpscan.app.data.WorkReaction
 import online.mpscan.app.data.WorkSocialRepository
 import online.mpscan.app.data.NewBadgeStyle
+import online.mpscan.app.data.ChapterDownloadWorker
+import online.mpscan.app.data.WorkSubscriptionsStore
+import online.mpscan.app.data.NewChapterWorker
 import online.mpscan.app.ui.theme.*
 import online.mpscan.app.ui.SettingsScreen
 import online.mpscan.app.ui.CommentsSection
 import online.mpscan.app.ui.AccountProfileScreen
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.distinctUntilChanged
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class MainActivity:ComponentActivity(){override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);enableEdgeToEdge();setContent{MpScanTheme{HomeRoot()}}}}
+class MainActivity:ComponentActivity(){override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);NewChapterWorker.schedule(applicationContext);enableEdgeToEdge();setContent{MpScanTheme{HomeRoot()}}}}
 private enum class Destination(val label:String,val icon:String){Home("Início","⌂"),Search("Busca","⌕"),Library("Biblioteca","▣"),Profile("Perfil","♙")}
 
 @Composable private fun HomeRoot(){
@@ -125,22 +138,26 @@ private fun formatUpdateDate(value:Long):String{if(value<=0)return "Atualizaçã
  Column(Modifier.fillMaxSize().padding(horizontal=16.dp,vertical=14.dp)){Header();Spacer(Modifier.height(18.dp));OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),singleLine=true,shape=RoundedCornerShape(16.dp),leadingIcon={Text("⌕")},label={Text("Nome, gênero ou autor")});LazyRow(Modifier.padding(vertical=12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){item{FilterChip(status.isBlank(),{status=""},{Text("Todos")})};items(listOf("Em andamento","Completa","Em pausa","Futura","Cancelada")){s->FilterChip(status==s,{status=if(status==s)"" else s},{Text(s)})}};if(genres.isNotEmpty())LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){items(genres){g->FilterChip(genre==g,{genre=if(genre==g)"" else g},{Text(g)})}};Text("${filtered.size} obras",color=MpMuted,modifier=Modifier.padding(vertical=10.dp));LazyVerticalGrid(GridCells.Adaptive(140.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(18.dp)){gridItems(filtered,key={it.id}){Card(it,open)}}}
 }
 @Composable private fun WorkDetails(work:Work,newBadge:NewBadgeStyle,back:()->Unit){
- val context=LocalContext.current;val favorites=remember{FavoritesStore(context.applicationContext)};val readingStore=remember{ReadingStore(context.applicationContext)};val offlineStore=remember{OfflineStore(context.applicationContext)};val repository=remember{CatalogRepository()};val social=remember{WorkSocialRepository()};val accountStore=remember{AccountStore(context.applicationContext)};var session by remember{mutableStateOf(accountStore.session())};val accountRepository=remember{AccountRepository()};val scope=rememberCoroutineScope()
+ val context=LocalContext.current;val appContext=context.applicationContext;val favorites=remember{FavoritesStore(appContext)};val subscriptions=remember{WorkSubscriptionsStore(appContext)};val collections=remember{CollectionsStore(appContext)};val readingStore=remember{ReadingStore(appContext)};val offlineStore=remember{OfflineStore(appContext)};val repository=remember{CatalogRepository()};val social=remember{WorkSocialRepository()};val accountStore=remember{AccountStore(appContext)};var session by remember{mutableStateOf(accountStore.session())};val accountRepository=remember{AccountRepository()};val scope=rememberCoroutineScope()
  var favorite by remember(work.id){mutableStateOf(favorites.contains(work.id))};var chapters by remember(work.id){mutableStateOf<List<Chapter>>(emptyList())};var loading by remember(work.id){mutableStateOf(true)};var reading by remember(work.id){mutableStateOf<Chapter?>(null)}
  var tab by remember(work.id){mutableStateOf("Capítulos")};var rating by remember(work.id){mutableStateOf(WorkRating())};var reactions by remember(work.id){mutableStateOf<List<WorkReaction>>(emptyList())};var socialError by remember{mutableStateOf("")}
  var downloadingAll by remember(work.id){mutableStateOf(false)};var bulkProgress by remember(work.id){mutableIntStateOf(0)};var bulkMessage by remember(work.id){mutableStateOf("")};var bulkError by remember(work.id){mutableStateOf("")}
  var downloadedIds by remember(work.id){mutableStateOf(offlineStore.downloads().filter{it.workId==work.id}.map{it.chapterId}.toSet())}
+ var subscribed by remember(work.id){mutableStateOf(subscriptions.contains(work.id))};var collectionDialog by remember(work.id){mutableStateOf(false)};var actionMessage by remember{mutableStateOf("")}
+ val notificationPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){granted->actionMessage=if(granted)"Notificações de capítulos ativadas." else "Permita notificações nos ajustes do celular para receber os avisos."}
  val chapterProgress=remember(work.id){mutableStateMapOf<String,Int>()}
  val chapterErrors=remember(work.id){mutableStateMapOf<String,Boolean>()}
  if(reading!=null){BackHandler{reading=null};Reader(work,reading!!){reading=null};return}
  LaunchedEffect(work.id){session?.let{old->runCatching{accountRepository.refresh(old)}.onSuccess{fresh->session=fresh;accountStore.save(fresh)}};val savedDownloads=offlineStore.downloads().filter{it.workId==work.id};downloadedIds=savedDownloads.map{it.chapterId}.toSet();val saved=savedDownloads.map{it.toChapter()};runCatching{repository.chapters(work.id)}.onSuccess{remote->chapters=(remote+saved).distinctBy{it.id}.sortedByDescending{it.number?:-1.0}}.onFailure{chapters=saved};rating=runCatching{social.rating(work.id,session)}.getOrDefault(WorkRating());reactions=runCatching{social.reactions(work.id,session)}.getOrDefault(emptyList());loading=false}
+ LaunchedEffect(work.id,chapters){while(true){val infos=withContext(Dispatchers.IO){WorkManager.getInstance(appContext).getWorkInfosByTag("work-download-${work.id}").get()};val running=infos.filter{!it.state.isFinished}.associateBy{it.tags.firstOrNull{tag->tag.startsWith("chapter-download-${work.id}-")}?.removePrefix("chapter-download-${work.id}-")};chapters.forEach{chapter->val info=running[chapter.id];if(info!=null)chapterProgress[chapter.id]=info.progress.getInt(ChapterDownloadWorker.PROGRESS,0) else chapterProgress.remove(chapter.id)};downloadedIds=offlineStore.downloads().filter{it.workId==work.id}.map{it.chapterId}.toSet();downloadingAll=running.isNotEmpty();if(chapters.isNotEmpty()){bulkProgress=(downloadedIds.size.coerceAtMost(chapters.size)*100)/chapters.size};delay(700)}}
  val progress=remember(work.id,chapters){readingStore.history().filter{it.workId==work.id}.associateBy{it.chapterId}}
  val continueChapter=chapters.firstOrNull{(progress[it.id]?.percent?:0)<100}?:chapters.firstOrNull()
  val allDownloaded=chapters.isNotEmpty()&&chapters.all{it.id in downloadedIds}
- fun downloadChapter(chapter:Chapter){if(chapter.id in downloadedIds||chapterProgress.containsKey(chapter.id))return;chapterErrors.remove(chapter.id);chapterProgress[chapter.id]=0;scope.launch{val result=runCatching{val pages=repository.pages(work.id,chapter.id);offlineStore.download(work,chapter,pages){value->scope.launch{chapterProgress[chapter.id]=value}}};if(result.isSuccess){downloadedIds=downloadedIds+chapter.id;chapterProgress.remove(chapter.id)}else{chapterErrors[chapter.id]=true;chapterProgress.remove(chapter.id)}}}
+ fun downloadChapter(chapter:Chapter){if(chapter.id in downloadedIds||chapterProgress.containsKey(chapter.id))return;chapterErrors.remove(chapter.id);chapterProgress[chapter.id]=0;ChapterDownloadWorker.enqueue(appContext,work,chapter)}
+ if(collectionDialog)CollectionPickerDialog(collections,work.id,{collectionDialog=false}){message->actionMessage=message}
  LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(bottom=30.dp)){
   item{WorkHero(work,chapters.size,rating.average,back)}
-  item{Column(Modifier.padding(horizontal=12.dp,vertical=14.dp)){Button({continueChapter?.let{reading=it}},Modifier.fillMaxWidth().height(58.dp),enabled=continueChapter!=null,shape=RoundedCornerShape(17.dp)){Text(if(progress.isNotEmpty())"▶ Continuar lendo" else "▶ Começar a ler",fontWeight=FontWeight.Black)};Row(Modifier.padding(top=10.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){OutlinedButton({favorite=favorites.toggle(work.id)}){Text(if(favorite)"♥" else "♡")};OutlinedButton({}){Text("♢")};OutlinedButton({}){Text("＋")}}}}
+  item{Column(Modifier.padding(horizontal=12.dp,vertical=14.dp)){Button({continueChapter?.let{reading=it}},Modifier.fillMaxWidth().height(58.dp),enabled=continueChapter!=null,shape=RoundedCornerShape(17.dp)){Text(if(progress.isNotEmpty())"▶ Continuar lendo" else "▶ Começar a ler",fontWeight=FontWeight.Black)};Row(Modifier.padding(top=10.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){OutlinedButton({favorite=favorites.toggle(work.id)}){Text(if(favorite)"♥" else "♡")};OutlinedButton({subscribed=subscriptions.toggle(work.id);if(subscribed){val newest=chapters.maxOfOrNull{maxOf(it.updatedAt,it.createdAt,((it.number?:0.0)*1000).toLong())}?:0L;subscriptions.setLastSeen(work.id,newest);if(android.os.Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS) else actionMessage="Você receberá avisos de novos capítulos."}else actionMessage="Avisos de novos capítulos desativados."}){Text(if(subscribed)"🔔" else "♢")};OutlinedButton({collectionDialog=true}){Text("＋")}};if(actionMessage.isNotBlank())Text(actionMessage,color=MpAccent2,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(top=9.dp))}}
   if(reactions.isNotEmpty())item{WorkReactions(reactions){chosen->val current=session;if(current==null){socialError="Entre na conta para escolher uma reação."}else scope.launch{runCatching{if(current.refreshToken.isBlank())current else accountRepository.refresh(current)}.mapCatching{fresh->session=fresh;accountStore.save(fresh);social.react(work.id,chosen,fresh);fresh}.onSuccess{fresh->reactions=social.reactions(work.id,fresh);socialError="Reação registrada com sucesso."}.onFailure{socialError=it.message?:"Não foi possível salvar sua reação."}}}}
   item{RatingPanel(rating,session!=null){note->val current=session;if(current==null)socialError="Entre na conta para avaliar." else scope.launch{runCatching{if(current.refreshToken.isBlank())current else accountRepository.refresh(current)}.mapCatching{fresh->session=fresh;accountStore.save(fresh);social.rate(work.id,note,fresh);fresh}.onSuccess{fresh->rating=social.rating(work.id,fresh);socialError="Avaliação salva com sucesso."}.onFailure{socialError=it.message?:"Não foi possível salvar a avaliação."}}}}
   if(socialError.isNotBlank())item{Text(socialError,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(horizontal=16.dp,vertical=8.dp))}
@@ -149,16 +166,16 @@ private fun formatUpdateDate(value:Long):String{if(value<=0)return "Atualizaçã
    "Sobre"->{item{SynopsisCard(work)};item{WorkInformation(work,chapters.firstOrNull()?.updatedAt?:work.updatedAt)}}
    "Comentários"->item{CommentsSection("obra",work.id,"",Modifier.padding(horizontal=12.dp,vertical=18.dp))}
    else->{
-    item{DownloadAllCard(allDownloaded,downloadingAll,bulkProgress,bulkMessage,bulkError,!loading&&chapters.isNotEmpty()){
-     scope.launch{if(chapters.isEmpty()||allDownloaded)return@launch;downloadingAll=true;bulkError="";bulkMessage="Preparando os capítulos…";val pending=chapters.filter{it.id !in downloadedIds};var completed=0
-      for(chapter in pending){bulkMessage="Baixando ${chapter.label}";chapterErrors.remove(chapter.id);chapterProgress[chapter.id]=0;val completedBefore=completed;val result=runCatching{val pages=repository.pages(work.id,chapter.id);offlineStore.download(work,chapter,pages){pageProgress->scope.launch{chapterProgress[chapter.id]=pageProgress;bulkProgress=((completedBefore*100)+pageProgress)/pending.size}}};chapterProgress.remove(chapter.id);if(result.isSuccess){downloadedIds=downloadedIds+chapter.id;completed++;bulkProgress=(completed*100)/pending.size}else{chapterErrors[chapter.id]=true;bulkError="Não foi possível baixar ${chapter.label}. Tente novamente pelo botão do capítulo.";break}}
-      if(bulkError.isBlank()){bulkProgress=100;bulkMessage="Todos os capítulos foram baixados e estão disponíveis offline."};downloadingAll=false}
-    }}
+    item{DownloadAllCard(allDownloaded,downloadingAll,bulkProgress,bulkMessage,bulkError,!loading&&chapters.isNotEmpty()){if(chapters.isNotEmpty()&&!allDownloaded){bulkError="";bulkMessage="O download continuará mesmo se você sair do aplicativo.";chapters.filter{it.id !in downloadedIds}.forEach{downloadChapter(it)};downloadingAll=true}}}
     if(loading)item{LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal=16.dp))}
     items(chapters,key={it.id}){c->ChapterRow(c,progress[c.id],c.id in downloadedIds,chapterProgress[c.id],chapterErrors[c.id]==true,{reading=c}){downloadChapter(c)}}
    }
   }
  }
+}
+@Composable private fun CollectionPickerDialog(store:CollectionsStore,workId:String,close:()->Unit,message:(String)->Unit){
+ var names by remember{mutableStateOf(store.names())};var input by remember{mutableStateOf("")}
+ AlertDialog(onDismissRequest=close,title={Text("Adicionar à coleção")},text={Column{Text("Escolha onde guardar esta obra.",color=MpMuted);Spacer(Modifier.height(12.dp));if(names.isEmpty())Text("Você ainda não criou uma coleção.",color=MpMuted)else names.forEach{name->val selected=workId in store.works(name);Surface(Modifier.fillMaxWidth().padding(vertical=4.dp).clickable{val added=store.toggle(name,workId);message(if(added)"Adicionada à coleção $name." else "Removida da coleção $name.");close()},color=if(selected)MpAccent.copy(.16f)else MpSurface2,shape=RoundedCornerShape(14.dp),border=androidx.compose.foundation.BorderStroke(1.dp,if(selected)MpAccent else MpLine)){Row(Modifier.padding(13.dp),verticalAlignment=Alignment.CenterVertically){Text(if(selected)"✓" else "▣",color=MpAccent);Text(name,Modifier.weight(1f).padding(horizontal=10.dp),fontWeight=FontWeight.Bold);Text(if(selected)"Adicionada" else "Adicionar",color=MpMuted,style=MaterialTheme.typography.labelSmall)}}};Spacer(Modifier.height(10.dp));OutlinedTextField(input,{input=it},Modifier.fillMaxWidth(),singleLine=true,label={Text("Nova coleção")});TextButton({if(store.create(input)){names=store.names();input="";message("Coleção criada.")}}){Text("＋ Criar coleção")}}},confirmButton={TextButton(close){Text("Fechar")}})
 }
 @Composable private fun WorkHero(work:Work,chapterCount:Int,average:Double,back:()->Unit){Box(Modifier.fillMaxWidth().height(520.dp)){AsyncImage(work.banner.ifBlank{work.cover},work.title,Modifier.fillMaxSize(),contentScale=ContentScale.Crop);Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x22000000),Color(0xAA08080B),MpBackground))));FilledTonalButton(back,Modifier.padding(18.dp)){Text("←")};Surface(Modifier.align(Alignment.TopEnd).padding(18.dp),shape=RoundedCornerShape(18.dp),color=Color(0x990B0B0D)){Text("↗",Modifier.padding(14.dp),fontWeight=FontWeight.Black)};Row(Modifier.align(Alignment.BottomStart).padding(18.dp),verticalAlignment=Alignment.Bottom){AsyncImage(work.cover,work.title,Modifier.width(140.dp).aspectRatio(3f/4f).clip(RoundedCornerShape(20.dp)),contentScale=ContentScale.Crop);Column(Modifier.weight(1f).padding(start=16.dp,bottom=4.dp)){Text("MP SCAN • OBRA",color=MpMuted,fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelSmall);Text(work.title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineMedium,maxLines=3,overflow=TextOverflow.Ellipsis);if(work.alternateTitle.isNotBlank())Text(work.alternateTitle,color=MpMuted,maxLines=2,modifier=Modifier.padding(top=5.dp));LazyRow(Modifier.padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(7.dp)){item{WorkPill("★ ${"%.1f".format(Locale.US,average)}")};item{WorkPill(localizedStatus(work.status))};item{WorkPill("$chapterCount capítulos")}}}}}}
 @Composable private fun WorkPill(text:String){Surface(color=MpSurface.copy(.9f),shape=RoundedCornerShape(18.dp),border=androidx.compose.foundation.BorderStroke(1.dp,MpLine)){Text(text,Modifier.padding(horizontal=12.dp,vertical=7.dp),style=MaterialTheme.typography.bodySmall)}}
