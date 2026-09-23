@@ -61,3 +61,5 @@ class NewChapterWorker(context: Context, params: WorkerParameters) : CoroutineWo
         }
     }
 }
+seen.takeLast(200)
+seen.toList().takeLast(200)
