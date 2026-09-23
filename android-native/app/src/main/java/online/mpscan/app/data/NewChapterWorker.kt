@@ -1,5 +1,6 @@
 package online.mpscan.app.data
 
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -15,6 +16,7 @@ import androidx.work.WorkerParameters
 import androidx.work.Constraints
 import online.mpscan.app.MainActivity
 import java.util.concurrent.TimeUnit
+
 
 class NewChapterWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
@@ -34,10 +36,11 @@ class NewChapterWorker(context: Context, params: WorkerParameters) : CoroutineWo
                     seen += id
                 }
             applicationContext.getSharedPreferences("mp_scan_remote_notifications", Context.MODE_PRIVATE)
-                .edit().putStringSet("shown", seen.takeLast(200).toSet()).apply()
+                .edit().putStringSet("shown", seen.toList().takeLast(200).toSet()).apply()
             Result.success()
         }.getOrElse { Result.retry() }
     }
+
 
     private fun notifyNewChapter(title: String, text: String, notificationId: String) {
         val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -52,6 +55,7 @@ class NewChapterWorker(context: Context, params: WorkerParameters) : CoroutineWo
         manager.notify(notificationId.hashCode(), notification)
     }
 
+
     companion object {
         private const val CHANNEL = "new_chapters"
         fun schedule(context: Context) {
@@ -61,5 +65,3 @@ class NewChapterWorker(context: Context, params: WorkerParameters) : CoroutineWo
         }
     }
 }
-seen.takeLast(200)
-seen.toList().takeLast(200)
