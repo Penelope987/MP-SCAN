@@ -3,12 +3,18 @@ package online.mpscan.app.data
 import android.content.Context
 import android.util.Base64
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicInteger
 
 data class OfflineChapter(
     val workId: String,
@@ -72,12 +78,20 @@ class OfflineStore(context: Context) {
         temporary.deleteRecursively()
         check(temporary.mkdirs()) { "Não foi possível preparar o download" }
         try {
-            val names = pageUrls.mapIndexed { index, source ->
-                val extension = extensionFor(source)
-                val name = "%04d.%s".format(index + 1, extension)
-                File(temporary, name).writeBytes(readBytes(source))
-                onProgress(((index + 1) * 100) / pageUrls.size)
-                name
+            val completed = AtomicInteger(0)
+            val limiter = Semaphore(4)
+            val names = coroutineScope {
+                pageUrls.mapIndexed { index, source ->
+                    async(Dispatchers.IO) {
+                        limiter.withPermit {
+                            val extension = extensionFor(source)
+                            val name = "%04d.%s".format(index + 1, extension)
+                            File(temporary, name).writeBytes(readBytes(source))
+                            onProgress((completed.incrementAndGet() * 100) / pageUrls.size)
+                            name
+                        }
+                    }
+                }.awaitAll()
             }
             File(temporary, "chapter.json").writeText(
                 JSONObject()
