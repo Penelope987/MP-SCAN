@@ -1,6 +1,8 @@
 package online.mpscan.app
 
 
+
+
 import android.os.Bundle
 import android.Manifest
 import android.content.pm.PackageManager
@@ -75,8 +77,12 @@ import java.util.Date
 import java.util.Locale
 
 
+
+
 class MainActivity:ComponentActivity(){override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);NewChapterWorker.schedule(applicationContext);enableEdgeToEdge();setContent{MpScanTheme{HomeRoot()}}}}
 private enum class Destination(val label:String,val icon:String){Home("Início","⌂"),Search("Busca","⌕"),Library("Biblioteca","▣"),Profile("Perfil","♙")}
+
+
 
 
 @Composable private fun HomeRoot(){
@@ -177,7 +183,7 @@ private fun formatUpdateDate(value:Long):String{if(value<=0)return "Atualizaçã
    "Sobre"->{item{SynopsisCard(work)};item{WorkInformation(work,chapters.firstOrNull()?.updatedAt?:work.updatedAt)}}
    "Comentários"->item{CommentsSection("obra",work.id,"",Modifier.padding(horizontal=12.dp,vertical=18.dp))}
    else->{
-    item{DownloadAllCard(allDownloaded,downloadingAll,bulkProgress,bulkMessage,bulkError,!loading&&chapters.isNotEmpty()){if(chapters.isNotEmpty()&&!allDownloaded){bulkError="";bulkMessage="O download continuará mesmo se você sair do aplicativo.";chapters.filter{it.id !in downloadedIds}.forEach{downloadChapter(it)};downloadingAll=true}}}
+    item{DownloadAllCard(allDownloaded,downloadingAll,bulkProgress,bulkMessage,bulkError,!loading&&chapters.isNotEmpty()){if(chapters.isNotEmpty()&&!allDownloaded){bulkError="";bulkMessage="O download continuará mesmo se você sair do aplicativo.";ChapterDownloadWorker.enqueueAll(appContext,work);downloadingAll=true}}}
     if(loading)item{LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal=16.dp))}
     items(chapters,key={it.id}){c->ChapterRow(c,progress[c.id],c.id in downloadedIds,chapterProgress[c.id],chapterErrors[c.id]==true,{reading=c}){downloadChapter(c)}}
    }
@@ -232,6 +238,8 @@ private fun WorkInformation(work: Work, lastUpdate: Long) {
     }
 }
 @Composable private fun DownloadAllCard(allDownloaded:Boolean,downloading:Boolean,progress:Int,message:String,error:String,enabled:Boolean,onDownload:()->Unit){Surface(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=10.dp),color=if(allDownloaded)Color(0xff10241f)else MpSurface,shape=RoundedCornerShape(24.dp),border=androidx.compose.foundation.BorderStroke(1.dp,if(allDownloaded)Color(0xff2eb98a)else MpLine)){Column(Modifier.padding(17.dp)){Row(verticalAlignment=Alignment.CenterVertically){Box(Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(if(allDownloaded)Color(0xff1c473a)else MpAccent.copy(.18f)),contentAlignment=Alignment.Center){Text(if(allDownloaded)"✓" else "⇣",color=if(allDownloaded)Color(0xff62e6b8)else MpAccent,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge)};Column(Modifier.weight(1f).padding(start=12.dp)){Text(if(allDownloaded)"Todos os capítulos baixados" else "Leitura offline",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleMedium);Text(if(allDownloaded)"A obra inteira já está disponível sem internet." else "Baixe tudo ou escolha cada capítulo abaixo.",color=MpMuted,style=MaterialTheme.typography.bodySmall)}};Button(onClick=onDownload,enabled=enabled&&!downloading&&!allDownloaded,modifier=Modifier.fillMaxWidth().padding(top=14.dp),shape=RoundedCornerShape(15.dp),colors=ButtonDefaults.buttonColors(containerColor=if(allDownloaded)Color(0xff246b55)else MpAccent)){Text(when{allDownloaded->"✓ OBRA COMPLETA BAIXADA";downloading->"BAIXANDO… $progress%";else->"⇣ BAIXAR TODOS OS CAPÍTULOS"},fontWeight=FontWeight.Black)};if(downloading){LinearProgressIndicator(progress={progress/100f},modifier=Modifier.fillMaxWidth().padding(top=10.dp),color=MpAccent2,trackColor=MpSurface2);Text("$progress% concluído",color=MpAccent2,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.labelMedium,modifier=Modifier.padding(top=6.dp))};if(message.isNotBlank())Text(message,color=if(error.isBlank())MpAccent2 else MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(top=8.dp));if(error.isNotBlank())Text(error,color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(top=4.dp))}}}
+
+
 
 
 @Composable private fun ChapterRow(chapter:Chapter,readingProgress:ReadingProgress?,saved:Boolean,downloadProgress:Int?,failed:Boolean,open:()->Unit,download:()->Unit){val fresh=System.currentTimeMillis()-normalizeMillis(maxOf(chapter.updatedAt,chapter.createdAt))<14L*24*60*60*1000;var badge by remember{mutableStateOf(NewBadgeStyle())};LaunchedEffect(Unit){badge=runCatching{CatalogRepository().newBadge()}.getOrDefault(NewBadgeStyle())};Surface(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=6.dp),color=if(saved)Color(0xff0f211d)else MpSurface,shape=RoundedCornerShape(20.dp),border=androidx.compose.foundation.BorderStroke(1.dp,when{saved->Color(0xff276e58);failed->MaterialTheme.colorScheme.error.copy(.55f);(readingProgress?.percent?:0)>0->Color(0xff245944);else->MpLine})){Column(Modifier.padding(14.dp)){Row(verticalAlignment=Alignment.CenterVertically){Box(Modifier.size(58.dp).clip(RoundedCornerShape(17.dp)).background(if(saved)Color(0xff193b31)else Color(0xff261722)).clickable{open()},contentAlignment=Alignment.Center){Text(chapter.number?.toString()?.removeSuffix(".0")?:"—",color=if(saved)Color(0xff61ddb1)else MpAccent2,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge)};Column(Modifier.weight(1f).padding(horizontal=12.dp).clickable{open()}){Text(if(chapter.title.isBlank())chapter.label else chapter.title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleMedium);Row(horizontalArrangement=Arrangement.spacedBy(7.dp),verticalAlignment=Alignment.CenterVertically){Text(formatWorkDate(maxOf(chapter.updatedAt,chapter.createdAt)),color=MpMuted,style=MaterialTheme.typography.bodySmall);if(fresh&&badge.enabled)AdminNewBadge(badge);if(readingProgress!=null)Text(if(readingProgress.percent>=100)"● LIDO" else "● LENDO ${readingProgress.percent}%",color=Color(0xff32bd84),fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelSmall)};Text(when{saved->"Disponível offline";downloadProgress!=null->"Baixando… $downloadProgress%";failed->"Falhou — toque em Tentar";else->"Você pode baixar sem abrir o capítulo"},color=when{saved->Color(0xff61ddb1);failed->MaterialTheme.colorScheme.error;else->MpMuted},style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(top=3.dp))};if(saved)Surface(color=Color(0xff1b4b3d),shape=RoundedCornerShape(12.dp)){Text("✓ BAIXADO",color=Color(0xff73e8be),fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(horizontal=10.dp,vertical=8.dp))}else Button(onClick=download,enabled=downloadProgress==null,shape=RoundedCornerShape(12.dp),contentPadding=PaddingValues(horizontal=12.dp,vertical=9.dp)){Text(if(downloadProgress!=null)"$downloadProgress%" else if(failed)"Tentar" else "Baixar",fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelMedium)}};if(downloadProgress!=null)LinearProgressIndicator(progress={downloadProgress/100f},modifier=Modifier.fillMaxWidth().padding(top=10.dp),color=MpAccent2,trackColor=MpSurface2)}}}
