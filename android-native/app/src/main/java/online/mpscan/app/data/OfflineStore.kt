@@ -2,10 +2,14 @@ package online.mpscan.app.data
 
 import android.content.Context
 import android.util.Base64
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -26,6 +30,7 @@ data class OfflineChapter(
 )
 
 class OfflineStore(context: Context) {
+    companion object { private val downloadLock = Mutex() }
     private val root = File(context.filesDir, "mp_scan_downloads")
 
     fun localPages(workId: String, chapterId: String): List<String> {
@@ -43,10 +48,11 @@ class OfflineStore(context: Context) {
     fun downloads(): List<OfflineChapter> = root.listFiles()
         ?.filter(File::isDirectory)
         ?.flatMap { workFolder ->
-            workFolder.listFiles()?.filter(File::isDirectory)?.mapNotNull { chapterFolder ->
+            workFolder.listFiles()?.filter { it.isDirectory && !it.name.endsWith("_download") }?.mapNotNull { chapterFolder ->
                 runCatching {
                     val metadata = JSONObject(File(chapterFolder, "chapter.json").readText())
                     val files = metadata.optJSONArray("files") ?: JSONArray()
+                    if (files.length() == 0 || (0 until files.length()).any { !File(chapterFolder, files.getString(it)).isFile }) return@runCatching null
                     OfflineChapter(
                         workId = metadata.getString("workId"),
                         workTitle = metadata.optString("workTitle", "Obra baixada"),
@@ -71,7 +77,9 @@ class OfflineStore(context: Context) {
         chapter: Chapter,
         pageUrls: List<String>,
         onProgress: (Int) -> Unit
-    ): List<String> = withContext(Dispatchers.IO) {
+    ): List<String> = withContext(Dispatchers.IO) { downloadLock.withLock {
+        val saved = localPages(work.id, chapter.id)
+        if (saved.isNotEmpty()) return@withLock saved
         require(pageUrls.isNotEmpty()) { "Capítulo sem páginas" }
         val destination = chapterFolder(work.id, chapter.id)
         val temporary = File(destination.parentFile, destination.name + "_download")
@@ -86,13 +94,14 @@ class OfflineStore(context: Context) {
                         limiter.withPermit {
                             val extension = extensionFor(source)
                             val name = "%04d.%s".format(index + 1, extension)
-                            File(temporary, name).writeBytes(readBytes(source))
+                            writePage(source, File(temporary, name))
                             onProgress((completed.incrementAndGet() * 100) / pageUrls.size)
                             name
                         }
                     }
                 }.awaitAll()
             }
+            currentCoroutineContext().ensureActive()
             File(temporary, "chapter.json").writeText(
                 JSONObject()
                     .put("workId", work.id)
@@ -112,25 +121,32 @@ class OfflineStore(context: Context) {
         }
     }
 
+    }
+
     private fun chapterFolder(workId: String, chapterId: String) =
         File(File(root, safe(workId)), safe(chapterId))
 
     private fun safe(value: String) = value.replace(Regex("[^A-Za-z0-9._-]"), "_")
 
-    private fun readBytes(source: String): ByteArray {
+    private fun writePage(source: String, target: File) {
         if (source.startsWith("data:", ignoreCase = true)) {
             val comma = source.indexOf(',')
             require(comma > 0) { "Imagem inválida" }
-            return Base64.decode(source.substring(comma + 1), Base64.DEFAULT)
+            target.outputStream().use { output ->
+                android.util.Base64InputStream(source.substring(comma + 1).byteInputStream(), Base64.DEFAULT).use { it.copyTo(output) }
+            }
+            check(target.length() > 0) { "Imagem vazia" }
+            return
         }
         val connection = URL(source).openConnection() as HttpURLConnection
         connection.connectTimeout = 20_000
         connection.readTimeout = 60_000
         connection.instanceFollowRedirects = true
         connection.setRequestProperty("User-Agent", "MP-SCAN-Android")
-        return try {
-            check(connection.responseCode in 200..299) { "Falha ao baixar página" }
-            connection.inputStream.use { it.readBytes() }
+        try {
+            if (connection.responseCode !in 200..299) throw java.io.IOException("Falha ao baixar página (HTTP ${connection.responseCode})")
+            target.outputStream().use { output -> connection.inputStream.use { it.copyTo(output) } }
+            check(target.length() > 0) { "Imagem vazia" }
         } finally {
             connection.disconnect()
         }

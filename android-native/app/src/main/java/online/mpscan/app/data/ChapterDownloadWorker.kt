@@ -1,94 +1,143 @@
 package online.mpscan.app.data
 
-
-
-
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
-import androidx.work.CoroutineWorker
-import androidx.work.Data
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.WorkerParameters
-import androidx.work.Constraints
-
-
-
+import android.content.pm.ServiceInfo
+import android.os.Build
+import android.util.AtomicFile
+import androidx.core.app.NotificationCompat
+import androidx.work.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.io.File
+import java.io.IOException
+import java.security.MessageDigest
 
 class ChapterDownloadWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val workId = inputData.getString(WORK_ID) ?: return Result.failure()
-        val work = Work(
-            id = workId,
-            title = inputData.getString(WORK_TITLE).orEmpty(),
-            synopsis = "",
-            cover = inputData.getString(WORK_COVER).orEmpty(),
-            banner = "", type = "", status = "", author = "", genres = emptyList(), updatedAt = 0, reads = 0
-        )
-        if (inputData.getBoolean(DOWNLOAD_ALL, false)) {
-            return runCatching {
-                val chapters = CatalogRepository().chapters(workId).filter { it.published }
-                check(chapters.isNotEmpty()) { "Nenhum capítulo disponível para baixar." }
-                val store = OfflineStore(applicationContext)
-                val saved = store.downloads().filter { it.workId == workId }.map { it.chapterId }.toSet()
-                chapters.forEachIndexed { index, chapter ->
-                    if (chapter.id !in saved) {
-                        val pages = CatalogRepository().pages(workId, chapter.id)
-                        store.download(work, chapter, pages) { chapterValue ->
-                            val total = (((index * 100) + chapterValue) / chapters.size).coerceIn(0, 100)
-                            setProgressAsync(Data.Builder().putInt(PROGRESS, total).build())
-                        }
-                    }
-                    setProgressAsync(Data.Builder().putInt(PROGRESS, ((index + 1) * 100) / chapters.size).build())
+        try {
+            setForeground(foregroundInfo())
+            val metadata = withContext(Dispatchers.IO) {
+                synchronized(metadataLock) {
+                    val file = metadataFile(applicationContext, workId)
+                    if (file.baseFile.exists()) JSONObject(file.openRead().bufferedReader().use { it.readText() })
+                    else JSONObject()
                 }
-                Result.success()
-            }.getOrElse { error ->
-                Result.failure(Data.Builder().putString(ERROR, error.message ?: "Não foi possível baixar a obra.").build())
             }
-        }
-        val chapterId = inputData.getString(CHAPTER_ID) ?: return Result.failure()
-        val chapter = Chapter(
-            id = chapterId,
-            number = inputData.getDouble(CHAPTER_NUMBER, Double.NaN).takeUnless(Double::isNaN),
-            title = inputData.getString(CHAPTER_TITLE).orEmpty(), published = true, updatedAt = 0
-        )
-        return runCatching {
-            val pages = CatalogRepository().pages(workId, chapterId)
-            OfflineStore(applicationContext).download(work, chapter, pages) { value ->
-                setProgressAsync(Data.Builder().putInt(PROGRESS, value).build())
+            val work = Work(
+                id = workId, title = metadata.optString(WORK_TITLE, inputData.getString(WORK_TITLE).orEmpty()),
+                synopsis = "", cover = metadata.optString(WORK_COVER, inputData.getString(WORK_COVER).orEmpty()),
+                banner = "", type = "", status = "", author = "", genres = emptyList(), updatedAt = 0, reads = 0
+            )
+            val repository = CatalogRepository()
+            val all = inputData.getBoolean(DOWNLOAD_ALL, false)
+            val chapters = if (all) repository.chapters(workId).filter { it.published } else listOf(
+                Chapter(
+                    id = inputData.getString(CHAPTER_ID) ?: return Result.failure(),
+                    number = inputData.getDouble(CHAPTER_NUMBER, Double.NaN).takeUnless(Double::isNaN),
+                    title = inputData.getString(CHAPTER_TITLE).orEmpty(), published = true, updatedAt = 0
+                )
+            )
+            check(chapters.isNotEmpty()) { "Nenhum capítulo disponível para baixar." }
+            val store = OfflineStore(applicationContext)
+            chapters.forEachIndexed { index, chapter ->
+                if (withContext(Dispatchers.IO) { store.localPages(workId, chapter.id).isEmpty() }) {
+                    store.download(work, chapter, repository.pages(workId, chapter.id)) { value ->
+                        setProgressAsync(Data.Builder().putInt(PROGRESS, (index * 100 + value) / chapters.size)
+                            .putString(CHAPTER_ID, chapter.id).putInt(CHAPTER_PROGRESS, value).build())
+                    }
+                }
+                setProgress(Data.Builder().putInt(PROGRESS, (index + 1) * 100 / chapters.size).build())
             }
-            Result.success()
-        }.getOrElse { error ->
-            Result.failure(Data.Builder().putString(ERROR, error.message ?: "Não foi possível baixar o capítulo.").build())
+            return Result.success()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            if (error is IOException && runAttemptCount < 3) return Result.retry()
+            return Result.failure(Data.Builder().putString(ERROR,
+                (error.message ?: "Não foi possível concluir o download. Tente novamente.").take(500)).build())
         }
     }
 
-
-
+    private fun foregroundInfo(): ForegroundInfo {
+        val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= 26) manager.createNotificationChannel(
+            NotificationChannel(CHANNEL, "Downloads de capítulos", NotificationManager.IMPORTANCE_LOW)
+        )
+        val notification = NotificationCompat.Builder(applicationContext, CHANNEL)
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setContentTitle("MP SCAN • Baixando capítulos")
+            .setContentText("O download continua enquanto você usa outros aplicativos.")
+            .setOngoing(true).setOnlyAlertOnce(true).setProgress(0, 0, true)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancelar",
+                WorkManager.getInstance(applicationContext).createCancelPendingIntent(id))
+            .build()
+        return if (Build.VERSION.SDK_INT >= 29)
+            ForegroundInfo(id.hashCode(), notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        else ForegroundInfo(id.hashCode(), notification)
+    }
 
     companion object {
         const val WORK_ID = "workId"; const val WORK_TITLE = "workTitle"; const val WORK_COVER = "workCover"
         const val CHAPTER_ID = "chapterId"; const val CHAPTER_NUMBER = "chapterNumber"; const val CHAPTER_TITLE = "chapterTitle"
-        const val PROGRESS = "progress"; const val ERROR = "error"
+        const val PROGRESS = "progress"; const val CHAPTER_PROGRESS = "chapterProgress"; const val ERROR = "error"
         const val DOWNLOAD_ALL = "downloadAll"
+        private const val CHANNEL = "chapter-downloads"
+        private val metadataLock = Any()
         fun uniqueName(workId: String, chapterId: String) = "chapter-download-$workId-$chapterId"
-        fun enqueue(context: Context, work: Work, chapter: Chapter) {
-            val data = Data.Builder().putString(WORK_ID, work.id).putString(WORK_TITLE, work.title)
-                .putString(WORK_COVER, work.cover).putString(CHAPTER_ID, chapter.id)
-                .putDouble(CHAPTER_NUMBER, chapter.number ?: Double.NaN).putString(CHAPTER_TITLE, chapter.title).build()
-            val request = OneTimeWorkRequestBuilder<ChapterDownloadWorker>()
-                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-                .setInputData(data).addTag("work-download-${work.id}").addTag(uniqueName(work.id, chapter.id)).build()
-            WorkManager.getInstance(context).enqueueUniqueWork(uniqueName(work.id, chapter.id), ExistingWorkPolicy.REPLACE, request)
+
+        private fun metadataFile(context: Context, workId: String): AtomicFile {
+            val key = MessageDigest.getInstance("SHA-256").digest(workId.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+            return AtomicFile(File(File(context.filesDir, "download_metadata"), "$key.json"))
         }
-        fun enqueueAll(context: Context, work: Work) {
-            val data = Data.Builder().putString(WORK_ID, work.id).putString(WORK_TITLE, work.title)
-                .putString(WORK_COVER, work.cover).putBoolean(DOWNLOAD_ALL, true).build()
+
+        private suspend fun saveMetadata(context: Context, work: Work) = withContext(Dispatchers.IO) {
+            synchronized(metadataLock) {
+                val file = metadataFile(context, work.id)
+                file.baseFile.parentFile?.mkdirs()
+                val stream = file.startWrite()
+                try {
+                    stream.write(JSONObject().put(WORK_TITLE, work.title).put(WORK_COVER, work.cover).toString().toByteArray())
+                    file.finishWrite(stream)
+                } catch (error: Exception) {
+                    file.failWrite(stream)
+                    throw error
+                }
+            }
+        }
+
+        suspend fun enqueue(context: Context, work: Work, chapter: Chapter) {
+            saveMetadata(context, work)
+            val data = requestData(work, chapter)
+            submit(context, work.id, uniqueName(work.id, chapter.id), data)
+        }
+
+        suspend fun enqueueAll(context: Context, work: Work) {
+            saveMetadata(context, work)
+            submit(context, work.id, "work-download-all-${work.id}",
+                requestData(work, null))
+        }
+
+        internal fun requestData(work: Work, chapter: Chapter?): Data {
+            val data = Data.Builder().putString(WORK_ID, work.id)
+            if (chapter == null) data.putBoolean(DOWNLOAD_ALL, true)
+            else data.putString(CHAPTER_ID, chapter.id)
+                .putDouble(CHAPTER_NUMBER, chapter.number ?: Double.NaN)
+                .putString(CHAPTER_TITLE, chapter.title.take(300))
+            return data.build()
+        }
+
+        private suspend fun submit(context: Context, workId: String, name: String, data: Data) = withContext(Dispatchers.IO) {
             val request = OneTimeWorkRequestBuilder<ChapterDownloadWorker>()
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-                .setInputData(data).addTag("work-download-" + work.id).addTag("work-download-all-" + work.id).build()
-            WorkManager.getInstance(context).enqueueUniqueWork("work-download-all-" + work.id, ExistingWorkPolicy.REPLACE, request)
+                .setInputData(data).addTag("work-download-$workId").addTag(name).build()
+            WorkManager.getInstance(context).enqueueUniqueWork(name, ExistingWorkPolicy.KEEP, request).result.get()
+            Unit
         }
     }
 }

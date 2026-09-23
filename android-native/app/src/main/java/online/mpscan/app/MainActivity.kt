@@ -57,6 +57,7 @@ import online.mpscan.app.data.WorkRating
 import online.mpscan.app.data.WorkReaction
 import online.mpscan.app.data.WorkSocialRepository
 import online.mpscan.app.data.NewBadgeStyle
+import kotlinx.coroutines.flow.catch
 import online.mpscan.app.data.ChapterDownloadWorker
 import online.mpscan.app.data.NewChapterWorker
 import online.mpscan.app.data.LibraryRepository
@@ -166,11 +167,40 @@ private fun formatUpdateDate(value:Long):String{if(value<=0)return "Atualizaçã
  val chapterErrors=remember(work.id){mutableStateMapOf<String,Boolean>()}
  if(reading!=null){BackHandler{reading=null};Reader(work,reading!!){reading=null};return}
  LaunchedEffect(work.id){session?.let{old->runCatching{accountRepository.refresh(old)}.onSuccess{fresh->session=fresh;accountStore.save(fresh)}};subscribed=session?.let{runCatching{libraryRepository.notificationEnabled(it,work.id)}.getOrDefault(false)}?:false;val savedDownloads=offlineStore.downloads().filter{it.workId==work.id};downloadedIds=savedDownloads.map{it.chapterId}.toSet();val saved=savedDownloads.map{it.toChapter()};runCatching{repository.chapters(work.id)}.onSuccess{remote->chapters=(remote+saved).distinctBy{it.id}.sortedByDescending{it.number?:-1.0}}.onFailure{chapters=saved};rating=runCatching{social.rating(work.id,session)}.getOrDefault(WorkRating());reactions=runCatching{social.reactions(work.id,session)}.getOrDefault(emptyList());loading=false}
- LaunchedEffect(work.id,chapters){while(true){val infos=withContext(Dispatchers.IO){WorkManager.getInstance(appContext).getWorkInfosByTag("work-download-${work.id}").get()};val running=infos.filter{!it.state.isFinished}.associateBy{it.tags.firstOrNull{tag->tag.startsWith("chapter-download-${work.id}-")}?.removePrefix("chapter-download-${work.id}-")};chapters.forEach{chapter->val info=running[chapter.id];if(info!=null)chapterProgress[chapter.id]=info.progress.getInt(ChapterDownloadWorker.PROGRESS,0) else chapterProgress.remove(chapter.id)};downloadedIds=offlineStore.downloads().filter{it.workId==work.id}.map{it.chapterId}.toSet();downloadingAll=running.isNotEmpty();if(chapters.isNotEmpty()){bulkProgress=(downloadedIds.size.coerceAtMost(chapters.size)*100)/chapters.size};delay(700)}}
+ LaunchedEffect(work.id,chapters){
+  WorkManager.getInstance(appContext).getWorkInfosByTagFlow("work-download-${work.id}").catch{bulkError="Não foi possível acompanhar o download. Abra a obra novamente.";downloadingAll=false}.collect{infos->
+   val active=infos.filter{!it.state.isFinished}
+   val bulk=active.firstOrNull{"work-download-all-${work.id}" in it.tags}
+   downloadedIds=withContext(Dispatchers.IO){offlineStore.downloads().filter{it.workId==work.id}.map{it.chapterId}.toSet()}
+   chapters.forEach{chapter->
+    val info=active.firstOrNull{ChapterDownloadWorker.uniqueName(work.id,chapter.id) in it.tags}
+    val bulkChapter=bulk?.progress?.getString(ChapterDownloadWorker.CHAPTER_ID)==chapter.id
+    if(info!=null)chapterProgress[chapter.id]=info.progress.getInt(ChapterDownloadWorker.PROGRESS,0)
+    else if(bulkChapter)chapterProgress[chapter.id]=bulk!!.progress.getInt(ChapterDownloadWorker.CHAPTER_PROGRESS,0)
+    else chapterProgress.remove(chapter.id)
+    chapterErrors[chapter.id]=chapter.id !in downloadedIds&&info==null&&bulk==null&&infos.any{ChapterDownloadWorker.uniqueName(work.id,chapter.id) in it.tags&&it.state==androidx.work.WorkInfo.State.FAILED}
+   }
+   downloadingAll=active.isNotEmpty()
+   bulkProgress=bulk?.progress?.getInt(ChapterDownloadWorker.PROGRESS,0)?:if(chapters.isEmpty())0 else (chapters.count{it.id in downloadedIds}*100)/chapters.size
+   if(active.isNotEmpty()){
+    bulkError=""
+    bulkMessage=if(active.all{it.state==androidx.work.WorkInfo.State.ENQUEUED})"Na fila. O download aguarda conexão ou uma nova tentativa." else "Baixando. Você pode usar outros aplicativos."
+   }else{
+    bulkMessage=""
+    bulkError=if(chapters.isNotEmpty()&&chapters.all{it.id in downloadedIds})"" else infos.firstOrNull{"work-download-all-${work.id}" in it.tags&&it.state==androidx.work.WorkInfo.State.FAILED}?.outputData?.getString(ChapterDownloadWorker.ERROR).orEmpty()
+   }
+  }
+ }
+
  val progress=remember(work.id,chapters){readingStore.history().filter{it.workId==work.id}.associateBy{it.chapterId}}
  val continueChapter=chapters.firstOrNull{(progress[it.id]?.percent?:0)<100}?:chapters.firstOrNull()
  val allDownloaded=chapters.isNotEmpty()&&chapters.all{it.id in downloadedIds}
- fun downloadChapter(chapter:Chapter){if(chapter.id in downloadedIds||chapterProgress.containsKey(chapter.id))return;chapterErrors.remove(chapter.id);chapterProgress[chapter.id]=0;ChapterDownloadWorker.enqueue(appContext,work,chapter)}
+ fun downloadChapter(chapter:Chapter){
+  if(chapter.id in downloadedIds||chapterProgress.containsKey(chapter.id))return
+  chapterErrors.remove(chapter.id);chapterProgress[chapter.id]=0
+  scope.launch{try{ChapterDownloadWorker.enqueue(appContext,work,chapter)}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){chapterProgress.remove(chapter.id);chapterErrors[chapter.id]=true;bulkError=e.message?:"Não foi possível iniciar o download."}}
+ }
+
  if(collectionDialog)CollectionPickerDialog(libraryRepository,session,work.id,{collectionDialog=false}){message->actionMessage=message}
  LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(bottom=30.dp)){
   item{WorkHero(work,chapters.size,rating.average,back)}
@@ -183,7 +213,7 @@ private fun formatUpdateDate(value:Long):String{if(value<=0)return "Atualizaçã
    "Sobre"->{item{SynopsisCard(work)};item{WorkInformation(work,chapters.firstOrNull()?.updatedAt?:work.updatedAt)}}
    "Comentários"->item{CommentsSection("obra",work.id,"",Modifier.padding(horizontal=12.dp,vertical=18.dp))}
    else->{
-    item{DownloadAllCard(allDownloaded,downloadingAll,bulkProgress,bulkMessage,bulkError,!loading&&chapters.isNotEmpty()){if(chapters.isNotEmpty()&&!allDownloaded){bulkError="";bulkMessage="O download continuará mesmo se você sair do aplicativo.";ChapterDownloadWorker.enqueueAll(appContext,work);downloadingAll=true}}}
+    item{DownloadAllCard(allDownloaded,downloadingAll,bulkProgress,bulkMessage,bulkError,!loading&&chapters.isNotEmpty()){if(chapters.isNotEmpty()&&!allDownloaded){bulkError="";bulkMessage="Preparando download…";downloadingAll=true;scope.launch{try{ChapterDownloadWorker.enqueueAll(appContext,work)}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){downloadingAll=false;bulkMessage="";bulkError=e.message?:"Não foi possível iniciar o download."}}}}}
     if(loading)item{LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal=16.dp))}
     items(chapters,key={it.id}){c->ChapterRow(c,progress[c.id],c.id in downloadedIds,chapterProgress[c.id],chapterErrors[c.id]==true,{reading=c}){downloadChapter(c)}}
    }
@@ -274,10 +304,23 @@ private fun localizedStatus(value:String):String=when(value.trim().lowercase(Loc
  var pages by remember(current.id){mutableStateOf<List<String>>(emptyList())};var remotePages by remember(current.id){mutableStateOf<List<String>>(emptyList())};var loading by remember(current.id){mutableStateOf(true)};var failed by remember(current.id){mutableStateOf(false)};var offline by remember(current.id){mutableStateOf(false)};var downloading by remember(current.id){mutableStateOf(false)};var progress by remember(current.id){mutableIntStateOf(0)};var downloadError by remember(current.id){mutableStateOf("")}
  LaunchedEffect(work.id){val saved=store.downloads().filter{it.workId==work.id}.map{it.toChapter()};chapters=runCatching{(CatalogRepository().chapters(work.id)+saved).distinctBy{it.id}.sortedBy{it.number?:Double.MAX_VALUE}}.getOrDefault(saved.sortedBy{it.number?:Double.MAX_VALUE});if(chapters.none{it.id==current.id})chapters=(chapters+current).distinctBy{it.id}.sortedBy{it.number?:Double.MAX_VALUE}}
  LaunchedEffect(current.id){val saved=store.localPages(work.id,current.id);if(saved.isNotEmpty()){pages=saved;offline=true;loading=false}else{runCatching{CatalogRepository().pages(work.id,current.id)}.onSuccess{remotePages=it;pages=it}.onFailure{failed=true};loading=false};if(pages.isNotEmpty()){val last=readingStore.progress(work.id,current.id)?.page?.minus(1)?.coerceIn(0,pages.lastIndex)?:0;listState.scrollToItem(last)}}
+ LaunchedEffect(work.id,current.id){
+  WorkManager.getInstance(context.applicationContext).getWorkInfosByTagFlow("work-download-${work.id}").catch{downloadError="Não foi possível acompanhar o download. Abra o capítulo novamente.";downloading=false}.collect{infos->
+   val saved=withContext(Dispatchers.IO){store.localPages(work.id,current.id)}
+   if(saved.isNotEmpty()){pages=saved;offline=true;downloading=false;downloadError=""}
+   else{
+    val name=ChapterDownloadWorker.uniqueName(work.id,current.id)
+    val active=infos.firstOrNull{!it.state.isFinished&&(name in it.tags||"work-download-all-${work.id}" in it.tags)}
+    downloading=active!=null
+    progress=if(active?.progress?.getString(ChapterDownloadWorker.CHAPTER_ID)==current.id)active.progress.getInt(ChapterDownloadWorker.CHAPTER_PROGRESS,0) else active?.progress?.getInt(ChapterDownloadWorker.PROGRESS,0)?:0
+    if(active==null)downloadError=infos.firstOrNull{name in it.tags&&it.state==androidx.work.WorkInfo.State.FAILED}?.outputData?.getString(ChapterDownloadWorker.ERROR).orEmpty()
+   }
+  }
+ }
  LaunchedEffect(listState,pages.size,current.id){if(pages.isNotEmpty())snapshotFlow{listState.firstVisibleItemIndex}.distinctUntilChanged().collect{index->readingStore.save(work,current,index+1,pages.size)}}
  val position=chapters.indexOfFirst{it.id==current.id};val previous=chapters.getOrNull(position-1);val next=chapters.getOrNull(position+1)
  if(listOpen)ChapterListDialog(chapters,current.id,store,work.id,{listOpen=false}){current=it;listOpen=false}
- Column(Modifier.fillMaxSize().background(Color(0xFF050507))){Row(Modifier.fillMaxWidth().background(Color(0xEE0B0B0D)).padding(8.dp),verticalAlignment=Alignment.CenterVertically){FilledTonalButton(back){Text("←")};Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text(work.title,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis);Text(if(offline) "${current.label} • salvo offline" else current.label,color=if(offline)MpAccent2 else MpMuted,style=MaterialTheme.typography.bodySmall)};TextButton({listOpen=true}){Text("☰ Capítulos")};if(!offline&&pages.isNotEmpty())Button(onClick={scope.launch{downloading=true;downloadError="";runCatching{store.download(work,current,remotePages.ifEmpty{pages}){progress=it}}.onSuccess{pages=it;offline=true}.onFailure{downloadError="Não foi possível concluir o download."};downloading=false}},enabled=!downloading,shape=RoundedCornerShape(12.dp)){Text(if(downloading)"$progress%" else "Baixar")}}
+ Column(Modifier.fillMaxSize().background(Color(0xFF050507))){Row(Modifier.fillMaxWidth().background(Color(0xEE0B0B0D)).padding(8.dp),verticalAlignment=Alignment.CenterVertically){FilledTonalButton(back){Text("←")};Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text(work.title,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis);Text(if(offline) "${current.label} • salvo offline" else current.label,color=if(offline)MpAccent2 else MpMuted,style=MaterialTheme.typography.bodySmall)};TextButton({listOpen=true}){Text("☰ Capítulos")};if(!offline&&pages.isNotEmpty())Button(onClick={val selected=current;downloading=true;downloadError="";scope.launch{try{ChapterDownloadWorker.enqueue(context.applicationContext,work,selected)}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){downloading=false;downloadError=e.message?:"Não foi possível iniciar o download."}}},enabled=!downloading,shape=RoundedCornerShape(12.dp)){Text(if(downloading)"$progress%" else "Baixar")}}
   if(downloading)LinearProgressIndicator(progress={progress/100f},Modifier.fillMaxWidth())
   if(downloadError.isNotBlank())Text(downloadError,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(12.dp))
   when{loading->Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){CircularProgressIndicator()};failed->Message("Este capítulo não está baixado. Conecte-se à internet ou escolha um capítulo marcado como OFFLINE.");pages.isEmpty()->Message("Nenhuma página encontrada.");else->LazyColumn(Modifier.fillMaxSize(),state=listState,horizontalAlignment=Alignment.CenterHorizontally){items(pages){page->AsyncImage(page,null,Modifier.fillMaxWidth(),contentScale=ContentScale.FillWidth)};item{CommentsSection("capitulo",work.id,current.id,Modifier.fillMaxWidth().padding(16.dp))};item{ChapterNavigation(previous,next,{listOpen=true}){current=it}}}}
