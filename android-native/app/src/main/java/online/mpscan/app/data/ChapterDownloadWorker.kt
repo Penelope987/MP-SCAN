@@ -1,5 +1,6 @@
 package online.mpscan.app.data
 
+
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.Data
@@ -9,6 +10,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.Constraints
+
 
 class ChapterDownloadWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
@@ -32,13 +34,16 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
                 setProgressAsync(Data.Builder().putInt(PROGRESS, value).build())
             }
             Result.success()
-        }.getOrElse { Result.retry() }
+        }.getOrElse { error ->
+            Result.failure(Data.Builder().putString(ERROR, error.message ?: "Não foi possível baixar o capítulo.").build())
+        }
     }
+
 
     companion object {
         const val WORK_ID = "workId"; const val WORK_TITLE = "workTitle"; const val WORK_COVER = "workCover"
         const val CHAPTER_ID = "chapterId"; const val CHAPTER_NUMBER = "chapterNumber"; const val CHAPTER_TITLE = "chapterTitle"
-        const val PROGRESS = "progress"
+        const val PROGRESS = "progress"; const val ERROR = "error"
         fun uniqueName(workId: String, chapterId: String) = "chapter-download-$workId-$chapterId"
         fun enqueue(context: Context, work: Work, chapter: Chapter) {
             val data = Data.Builder().putString(WORK_ID, work.id).putString(WORK_TITLE, work.title)
@@ -47,7 +52,8 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
             val request = OneTimeWorkRequestBuilder<ChapterDownloadWorker>()
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .setInputData(data).addTag("work-download-${work.id}").addTag(uniqueName(work.id, chapter.id)).build()
-            WorkManager.getInstance(context).enqueueUniqueWork(uniqueName(work.id, chapter.id), ExistingWorkPolicy.KEEP, request)
+            WorkManager.getInstance(context).enqueueUniqueWork(uniqueName(work.id, chapter.id), ExistingWorkPolicy.REPLACE, request)
         }
     }
 }
+
