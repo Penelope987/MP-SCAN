@@ -31,7 +31,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
             val work = Work(
                 id = workId, title = metadata.optString(WORK_TITLE, inputData.getString(WORK_TITLE).orEmpty()),
                 synopsis = "", cover = metadata.optString(WORK_COVER, inputData.getString(WORK_COVER).orEmpty()),
-                banner = "", type = "", status = "", author = "", genres = emptyList(), updatedAt = 0, reads = 0, adult = metadata.optBoolean("adult",false)
+                banner = "", updatedAt = 0, reads = 0, adult = metadata.optBoolean("adult",false), type=metadata.optString("type"),status=metadata.optString("status"),author=metadata.optString("author"),genres=metadata.optJSONArray("genres")?.let{x->(0 until x.length()).map{x.optString(it)}}?:emptyList()
             )
             val repository = CatalogRepository()
             val all = inputData.getBoolean(DOWNLOAD_ALL, false)
@@ -104,7 +104,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
                 file.baseFile.parentFile?.mkdirs()
                 val stream = file.startWrite()
                 try {
-                    stream.write(JSONObject().put(WORK_TITLE, work.title).put(WORK_COVER, work.cover).put("adult",work.adult).toString().toByteArray())
+                    stream.write(JSONObject().put(WORK_TITLE, work.title).put(WORK_COVER, work.cover).put("adult",work.adult).put("type",work.type).put("status",work.status).put("author",work.author).put("genres",org.json.JSONArray(work.genres)).toString().toByteArray())
                     file.finishWrite(stream)
                 } catch (error: Exception) {
                     file.failWrite(stream)
@@ -137,7 +137,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
         private suspend fun submit(context: Context, workId: String, name: String, data: Data) = withContext(Dispatchers.IO) {
             val request = OneTimeWorkRequestBuilder<ChapterDownloadWorker>()
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(if(SettingsStore(context).wifiOnly)NetworkType.UNMETERED else NetworkType.CONNECTED).build())
-                .setInputData(data).addTag("work-download-$workId").addTag(name).build()
+                .setInputData(data).addTag("mp-chapter-download").addTag("work-download-$workId").addTag(name).build()
             WorkManager.getInstance(context).enqueueUniqueWork(name, ExistingWorkPolicy.KEEP, request).result.get()
             Unit
         }

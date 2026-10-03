@@ -29,7 +29,8 @@ data class OfflineChapter(
     val chapterId: String,
     val chapterLabel: String,
     val pageCount: Int,
-    val adult: Boolean = false
+    val adult: Boolean = false,
+    val type:String="",val status:String="",val author:String="",val genres:List<String> = emptyList()
 )
 
 class OfflineStore(context: Context) {
@@ -66,7 +67,7 @@ class OfflineStore(context: Context) {
                         workCover = metadata.optString("workCover"),
                         chapterId = metadata.getString("chapterId"),
                         chapterLabel = metadata.optString("chapterLabel", "Capítulo"),
-                        pageCount = files.length(), adult = metadata.optBoolean("adult",false)
+                        pageCount = files.length(), adult = metadata.optBoolean("adult",false),type=metadata.optString("type"),status=metadata.optString("status"),author=metadata.optString("author"),genres=metadata.optJSONArray("genres")?.let{x->(0 until x.length()).map{x.optString(it)}}?:emptyList()
                     )
                 }.getOrNull()
             } ?: emptyList()
@@ -109,12 +110,14 @@ class OfflineStore(context: Context) {
                     }
                 }.awaitAll()
             }
+            var localCover=work.cover
+            if(work.cover.isNotBlank())try{fetchPage(work.cover,File(temporary,"cover.jpg"),0);localCover=File(destination,"cover.jpg").toURI().toString()}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){File(temporary,"cover.jpg").delete()}
             currentCoroutineContext().ensureActive()
             File(temporary, "chapter.json").writeText(
                 JSONObject()
                     .put("workId", work.id)
                     .put("workTitle", work.title)
-                    .put("workCover", work.cover).put("adult",work.adult)
+                    .put("workCover",localCover).put("adult",work.adult).put("type",work.type).put("status",work.status).put("author",work.author).put("genres",JSONArray(work.genres))
                     .put("chapterId", chapter.id)
                     .put("chapterLabel", chapter.label)
                     .put("files", JSONArray(names))
@@ -156,6 +159,7 @@ class OfflineStore(context: Context) {
     }
     private suspend fun copyPage(input:java.io.InputStream,output:java.io.OutputStream){val buffer=ByteArray(8192);while(true){currentCoroutineContext().ensureActive();val count=input.read(buffer);if(count<0)break;output.write(buffer,0,count)}}
     private suspend fun writePage(source: String, target: File) {
+        if(source.startsWith("file:")){File(java.net.URI(source)).inputStream().use{input->target.outputStream().use{copyPage(input,it)}};return}
         if (source.startsWith("data:", ignoreCase = true)) {
             val comma = source.indexOf(',')
             require(comma > 0) { "Imagem inválida" }
