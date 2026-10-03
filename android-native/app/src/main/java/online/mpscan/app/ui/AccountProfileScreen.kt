@@ -18,7 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
+import online.mpscan.app.ui.MpImage
 import kotlinx.coroutines.launch
 import online.mpscan.app.data.*
 import online.mpscan.app.ui.theme.*
@@ -29,7 +29,7 @@ import online.mpscan.app.ui.theme.*
  var tab by remember{mutableStateOf("Visão geral")};var busy by remember{mutableStateOf(session!=null)};var error by remember{mutableStateOf("")};var login by remember{mutableStateOf(false)};var edit by remember{mutableStateOf(false)}
  fun load(){val ss=session?:return;scope.launch{busy=true;runCatching{Triple(repo.profile(ss),repo.frames(ss),repo.extras(ss))}.onSuccess{profile=it.first;frames=it.second;extras=it.third;error=""}.onFailure{error=it.message?:"Não foi possível carregar o perfil."};busy=false}}
  LaunchedEffect(session?.uid){if(session!=null)load()}
- if(login)LoginDialog({login=false}){e,p->scope.launch{busy=true;runCatching{repo.signIn(e,p)}.onSuccess{session=it;store.save(it);login=false}.onFailure{error=it.message?:"Não foi possível entrar."};busy=false}}
+ if(login){AuthScreen({login=false}){session=it;store.save(it);login=false};return}
  val p=profile;val admin=p?.role.equals("ADM",true)||p?.role.equals("Administrador",true)
  if(edit&&p!=null){
   ProfileEditScreen(p,busy,error,{edit=false}){updated->
@@ -40,13 +40,13 @@ import online.mpscan.app.ui.theme.*
  LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(bottom=34.dp)){
   item{
    Box(Modifier.fillMaxWidth().height(330.dp).background(Brush.linearGradient(listOf(Color(0xff2b183d),MpAccent,Color(0xff111014))))){
-    if(!p?.cover.isNullOrBlank())AsyncImage(p!!.cover,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+    if(!p?.cover.isNullOrBlank())MpImage(p!!.cover,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent,Color(0xdd08080b),MpBackground))))
     Text("MP SCAN",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge,modifier=Modifier.padding(18.dp))
     OutlinedButton(openSettings,Modifier.align(Alignment.TopEnd).padding(14.dp),shape=RoundedCornerShape(14.dp)){Text("⚙ Ajustes")}
     Row(Modifier.align(Alignment.BottomStart).padding(18.dp),verticalAlignment=Alignment.Bottom){
      Surface(Modifier.size(108.dp),shape=RoundedCornerShape(28.dp),color=MpSurface2,border=BorderStroke(3.dp,Color(0xffffd258))){
-      if(!p?.photo.isNullOrBlank())AsyncImage(p!!.photo,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)else Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(p?.name?.take(1)?.uppercase()?:"MP",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge)}
+      if(!p?.photo.isNullOrBlank())MpImage(p!!.photo,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)else Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(p?.name?.take(1)?.uppercase()?:"MP",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge)}
      }
      Column(Modifier.padding(start=14.dp,bottom=4.dp)){Text(p?.name?:"Seu perfil",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineMedium,color=Color(0xffffd258));if(!p?.username.isNullOrBlank())Text("@${p!!.username.removePrefix("@")}",color=Color.White.copy(.8f));if(admin)Surface(Modifier.padding(top=8.dp),color=Color(0xff6b20bd).copy(.8f),shape=RoundedCornerShape(14.dp)){Text("✦ ADM",Modifier.padding(horizontal=12.dp,vertical=5.dp),fontWeight=FontWeight.Bold,color=Color(0xffc692ff))}}
     }
@@ -101,7 +101,7 @@ import online.mpscan.app.ui.theme.*
   val chosen=selected==frame.id
   Surface(Modifier.fillMaxWidth().padding(bottom=14.dp),color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(if(chosen)3.dp else 1.dp,if(chosen)MpAccent else MpLine)){
    Column{
-    if(frame.image.isNotBlank())AsyncImage(frame.image,frame.name,Modifier.fillMaxWidth().height(220.dp),contentScale=ContentScale.Crop)
+    if(frame.image.isNotBlank())MpImage(frame.image,frame.name,Modifier.fillMaxWidth().height(220.dp),contentScale=ContentScale.Crop)
     Column(Modifier.padding(16.dp)){
      Text(frame.name,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge)
      Text(if(chosen)"USANDO" else if(owned)"NA COLEÇÃO" else "DISPONÍVEL",color=if(chosen||owned)MpAccent2 else MpAccent,style=MaterialTheme.typography.labelSmall)
@@ -120,7 +120,7 @@ import online.mpscan.app.ui.theme.*
   else for(person in people){
    Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,MpLine)){
     Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically){
-     Surface(Modifier.size(52.dp),shape=CircleShape,color=MpSurface2){if(person.photo.isNotBlank())AsyncImage(person.photo,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)}
+     Surface(Modifier.size(52.dp),shape=CircleShape,color=MpSurface2){if(person.photo.isNotBlank())MpImage(person.photo,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)}
      Column(Modifier.padding(start=12.dp)){Text(person.name,fontWeight=FontWeight.Bold);if(person.username.isNotBlank())Text("@"+person.username.removePrefix("@"),color=MpMuted)}
     }
    }
@@ -134,7 +134,7 @@ import online.mpscan.app.ui.theme.*
   else for(work in works){
    Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp)){
     Row(Modifier.padding(10.dp),verticalAlignment=Alignment.CenterVertically){
-     if(work.cover.isNotBlank())AsyncImage(work.cover,null,Modifier.size(58.dp).clip(RoundedCornerShape(12.dp)),contentScale=ContentScale.Crop)
+     if(work.cover.isNotBlank())MpImage(work.cover,null,Modifier.size(58.dp).clip(RoundedCornerShape(12.dp)),contentScale=ContentScale.Crop)
      Text(work.title,fontWeight=FontWeight.Bold,modifier=Modifier.padding(start=12.dp))
     }
    }
@@ -190,12 +190,12 @@ private fun imageData(context:Context,uri:Uri,maxBytes:Int):String{
  LazyColumn(Modifier.fillMaxSize().background(MpBackground),contentPadding=PaddingValues(bottom=42.dp)){
   item{
    Box(Modifier.fillMaxWidth().height(330.dp).background(Brush.linearGradient(listOf(Color(0xff2b183d),MpAccent,Color(0xff111014))))){
-    if(co.isNotBlank())AsyncImage(co,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+    if(co.isNotBlank())MpImage(co,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x22000000),Color(0xdd08080b)))))
     OutlinedButton(close,Modifier.padding(16.dp),shape=RoundedCornerShape(16.dp)){Text("← Perfil")}
     Row(Modifier.align(Alignment.BottomStart).padding(24.dp),verticalAlignment=Alignment.Bottom){
      Surface(Modifier.size(108.dp),shape=RoundedCornerShape(28.dp),color=MpSurface2,border=BorderStroke(3.dp,runCatching{Color(android.graphics.Color.parseColor(color))}.getOrDefault(MpAccent))){
-      if(ph.isNotBlank())AsyncImage(ph,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)else Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(n.take(1).uppercase(),fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge)}
+      if(ph.isNotBlank())MpImage(ph,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)else Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(n.take(1).uppercase(),fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge)}
      }
      Column(Modifier.padding(start=14.dp,bottom=8.dp)){Text(n.ifBlank{"Seu perfil"},fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall);Text("@"+u.removePrefix("@"),color=MpMuted)}
     }

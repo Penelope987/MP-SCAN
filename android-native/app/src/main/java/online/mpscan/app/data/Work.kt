@@ -1,7 +1,7 @@
 package online.mpscan.app.data
 
 data class Work(val id:String,val title:String,val synopsis:String,val cover:String,val banner:String,val type:String,val status:String,val author:String,val genres:List<String>,val updatedAt:Long,val reads:Long,val alternateTitle:String="",val artist:String="",val year:String="",val scan:String="",val hosting:String="",val language:String="Português",val schedule:String="Sem dia fixo")
-data class Chapter(val id:String,val number:Double?,val title:String,val published:Boolean,val updatedAt:Long,val createdAt:Long=0){val label:String get()="Capítulo "+(number?.toString()?.removeSuffix(".0")?:"—")}
+data class Chapter(val id:String,val number:Double?,val title:String,val published:Boolean,val updatedAt:Long,val createdAt:Long=0,val publicationMode:String="published",val scheduledAt:Long=0){val available:Boolean get()=published&&publicationMode!="draft"&&(publicationMode!="scheduled"||scheduledAt in 1..System.currentTimeMillis());val subtitle:String get(){val clean=title.trim().replace(Regex("^(?:(?:cap[ií]tulo)\\s*)+",RegexOption.IGNORE_CASE),"").trim();return if((number!=null&&clean.toDoubleOrNull()==number)||title.trim().equals(label,true))""else title};val label:String get()="Capítulo "+(number?.toString()?.removeSuffix(".0")?:"—")}
 
 data class WorkRating(
     val average: Double = 0.0,
