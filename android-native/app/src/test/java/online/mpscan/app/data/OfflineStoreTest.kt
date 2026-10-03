@@ -10,7 +10,8 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
-import com.sun.net.httpserver.HttpServer
+import java.net.ServerSocket
+import kotlin.concurrent.thread
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -27,7 +28,12 @@ class OfflineStoreTest {
  @Test fun allPagesRemainReadableAfterStoreRecreation()=runBlocking{store.download(work,chapter,List(6){inline},{ });val recreated=OfflineStore(RuntimeEnvironment.getApplication());val pages=recreated.verifiedLocalPages(work.id,chapter.id);assertEquals(6,pages.size);assertTrue(pages.all{File(java.net.URI(it)).readBytes().contentEquals(image)});assertTrue(recreated.downloads().single().adult)}
  @Test fun failedReplacementPreservesPreviouslySavedChapter()=runBlocking{store.download(work,chapter,listOf(inline),{});try{store.download(work,chapter,listOf("data:image/png;base64,"+Base64.encodeToString("invalid".toByteArray(),Base64.NO_WRAP)),{},true);fail("Must reject invalid image")}catch(expected:java.io.IOException){};assertEquals(1,store.verifiedLocalPages(work.id,chapter.id).size);assertEquals(1,store.downloads().size)}
  @Test fun corruptedImageWithSameLengthIsRejected()=runBlocking{store.download(work,chapter,listOf(inline),{});val file=File(java.net.URI(store.localPages(work.id,chapter.id).single()));val bytes=file.readBytes();bytes[bytes.lastIndex]=(bytes.last().toInt() xor 1).toByte();file.writeBytes(bytes);assertTrue(store.verifiedLocalPages(work.id,chapter.id).isEmpty())}
- @Test fun temporaryHttpFailureRetriesAndDownloadsEveryPage()=runBlocking{val calls=AtomicInteger();val server=HttpServer.create(InetSocketAddress("127.0.0.1",0),0);server.createContext("/page"){exchange->if(calls.incrementAndGet()==1){exchange.sendResponseHeaders(503,-1)}else{exchange.sendResponseHeaders(200,image.size.toLong());exchange.responseBody.use{it.write(image)}};exchange.close()};server.start();try{val url="http://127.0.0.1:${server.address.port}/page";store.download(work,chapter,listOf(url,url,url),{});assertEquals(3,store.verifiedLocalPages(work.id,chapter.id).size);assertEquals(4,calls.get())}finally{server.stop(0)}}
+ @Test fun temporaryHttpFailureRetriesAndDownloadsEveryPage()=runBlocking{
+  val calls=AtomicInteger();val server=ServerSocket(0,10,java.net.InetAddress.getByName("127.0.0.1"))
+  val responder=thread(isDaemon=true){while(!server.isClosed){try{server.accept().use{socket->socket.soTimeout=5000;val reader=socket.getInputStream().bufferedReader();while(true){val line=reader.readLine()?:break;if(line.isEmpty())break};val first=calls.incrementAndGet()==1;val body=if(first)ByteArray(0)else image;val header="HTTP/1.1 "+(if(first)"503 Service Unavailable"else"200 OK")+"\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n";socket.getOutputStream().apply{write(header.toByteArray());write(body);flush()}}}catch(e:java.net.SocketException){if(!server.isClosed)throw e}}}
+  try{val url="http://127.0.0.1:${server.localPort}/page";store.download(work,chapter,listOf(url,url,url),{});assertEquals(3,store.verifiedLocalPages(work.id,chapter.id).size);assertEquals(4,calls.get())}finally{server.close();responder.join(1000)}
+ }
+
  @Test fun incompleteDownloadsAreNotListed()=runBlocking{try{store.download(work,chapter,listOf(inline,"data:image/png;base64,aW52YWxpZA=="),{});fail("Must reject partial chapter")}catch(expected:java.io.IOException){};assertTrue(store.downloads().isEmpty());assertTrue(store.localPages(work.id,chapter.id).isEmpty())}
  @Test fun concurrentDownloadsPublishOneCompleteChapter()=runBlocking{coroutineScope{List(3){async{store.download(work,chapter,List(4){inline},{})}}.awaitAll()};assertEquals(4,store.verifiedLocalPages(work.id,chapter.id).size);assertEquals(1,store.downloads().size)}
  @Test fun cancelledReplacementPreservesSavedPages()=runBlocking{store.download(work,chapter,listOf(inline),{});val job=launch{store.download(work,chapter,List(8){inline},{throw CancellationException("cancel")},true)};job.join();assertEquals(1,store.verifiedLocalPages(work.id,chapter.id).size);assertEquals(1,store.downloads().size)}
