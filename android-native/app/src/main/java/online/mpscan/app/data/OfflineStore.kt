@@ -33,25 +33,26 @@ data class OfflineChapter(
 )
 
 class OfflineStore(context: Context) {
-    companion object { private val downloadLock = Mutex() }
+    companion object { private val downloadLock = Mutex(); private val fileLock=Any() }
     private val root = File(context.filesDir, "mp_scan_downloads")
 
-    fun localPages(workId: String, chapterId: String): List<String> {
+    fun localPages(workId: String, chapterId: String): List<String> = synchronized(fileLock) {
         val folder = chapterFolder(workId, chapterId)
         val backup=File(folder.parentFile,folder.name+"_backup");if(!folder.exists()&&backup.exists())backup.renameTo(folder)
         val metadata = File(folder, "chapter.json")
-        if (!metadata.isFile) return emptyList()
-        return runCatching {
-            val files = JSONObject(metadata.readText()).optJSONArray("files") ?: JSONArray()
+        if (!metadata.isFile) return@synchronized emptyList()
+        runCatching {
+            val record=JSONObject(metadata.readText());val sizes=record.optJSONObject("sizes")
+            val files = record.optJSONArray("files") ?: JSONArray()
             (0 until files.length()).mapNotNull { index ->
-                File(folder, files.optString(index)).takeIf { it.isFile && it.length()>0 && (JSONObject(metadata.readText()).optJSONObject("sizes")?.optLong(files.optString(index),it.length())?:it.length())==it.length() }?.toURI()?.toString()
+                File(folder, files.optString(index)).takeIf { it.isFile && it.length()>0 && (sizes?.optLong(files.optString(index),it.length())?:it.length())==it.length() }?.toURI()?.toString()
             }.takeIf { it.size == files.length() } ?: emptyList()
         }.getOrDefault(emptyList())
     }
 
-    fun downloads(): List<OfflineChapter> {
+    fun downloads(): List<OfflineChapter> = synchronized(fileLock) {
         root.listFiles()?.filter(File::isDirectory)?.forEach{work->work.listFiles()?.filter{it.isDirectory&&it.name.endsWith("_backup")}?.forEach{backup->val target=File(work,backup.name.removeSuffix("_backup"));if(!target.exists())backup.renameTo(target)}}
-        return root.listFiles()
+        root.listFiles()
         ?.filter(File::isDirectory)
         ?.flatMap { workFolder ->
             workFolder.listFiles()?.filter { it.isDirectory && !it.name.endsWith("_download") && !it.name.endsWith("_backup") }?.mapNotNull { chapterFolder ->
@@ -75,8 +76,7 @@ class OfflineStore(context: Context) {
     }
 
     suspend fun delete(workId: String, chapterId: String) = withContext(Dispatchers.IO){downloadLock.withLock {
-        chapterFolder(workId, chapterId).deleteRecursively()
-        File(root, safe(workId)).takeIf { it.listFiles().isNullOrEmpty() }?.delete()
+        synchronized(fileLock){chapterFolder(workId, chapterId).deleteRecursively();File(root,safe(workId)).takeIf{it.listFiles().isNullOrEmpty()}?.delete()}
     }}
 
     suspend fun download(
@@ -122,11 +122,13 @@ class OfflineStore(context: Context) {
                     .put("sha256",JSONObject().also{x->names.forEach{x.put(it,digest(File(temporary,it)))}})
                     .toString()
             )
+            synchronized(fileLock){
             val backup=File(destination.parentFile,destination.name+"_backup")
             backup.deleteRecursively()
             if(destination.exists())check(destination.renameTo(backup)){"Não foi possível preservar o capítulo anterior"}
             if(!temporary.renameTo(destination)){backup.renameTo(destination);throw IOException("Não foi possível finalizar o download")}
             backup.deleteRecursively()
+            }
             localPages(work.id, chapter.id)
         } catch (error: Throwable) {
             temporary.deleteRecursively()
@@ -143,9 +145,11 @@ class OfflineStore(context: Context) {
 
     private fun digest(file:File):String {val hash=java.security.MessageDigest.getInstance("SHA-256");file.inputStream().use{input->val buffer=ByteArray(8192);while(true){val count=input.read(buffer);if(count<0)break;hash.update(buffer,0,count)}};return hash.digest().joinToString(""){"%02x".format(it)}}
     suspend fun verifiedLocalPages(workId:String,chapterId:String):List<String> = withContext(Dispatchers.IO){
-        val pages=localPages(workId,chapterId);if(pages.isEmpty())return@withContext emptyList()
+        runCatching {
+        val pages=localPages(workId,chapterId);if(pages.isEmpty())return@runCatching emptyList()
         val folder=chapterFolder(workId,chapterId);val hashes=runCatching{JSONObject(File(folder,"chapter.json").readText()).optJSONObject("sha256")}.getOrNull()
         if(pages.any{source->val file=File(java.net.URI(source));val bounds=android.graphics.BitmapFactory.Options().apply{inJustDecodeBounds=true};android.graphics.BitmapFactory.decodeFile(file.absolutePath,bounds);bounds.outWidth<=0||bounds.outHeight<=0||(hashes?.optString(file.name).orEmpty().let{it.isNotBlank()&&it!=digest(file)})})emptyList()else pages
+        }.getOrDefault(emptyList())
     }
     private suspend fun fetchPage(source:String,target:File,page:Int){
         repeat(3){attempt->currentCoroutineContext().ensureActive();try{writePage(source,target);val bounds=android.graphics.BitmapFactory.Options().apply{inJustDecodeBounds=true};android.graphics.BitmapFactory.decodeFile(target.absolutePath,bounds);if(bounds.outWidth<=0||bounds.outHeight<=0)throw IOException("A página $page não contém uma imagem válida.");return}catch(e:IOException){target.delete();if(attempt==2||source.startsWith("data:"))throw e;delay(500L*(attempt+1))}}
