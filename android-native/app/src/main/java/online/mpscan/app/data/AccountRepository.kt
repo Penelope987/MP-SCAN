@@ -17,6 +17,38 @@ class AccountStore(c:Context){private val p=c.getSharedPreferences("mp_account",
 class AccountRepository{
  private val base="https://nnnsss-23f2f-default-rtdb.firebaseio.com";private val key="AIzaSyAbpqQIxWuEnFolv3lNjNDoPKTGm0mtrxU";private fun e(v:String)=URLEncoder.encode(v,"UTF-8")
  suspend fun signIn(email:String,password:String)=withContext(Dispatchers.IO){val x=req("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$key","POST",JSONObject().put("email",email.trim()).put("password",password).put("returnSecureToken",true).toString());AccountSession(x.getString("localId"),x.optString("email",email),x.getString("idToken"),x.optString("refreshToken"))}
+
+ suspend fun signUp(name:String,username:String,email:String,password:String)=withContext(Dispatchers.IO){
+  require(name.trim().isNotBlank()){ "Informe seu nome." }
+  val handle=username.trim().removePrefix("@").lowercase()
+  require(handle.matches(Regex("[a-z0-9_]{3,24}"))){ "Use de 3 a 24 letras, números ou sublinhado no arroba." }
+  require(password.length>=6){ "A senha precisa ter pelo menos 6 caracteres." }
+  val existing=req("$base/nomesUsuario/${e(handle)}.json")
+  check(existing.length()==0){ "Este arroba já está em uso." }
+  val x=req("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$key","POST",JSONObject().put("email",email.trim()).put("password",password).put("returnSecureToken",true).toString())
+  val session=AccountSession(x.getString("localId"),x.optString("email",email),x.getString("idToken"),x.optString("refreshToken"))
+  try{
+   req("$base/nomesUsuario/${e(handle)}.json?auth=${e(session.token)}","PUT",JSONObject.quote(session.uid))
+   val profile=JSONObject().put("nome",name.trim()).put("nomeUsuario",handle).put("publico",true).put("criadoEm",System.currentTimeMillis())
+   req("$base/usuarios/${e(session.uid)}.json?auth=${e(session.token)}","PUT",profile.toString())
+   req("$base/perfisPublicos/${e(session.uid)}.json?auth=${e(session.token)}","PUT",JSONObject(profile.toString()).put("uid",session.uid).toString())
+  }catch(error:Exception){
+   // Roll back the newly created account so retrying cannot strand the email.
+   runCatching{req("$base/nomesUsuario/${e(handle)}.json?auth=${e(session.token)}","DELETE")}
+   runCatching{req("https://identitytoolkit.googleapis.com/v1/accounts:delete?key=$key","POST",JSONObject().put("idToken",session.token).toString())}
+   throw error
+  }
+  session
+ }
+ suspend fun resetPassword(email:String)=withContext(Dispatchers.IO){req("https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=$key","POST",JSONObject().put("requestType","PASSWORD_RESET").put("email",email.trim()).toString());Unit}
+ suspend fun googleClientId()=withContext(Dispatchers.IO){req("$base/config/googleWebClientId.json").optString("value").takeIf{it.endsWith(".apps.googleusercontent.com")}?:error("O login Google precisa do ID de cliente Web configurado no Firebase da MP SCAN.")}
+ suspend fun signInGoogle(idToken:String)=withContext(Dispatchers.IO){
+  val x=req("https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=$key","POST",JSONObject().put("postBody","id_token="+e(idToken)+"&providerId=google.com").put("requestUri","https://www.mpscan.online").put("returnIdpCredential",true).put("returnSecureToken",true).toString())
+  val session=AccountSession(x.getString("localId"),x.optString("email"),x.getString("idToken"),x.optString("refreshToken"))
+  val profile=req("$base/usuarios/${e(session.uid)}.json?auth=${e(session.token)}")
+  if(profile.length()==0){val p=JSONObject().put("nome",x.optString("displayName","Leitor MP SCAN")).put("foto",x.optString("photoUrl")).put("publico",true).put("criadoEm",System.currentTimeMillis());req("$base/usuarios/${e(session.uid)}.json?auth=${e(session.token)}","PUT",p.toString());req("$base/perfisPublicos/${e(session.uid)}.json?auth=${e(session.token)}","PUT",JSONObject(p.toString()).put("uid",session.uid).toString())}
+  session
+ }
  suspend fun refresh(s:AccountSession)=withContext(Dispatchers.IO){
   if(s.refreshToken.isBlank())return@withContext s
   val body="grant_type=refresh_token&refresh_token="+e(s.refreshToken)

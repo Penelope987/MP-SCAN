@@ -35,7 +35,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
             )
             val repository = CatalogRepository()
             val all = inputData.getBoolean(DOWNLOAD_ALL, false)
-            val chapters = if (all) repository.chapters(workId).filter { it.published } else listOf(
+            val chapters = if (all) repository.chapters(workId).filter { it.available } else listOf(
                 Chapter(
                     id = inputData.getString(CHAPTER_ID) ?: return Result.failure(),
                     number = inputData.getDouble(CHAPTER_NUMBER, Double.NaN).takeUnless(Double::isNaN),
@@ -45,11 +45,13 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
             check(chapters.isNotEmpty()) { "Nenhum capítulo disponível para baixar." }
             val store = OfflineStore(applicationContext)
             chapters.forEachIndexed { index, chapter ->
-                if (withContext(Dispatchers.IO) { store.localPages(workId, chapter.id).isEmpty() }) {
-                    store.download(work, chapter, repository.pages(workId, chapter.id)) { value ->
+                val sources=repository.pages(workId,chapter.id)
+                val saved=withContext(Dispatchers.IO){store.localPages(workId,chapter.id)}
+                if (saved.size != sources.size || saved.isEmpty()) {
+                    store.download(work, chapter, sources, onProgress = { value ->
                         setProgressAsync(Data.Builder().putInt(PROGRESS, (index * 100 + value) / chapters.size)
                             .putString(CHAPTER_ID, chapter.id).putInt(CHAPTER_PROGRESS, value).build())
-                    }
+                    }, replaceExisting = true)
                 }
                 setProgress(Data.Builder().putInt(PROGRESS, (index + 1) * 100 / chapters.size).build())
             }

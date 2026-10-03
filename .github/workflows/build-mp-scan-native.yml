@@ -1,7 +1,7 @@
 name: Build MP SCAN Native V2
 on:
   push:
-    branches: [app-mp-scan-desenvolvimento]
+    branches: [app-mp-scan-desenvolvimento, fix/app-design-offline]
     paths: ['android-native/**', '.github/workflows/build-mp-scan-native.yml']
 permissions: { contents: read }
 jobs:
@@ -19,7 +19,7 @@ jobs:
         with: { gradle-version: '8.9' }
       - name: Build clean native app
         working-directory: android-native
-        run: gradle :app:assembleDebug --stacktrace
+        run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace
       - name: Prepare APK
         run: cp android-native/app/build/outputs/apk/debug/app-debug.apk MP-SCAN-native-v2.apk
       - uses: actions/upload-artifact@v4

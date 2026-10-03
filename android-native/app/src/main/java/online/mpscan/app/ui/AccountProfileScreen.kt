@@ -29,7 +29,7 @@ import online.mpscan.app.ui.theme.*
  var tab by remember{mutableStateOf("Visão geral")};var busy by remember{mutableStateOf(session!=null)};var error by remember{mutableStateOf("")};var login by remember{mutableStateOf(false)};var edit by remember{mutableStateOf(false)}
  fun load(){val ss=session?:return;scope.launch{busy=true;runCatching{Triple(repo.profile(ss),repo.frames(ss),repo.extras(ss))}.onSuccess{profile=it.first;frames=it.second;extras=it.third;error=""}.onFailure{error=it.message?:"Não foi possível carregar o perfil."};busy=false}}
  LaunchedEffect(session?.uid){if(session!=null)load()}
- if(login)LoginDialog({login=false}){e,p->scope.launch{busy=true;runCatching{repo.signIn(e,p)}.onSuccess{session=it;store.save(it);login=false}.onFailure{error=it.message?:"Não foi possível entrar."};busy=false}}
+ if(login){AuthScreen({login=false}){session=it;store.save(it);login=false};return}
  val p=profile;val admin=p?.role.equals("ADM",true)||p?.role.equals("Administrador",true)
  if(edit&&p!=null){
   ProfileEditScreen(p,busy,error,{edit=false}){updated->

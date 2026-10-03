@@ -76,10 +76,11 @@ class OfflineStore(context: Context) {
         work: Work,
         chapter: Chapter,
         pageUrls: List<String>,
-        onProgress: (Int) -> Unit
+        onProgress: (Int) -> Unit,
+        replaceExisting: Boolean = false
     ): List<String> = withContext(Dispatchers.IO) { downloadLock.withLock {
         val saved = localPages(work.id, chapter.id)
-        if (saved.isNotEmpty()) return@withLock saved
+        if (saved.isNotEmpty() && !replaceExisting) return@withLock saved
         require(pageUrls.isNotEmpty()) { "Capítulo sem páginas" }
         val destination = chapterFolder(work.id, chapter.id)
         val temporary = File(destination.parentFile, destination.name + "_download")
@@ -95,6 +96,9 @@ class OfflineStore(context: Context) {
                             val extension = extensionFor(source)
                             val name = "%04d.%s".format(index + 1, extension)
                             writePage(source, File(temporary, name))
+                            val bounds=android.graphics.BitmapFactory.Options().apply{inJustDecodeBounds=true}
+                            android.graphics.BitmapFactory.decodeFile(File(temporary,name).absolutePath,bounds)
+                            check(bounds.outWidth>0&&bounds.outHeight>0){"A página ${index+1} não contém uma imagem válida."}
                             onProgress((completed.incrementAndGet() * 100) / pageUrls.size)
                             name
                         }
