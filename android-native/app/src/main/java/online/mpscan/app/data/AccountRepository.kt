@@ -41,7 +41,7 @@ class AccountRepository{
   session
  }
  suspend fun resetPassword(email:String)=withContext(Dispatchers.IO){req("https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=$key","POST",JSONObject().put("requestType","PASSWORD_RESET").put("email",email.trim()).toString());Unit}
- suspend fun googleClientId()=withContext(Dispatchers.IO){req("$base/config/googleWebClientId.json").optString("value").takeIf{it.endsWith(".apps.googleusercontent.com")}?:error("O login Google precisa do ID de cliente Web configurado no Firebase da MP SCAN.")}
+ suspend fun googleClientId()=withContext(Dispatchers.IO){req("$base/config/googleWebClientId.json").optString("value").takeIf{it.endsWith(".apps.googleusercontent.com")}?:error("O login com Google está temporariamente indisponível. Entre com e-mail e senha.")}
  suspend fun signInGoogle(idToken:String)=withContext(Dispatchers.IO){
   val x=req("https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=$key","POST",JSONObject().put("postBody","id_token="+e(idToken)+"&providerId=google.com").put("requestUri","https://www.mpscan.online").put("returnIdpCredential",true).put("returnSecureToken",true).toString())
   val session=AccountSession(x.getString("localId"),x.optString("email"),x.getString("idToken"),x.optString("refreshToken"))

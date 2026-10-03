@@ -45,8 +45,15 @@ class CatalogRepository(private val base:String="https://nnnsss-23f2f-default-rt
         check(chapter.available){"Capítulo agendado. Aguarde a data de liberação."}
         val c=URL("$base/capitulosPaginas/$workId/$chapterId.json").openConnection() as HttpURLConnection;c.connectTimeout=15000;c.readTimeout=30000
         val text=c.inputStream.bufferedReader().use{it.readText()};c.disconnect()
-        if(text.isBlank()||text.trim()=="null")return@withContext emptyList()
-        PageManifest.parse(text)
+        if(text.isNotBlank()&&text.trim()!="null"){
+            val decoded=PageManifest.parse(text)
+            if(decoded.isNotEmpty())return@withContext decoded
+        }
+        val legacy=URL("$base/capitulos/$workId/$chapterId.json").openConnection() as HttpURLConnection
+        legacy.connectTimeout=15000;legacy.readTimeout=30000
+        val raw=try{JSONObject(legacy.inputStream.bufferedReader().use{it.readText()})}finally{legacy.disconnect()}
+        listOf("paginas","pages","imagens","images").firstNotNullOfOrNull{field->raw.opt(field)?.takeIf{it!=JSONObject.NULL}?.let{PageManifest.parse(it.toString()).takeIf(List<String>::isNotEmpty)}}?:emptyList()
+
 
     }
     private fun JSONObject.toWork(id:String)=Work(id,string("nome","name","titulo"),string("sinopse","synopsis"),string("capa","cover","coverURL"),string("banner","bannerURL"),string("tipo","type"),string("status"),string("autor","author"),strings(opt("generos")?:opt("genres")),long("atualizadoEm","updatedAt"),long("cliques","leituras","reads"),string("subtitulo","nomeAlternativo","tituloAlternativo","alternateTitle","altName"),string("artista","artist"),string("ano","year"),string("scan","scanName"),string("hospedagem","hosting"),string("idioma","language").ifBlank{"Português"},schedule(optJSONObject("agendaAtualizacao")?:optJSONObject("updateSchedule")))

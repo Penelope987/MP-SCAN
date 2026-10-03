@@ -49,7 +49,7 @@ private suspend fun publicJson(path:String,token:String=""):JSONObject=withConte
  var donations by remember(workId){mutableStateOf<List<Pair<String,JSONObject>>>(emptyList())};var requested by remember(workId){mutableStateOf<List<Pair<String,JSONObject>>>(emptyList())}
  LaunchedEffect(workId){
   runCatching{publicJson("donationScans")}.onSuccess{root->donations=root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.takeIf{scan->scan.optString("status")=="approved"&&(scan.optJSONArray("donatedWorkIds")?.let{ids->(0 until ids.length()).any{ids.optString(it)==workId}}==true)}?.let{id to it}}.toList()}
-  runCatching{publicJson("workRequestCredits/$workId")}.onSuccess{root->
+  runCatching{publicJson("workRequestCredits/$workId").takeIf{it.length()>0}?:publicJson("obras/$workId/requestedBy")}.onSuccess{root->
    val token=AccountStore(context).session()?.token.orEmpty()
    requested=root.keys().asSequence().map{id->id to (root.optJSONObject(id)?:JSONObject())}.toList().map{(id,credit)->
     val profile=if(token.isNotBlank())runCatching{publicJson("perfisPublicos/$id",token)}.getOrDefault(JSONObject())else JSONObject()
