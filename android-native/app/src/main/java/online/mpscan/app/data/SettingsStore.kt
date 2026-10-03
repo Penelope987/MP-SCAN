@@ -4,6 +4,8 @@ import android.content.Context
 
 class SettingsStore(context: Context) {
     val prefs = context.getSharedPreferences("mp_scan_settings", Context.MODE_PRIVATE)
+    fun adultCovers():Set<String> = prefs.getStringSet("adult_covers",emptySet())?.toSet()?:emptySet()
+    fun cacheAdultCovers(works:List<Work>) { prefs.edit().putStringSet("adult_covers",works.filter{it.adult}.flatMap{listOf(it.cover,it.banner)}.filter{it.isNotBlank()}.toSet()).apply() }
     var adultDisplay: String
         get() = prefs.getString("adult_display", "show").orEmpty().takeIf { it in setOf("show","blur","hide") } ?: "show"
         set(value) { require(value in setOf("show","blur","hide")); prefs.edit().putString("adult_display", value).apply() }

@@ -98,11 +98,11 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
  val display=remember(prefRevision){preferences.adultDisplay}
  var discoveryOpen by remember{mutableStateOf(!preferences.discoveryDone)}
  val works=remember(allWorks,display){allWorks.filter{display!="hide"||!it.adult}}
- val adultCovers=remember(allWorks,prefRevision){allWorks.filter{it.adult}.flatMap{listOf(it.cover,it.banner)}.toSet()+OfflineStore(context).downloads().filter{it.adult}.map{it.workCover}+ReadingStore(context).history().filter{it.adult}.map{it.workCover}}
+ val adultCovers=remember(allWorks,prefRevision){preferences.adultCovers()+allWorks.filter{it.adult}.flatMap{listOf(it.cover,it.banner)}.toSet()+OfflineStore(context).downloads().filter{it.adult}.map{it.workCover}+ReadingStore(context).history().filter{it.adult}.map{it.workCover}}
  val scope=rememberCoroutineScope()
  var attempt by remember{mutableIntStateOf(0)}
  var connected by remember{mutableStateOf((context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager).activeNetwork!=null)}
- LaunchedEffect(attempt){loading=true;error="";val repository=CatalogRepository();runCatching{repository.works()}.onSuccess{allWorks=it;error=""}.onFailure{if(it is kotlinx.coroutines.CancellationException)throw it;error="Não foi possível carregar o catálogo. Confira a conexão e tente novamente."};loading=false;newBadge=runCatching{repository.newBadge()}.getOrDefault(NewBadgeStyle())}
+ LaunchedEffect(attempt){loading=true;error="";val repository=CatalogRepository();runCatching{repository.works()}.onSuccess{allWorks=it;preferences.cacheAdultCovers(it);error=""}.onFailure{if(it is kotlinx.coroutines.CancellationException)throw it;error="Não foi possível carregar o catálogo. Confira a conexão e tente novamente."};loading=false;newBadge=runCatching{repository.newBadge()}.getOrDefault(NewBadgeStyle())}
  DisposableEffect(Unit){
   val manager=context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
   val callback=object:android.net.ConnectivityManager.NetworkCallback(){override fun onAvailable(network:android.net.Network){scope.launch{connected=true;attempt++}};override fun onLost(network:android.net.Network){scope.launch{connected=false}}}
@@ -233,7 +233,7 @@ private fun formatUpdateDate(value:Long):String{if(value<=0)return "Atualizaçã
    bulkProgress=bulk?.progress?.getInt(ChapterDownloadWorker.PROGRESS,0)?:if(chapters.isEmpty())0 else (chapters.count{it.id in downloadedIds}*100)/chapters.size
    if(active.isNotEmpty()){
     bulkError=""
-    bulkMessage=if(active.all{it.state==androidx.work.WorkInfo.State.ENQUEUED})"Na fila. O download aguarda conexão ou uma nova tentativa." else "Baixando. Você pode usar outros aplicativos."
+    bulkMessage=if(active.all{it.state==androidx.work.WorkInfo.State.ENQUEUED})if(SettingsStore(appContext).wifiOnly)"Na fila. Aguardando Wi-Fi ou nova tentativa. Você pode liberar dados móveis em Ajustes."else"Na fila. O download aguarda conexão ou uma nova tentativa." else "Baixando. Você pode usar outros aplicativos."
    }else{
     bulkMessage=""
     bulkError=if(chapters.isNotEmpty()&&chapters.all{it.id in downloadedIds})"" else infos.firstOrNull{"work-download-all-${work.id}" in it.tags&&it.state==androidx.work.WorkInfo.State.FAILED}?.outputData?.getString(ChapterDownloadWorker.ERROR).orEmpty()
