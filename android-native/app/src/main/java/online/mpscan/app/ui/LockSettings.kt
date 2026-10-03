@@ -30,7 +30,7 @@ private class LockStore(val context:Context){
  val prefs=context.getSharedPreferences("mp_lock",Context.MODE_PRIVATE)
  var mode:String get()=prefs.getString("mode","").orEmpty();set(v){prefs.edit().putString("mode",v).apply()}
  var wallpaper:String get()=prefs.getString("wallpaper","").orEmpty();set(v){prefs.edit().putString("wallpaper",v).apply()}
- fun hash(value:String,salt:String):String{val spec=javax.crypto.spec.PBEKeySpec(value.toCharArray(),salt.toByteArray(),120000,256);return try{javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1").generateSecret(spec).encoded.joinToString(""){"%02x".format(it)}}finally{spec.clearPassword()}}
+ fun hash(value:String,salt:String)=online.mpscan.app.data.LockHash.encode(value,salt)
 
  fun save(value:String,method:String){val salt=java.util.UUID.randomUUID().toString();check(prefs.edit().putString("salt",salt).putString("hash",hash(value,salt)).putString("mode",method).commit()){ "Não foi possível salvar a senha" }}
  fun matches(value:String)=hash(value,prefs.getString("salt","").orEmpty())==prefs.getString("hash","")
@@ -53,6 +53,7 @@ private class LockStore(val context:Context){
    else OutlinedTextField(confirm,{confirm=if(mode=="PIN")it.filter(Char::isDigit).take(12)else it.take(64)},Modifier.fillMaxWidth(),label={Text("Confirmar senha")},visualTransformation=PasswordVisualTransformation())
   }
   Button(onClick={val valid=when(mode){"Biometria"->(context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).isDeviceSecure;"PIN"->secret.length>=4&&secret.all(Char::isDigit)&&secret==confirm;"Padrão"->secret.length>=4&&secret==confirm;else->secret.length>=6&&secret.any(Char::isLetter)&&secret.any(Char::isDigit)&&secret==confirm};if(valid){val selected=mode;val password=secret;scope.launch{busy=true;try{withContext(Dispatchers.Default){if(selected!="Biometria")store.save(password,selected)else store.mode=selected};active=selected;secret="";confirm="";message="✓ Senha aceita. Bloqueio $selected ativado com sucesso."}catch(e:Exception){if(e is CancellationException)throw e;message="Não foi possível salvar. Tente novamente."}finally{busy=false}}}else message=if(mode=="Biometria")"Configure primeiro o bloqueio nos ajustes do celular."else"As duas senhas devem ser iguais. PIN/padrão: mínimo de 4. Senha: 6 caracteres com letras e números."},modifier=Modifier.fillMaxWidth(),enabled=!busy){Text(if(busy)"Salvando…"else"Salvar e ativar bloqueio")}
+  if(message.isNotBlank())Text(message,color=MpAccent2)
   if(wallpaper.isNotBlank()){Text("Prévia da tela de bloqueio");MpImage(File(wallpaper),"Foto da tela de bloqueio",Modifier.fillMaxWidth().height(220.dp),contentScale=ContentScale.Crop)}
 
   OutlinedButton({picker.launch("image/*")},Modifier.fillMaxWidth()){Text("Escolher foto da tela")}
@@ -91,7 +92,7 @@ private class LockStore(val context:Context){
    Column(Modifier.padding(24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
     Text("MP SCAN",style=MaterialTheme.typography.headlineMedium);Text("Desbloqueie para continuar",color=MpMuted)
     if(store.mode=="Biometria")Button({@Suppress("DEPRECATION") val intent=(context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).createConfirmDeviceCredentialIntent("MP SCAN","Desbloqueie para continuar");val fallback={if(intent!=null)device.launch(intent)else error="Bloqueio do aparelho indisponível."}
-      if(android.os.Build.VERSION.SDK_INT>=28){
+      try{if(android.os.Build.VERSION.SDK_INT>=28){
        val executor=androidx.core.content.ContextCompat.getMainExecutor(context)
        val builder=android.hardware.biometrics.BiometricPrompt.Builder(context).setTitle("MP SCAN").setSubtitle("Desbloqueie para continuar")
        if(android.os.Build.VERSION.SDK_INT>=30)builder.setAllowedAuthenticators(android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG or android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL)
@@ -100,7 +101,7 @@ private class LockStore(val context:Context){
         override fun onAuthenticationSucceeded(result:android.hardware.biometrics.BiometricPrompt.AuthenticationResult){locked=false;value="";error=""}
         override fun onAuthenticationError(code:Int,text:CharSequence){error="Não foi possível desbloquear: $text"}
        })
-      }else fallback()}){Text("Desbloquear com o aparelho")}
+      }else fallback()}catch(e:Exception){error="Desbloqueio indisponível. Confira o bloqueio do celular."}}){Text("Desbloquear com o aparelho")}
     else{
      if(store.mode=="Padrão")PatternPad(value){value=it}else OutlinedTextField(value,{value=if(store.mode=="PIN")it.filter(Char::isDigit)else it},label={Text("Senha")},visualTransformation=PasswordVisualTransformation(),keyboardOptions=KeyboardOptions(keyboardType=if(store.mode=="PIN")KeyboardType.NumberPassword else KeyboardType.Password))
      Button(onClick={val entered=value;scope.launch{verifying=true;try{if(withContext(Dispatchers.Default){store.matches(entered)}){locked=false;value="";error=""}else{error="Senha incorreta. Tente novamente.";value=""}}catch(e:Exception){if(e is CancellationException)throw e;error="Não foi possível verificar. Tente novamente."}finally{verifying=false}}},enabled=!verifying){Text(if(verifying)"Verificando…"else"Desbloquear")};if(store.mode=="Padrão")TextButton({value=""}){Text("Limpar")}
