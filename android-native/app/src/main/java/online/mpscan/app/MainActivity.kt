@@ -92,7 +92,7 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
  val scope=rememberCoroutineScope()
  var attempt by remember{mutableIntStateOf(0)}
  var connected by remember{mutableStateOf((context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager).activeNetwork!=null)}
- LaunchedEffect(attempt){loading=true;error="";val repository=CatalogRepository();runCatching{repository.works()}.onSuccess{works=it}.onFailure{error="Não foi possível carregar o catálogo. Confira a conexão e tente novamente."};loading=false;newBadge=runCatching{repository.newBadge()}.getOrDefault(NewBadgeStyle())}
+ LaunchedEffect(attempt){loading=true;error="";val repository=CatalogRepository();runCatching{repository.works()}.onSuccess{works=it;error=""}.onFailure{if(it is kotlinx.coroutines.CancellationException)throw it;error="Não foi possível carregar o catálogo. Confira a conexão e tente novamente."};loading=false;newBadge=runCatching{repository.newBadge()}.getOrDefault(NewBadgeStyle())}
  DisposableEffect(Unit){
   val manager=context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
   val callback=object:android.net.ConnectivityManager.NetworkCallback(){override fun onAvailable(network:android.net.Network){scope.launch{connected=true;attempt++}};override fun onLost(network:android.net.Network){scope.launch{connected=false}}}
@@ -168,7 +168,7 @@ private fun formatUpdateDate(value:Long):String{if(value<=0)return "Atualizaçã
 }
 @Composable private fun WorkDetails(work:Work,newBadge:NewBadgeStyle,back:()->Unit){
  val context=LocalContext.current;val appContext=context.applicationContext;val favorites=remember{FavoritesStore(appContext)};val libraryRepository=remember{LibraryRepository()};val readingStore=remember{ReadingStore(appContext)};val offlineStore=remember{OfflineStore(appContext)};val repository=remember{CatalogRepository()};val social=remember{WorkSocialRepository()};val accountStore=remember{AccountStore(appContext)};var session by remember{mutableStateOf(accountStore.session())};val accountRepository=remember{AccountRepository()};val scope=rememberCoroutineScope()
- var favorite by remember(work.id){mutableStateOf(favorites.contains(work.id))};var chapters by remember(work.id){mutableStateOf<List<Chapter>>(emptyList())};var loading by remember(work.id){mutableStateOf(true)};var reading by remember(work.id){mutableStateOf<Chapter?>(null)}
+ var favorite by remember(work.id){mutableStateOf(favorites.contains(work.id))};var chapters by remember(work.id){mutableStateOf(offlineStore.downloads().filter{it.workId==work.id}.map{it.toChapter()}.sortedByDescending{it.number?:-1.0})};var loading by remember(work.id){mutableStateOf(true)};var reading by remember(work.id){mutableStateOf<Chapter?>(null)}
  var releaseTick by remember(work.id){mutableIntStateOf(0)}
  LaunchedEffect(chapters){while(true){val release=chapters.filter{!it.available&&it.scheduledAt>System.currentTimeMillis()}.minOfOrNull{it.scheduledAt}?:break;delay((release-System.currentTimeMillis()+250).coerceAtLeast(250));releaseTick++}}
  var tab by remember(work.id){mutableStateOf("Capítulos")};var rating by remember(work.id){mutableStateOf(WorkRating())};var reactions by remember(work.id){mutableStateOf<List<WorkReaction>>(emptyList())};var socialError by remember{mutableStateOf("")}
