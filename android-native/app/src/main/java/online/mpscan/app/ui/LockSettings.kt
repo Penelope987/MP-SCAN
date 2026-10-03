@@ -22,14 +22,15 @@ import androidx.compose.ui.unit.dp
 import online.mpscan.app.ui.theme.*
 import java.io.File
 import java.security.MessageDigest
-import coil3.compose.AsyncImage
+import online.mpscan.app.ui.MpImage
 import androidx.compose.ui.layout.ContentScale
 
 private class LockStore(val context:Context){
  val prefs=context.getSharedPreferences("mp_lock",Context.MODE_PRIVATE)
  var mode:String get()=prefs.getString("mode","").orEmpty();set(v){prefs.edit().putString("mode",v).apply()}
  var wallpaper:String get()=prefs.getString("wallpaper","").orEmpty();set(v){prefs.edit().putString("wallpaper",v).apply()}
- fun hash(value:String,salt:String)=MessageDigest.getInstance("SHA-256").digest((salt+value).toByteArray()).joinToString(""){"%02x".format(it)}
+ fun hash(value:String,salt:String):String{val spec=javax.crypto.spec.PBEKeySpec(value.toCharArray(),salt.toByteArray(),120000,256);return try{javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded.joinToString(""){"%02x".format(it)}}finally{spec.clearPassword()}}
+
  fun save(value:String){val salt=java.util.UUID.randomUUID().toString();prefs.edit().putString("salt",salt).putString("hash",hash(value,salt)).apply()}
  fun matches(value:String)=hash(value,prefs.getString("salt","").orEmpty())==prefs.getString("hash","")
 }
@@ -74,7 +75,7 @@ private class LockStore(val context:Context){
  DisposableEffect(owner){val observer=androidx.lifecycle.LifecycleEventObserver{_,event->if(event==androidx.lifecycle.Lifecycle.Event.ON_STOP&&store.mode.isNotBlank()){locked=true;value=""}};owner.lifecycle.addObserver(observer);onDispose{owner.lifecycle.removeObserver(observer)}}
  if(!locked){content();return}
  Box(Modifier.fillMaxSize().background(MpBackground)){
-  if(store.wallpaper.isNotBlank())AsyncImage(File(store.wallpaper),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+  if(store.wallpaper.isNotBlank())MpImage(File(store.wallpaper),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
   Surface(Modifier.align(Alignment.Center).padding(24.dp),color=MpSurface.copy(alpha=.96f),shape=RoundedCornerShape(26.dp)){
    Column(Modifier.padding(24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
     Text("MP SCAN",style=MaterialTheme.typography.headlineMedium);Text("Desbloqueie para continuar",color=MpMuted)

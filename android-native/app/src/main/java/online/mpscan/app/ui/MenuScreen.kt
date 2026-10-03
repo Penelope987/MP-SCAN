@@ -12,7 +12,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
+import online.mpscan.app.ui.MpImage
 import online.mpscan.app.data.*
 import online.mpscan.app.ui.theme.*
 import kotlinx.coroutines.Dispatchers
@@ -62,4 +62,4 @@ private suspend fun publicJson(path:String,token:String=""):JSONObject=withConte
   requested.forEach{(id,person)->CreditTile("Obra pedida por",person.optString("nome","Leitor MP SCAN"),person.optString("foto"),person.optString("nomeUsuario")){uri.openUri("https://www.mpscan.online/#/perfil/$id")}}
  }
 }
-@Composable private fun CreditTile(label:String,name:String,photo:String,handle:String,open:()->Unit){Surface(Modifier.fillMaxWidth().clickable(onClick=open),shape=RoundedCornerShape(20.dp),color=MpSurface,border=BorderStroke(1.dp,MpAccent.copy(.3f))){Row(Modifier.padding(14.dp),verticalAlignment=Alignment.CenterVertically){if(photo.isNotBlank())AsyncImage(photo,name,Modifier.size(46.dp).clip(RoundedCornerShape(23.dp)),contentScale=ContentScale.Crop)else Text(name.take(1),color=MpAccent2,fontWeight=FontWeight.Black);Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text(label,color=MpAccent2,style=MaterialTheme.typography.labelSmall);Text(name,fontWeight=FontWeight.Bold);if(handle.isNotBlank())Text("@"+handle.removePrefix("@"),color=MpMuted,style=MaterialTheme.typography.bodySmall)};Text("↗",color=MpMuted)}}}
+@Composable private fun CreditTile(label:String,name:String,photo:String,handle:String,open:()->Unit){Surface(Modifier.fillMaxWidth().clickable(onClick=open),shape=RoundedCornerShape(20.dp),color=MpSurface,border=BorderStroke(1.dp,MpAccent.copy(.3f))){Row(Modifier.padding(14.dp),verticalAlignment=Alignment.CenterVertically){if(photo.isNotBlank())MpImage(photo,name,Modifier.size(46.dp).clip(RoundedCornerShape(23.dp)),contentScale=ContentScale.Crop)else Text(name.take(1),color=MpAccent2,fontWeight=FontWeight.Black);Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text(label,color=MpAccent2,style=MaterialTheme.typography.labelSmall);Text(name,fontWeight=FontWeight.Bold);if(handle.isNotBlank())Text("@"+handle.removePrefix("@"),color=MpMuted,style=MaterialTheme.typography.bodySmall)};Text("↗",color=MpMuted)}}}

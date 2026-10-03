@@ -40,7 +40,7 @@ class OfflineStore(context: Context) {
         return runCatching {
             val files = JSONObject(metadata.readText()).optJSONArray("files") ?: JSONArray()
             (0 until files.length()).mapNotNull { index ->
-                File(folder, files.optString(index)).takeIf(File::isFile)?.toURI()?.toString()
+                File(folder, files.optString(index)).takeIf { it.isFile && it.length()>0 }?.toURI()?.toString()
             }.takeIf { it.size == files.length() } ?: emptyList()
         }.getOrDefault(emptyList())
     }
@@ -52,7 +52,7 @@ class OfflineStore(context: Context) {
                 runCatching {
                     val metadata = JSONObject(File(chapterFolder, "chapter.json").readText())
                     val files = metadata.optJSONArray("files") ?: JSONArray()
-                    if (files.length() == 0 || (0 until files.length()).any { !File(chapterFolder, files.getString(it)).isFile }) return@runCatching null
+                    if (files.length() == 0 || (0 until files.length()).any { !File(chapterFolder, files.getString(it)).let{file->file.isFile&&file.length()>0} }) return@runCatching null
                     OfflineChapter(
                         workId = metadata.getString("workId"),
                         workTitle = metadata.optString("workTitle", "Obra baixada"),

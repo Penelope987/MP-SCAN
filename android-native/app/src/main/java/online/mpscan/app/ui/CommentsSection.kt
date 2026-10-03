@@ -14,7 +14,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import java.text.SimpleDateFormat
 import java.util.*
-import coil3.compose.AsyncImage
+import online.mpscan.app.ui.MpImage
 import kotlinx.coroutines.*
 import online.mpscan.app.data.*
 import online.mpscan.app.ui.theme.*
@@ -49,12 +49,12 @@ private fun color(v:String,f:Color)=runCatching{Color(android.graphics.Color.par
  val date=remember(x.date){if(x.date>0)SimpleDateFormat("dd/MM/yyyy 'às' HH:mm",Locale("pt","BR")).format(Date(x.date)) else ""}
  Surface(Modifier.fillMaxWidth().padding(top=12.dp),color=bg,shape=RoundedCornerShape(20.dp),border=BorderStroke(x.frame.width.dp,bc)){
   Box(Modifier.defaultMinSize(minHeight=190.dp)){
-   if(x.frame.image.isNotBlank())AsyncImage(x.frame.image,null,Modifier.matchParentSize(),contentScale=ContentScale.Crop)
+   if(x.frame.image.isNotBlank())MpImage(x.frame.image,null,Modifier.matchParentSize(),contentScale=ContentScale.Crop)
    Box(Modifier.matchParentSize().background(Color.Black.copy(alpha=if(x.frame.image.isNotBlank())0.38f else 0f)))
    Column(Modifier.padding(16.dp)){
     Row(verticalAlignment=Alignment.CenterVertically){
      Surface(Modifier.size(52.dp),shape=CircleShape,color=MpSurface2,border=BorderStroke(2.dp,bc)){
-      if(x.photo.isNotBlank())AsyncImage(x.photo,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+      if(x.photo.isNotBlank())MpImage(x.photo,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
       else Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(x.name.take(1).uppercase(),fontWeight=FontWeight.Black)}
      }
      Column(Modifier.padding(start=10.dp).weight(1f)){
@@ -71,7 +71,7 @@ private fun color(v:String,f:Color)=runCatching{Color(android.graphics.Color.par
     if(x.spoiler&&!show)Text("⚠ Spoiler — toque para revelar",color=Color.White,modifier=Modifier.clickable{show=true})
     else {
      Text(x.text.ifBlank{"Comentário sem texto."},color=Color.White,style=MaterialTheme.typography.bodyLarge)
-     if(x.commentImage.isNotBlank())AsyncImage(x.commentImage,null,Modifier.fillMaxWidth().heightIn(max=280.dp).padding(top=10.dp),contentScale=ContentScale.Fit)
+     if(x.commentImage.isNotBlank())MpImage(x.commentImage,null,Modifier.fillMaxWidth().heightIn(max=280.dp).padding(top=10.dp),contentScale=ContentScale.Fit)
     }
     HorizontalDivider(Modifier.padding(top=18.dp),color=Color.White.copy(alpha=.18f))
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top=10.dp),horizontalArrangement=Arrangement.spacedBy(7.dp)){
