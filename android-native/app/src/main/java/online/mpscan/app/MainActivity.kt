@@ -106,7 +106,7 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
  var connected by remember{mutableStateOf(hasInternet())}
  var downloaded by remember{mutableStateOf<List<OfflineChapter>>(emptyList())}
  val offlineStore=remember{OfflineStore(context)}
- LaunchedEffect(connected,attempt){downloaded=withContext(Dispatchers.IO){offlineStore.downloads()}}
+ LaunchedEffect(connected,attempt){downloaded=withContext(Dispatchers.IO){offlineStore.downloads()};if(connected){offlineStore.cacheMissingCovers();downloaded=withContext(Dispatchers.IO){offlineStore.downloads()}}}
  LaunchedEffect(Unit){WorkManager.getInstance(context).getWorkInfosByTagFlow("mp-chapter-download").collect{downloaded=withContext(Dispatchers.IO){offlineStore.downloads()}}}
  val offlineWorks=remember(downloaded){online.mpscan.app.data.OfflineCatalog.works(downloaded)}
  val adultCovers=remember(allWorks,prefRevision,downloaded){preferences.adultCovers()+allWorks.filter{it.adult}.flatMap{listOf(it.cover,it.banner)}.toSet()+downloaded.filter{it.adult}.map{it.workCover}+ReadingStore(context).history().filter{it.adult}.map{it.workCover}}

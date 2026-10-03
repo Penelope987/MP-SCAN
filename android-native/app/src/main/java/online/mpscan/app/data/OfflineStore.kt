@@ -76,6 +76,26 @@ class OfflineStore(context: Context) {
         ?: emptyList()
     }
 
+    suspend fun cacheMissingCovers() = withContext(Dispatchers.IO) {
+        downloads().groupBy{it.workId}.forEach{(workId,chapters)->
+            val source=chapters.firstOrNull{!it.workCover.startsWith("file:")&&it.workCover.isNotBlank()}?.workCover?:return@forEach
+            val folder=File(root,safe(workId));val temporary=File(folder,"cover_pending_${java.util.UUID.randomUUID()}.jpg")
+            try{
+                fetchPage(source,temporary,0)
+                downloadLock.withLock { synchronized(fileLock){
+                    if(folder.exists()){
+                        val cover=File(folder,"work_cover.jpg");if(cover.exists())temporary.delete()else check(temporary.renameTo(cover))
+                        folder.listFiles()?.filter{it.isDirectory&&!it.name.endsWith("_download")&&!it.name.endsWith("_backup")}?.forEach{chapter->
+                            val file=android.util.AtomicFile(File(chapter,"chapter.json"))
+                            val record=runCatching{JSONObject(file.openRead().bufferedReader().use{it.readText()})}.getOrNull()
+                            if(record!=null&&!record.optString("workCover").startsWith("file:")){record.put("workCover",cover.toURI().toString());val output=file.startWrite();try{output.write(record.toString().toByteArray());file.finishWrite(output)}catch(e:Exception){file.failWrite(output);throw e}}
+                        }
+                    }
+                }}
+            }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){/* Chapter pages remain usable if its optional cover cannot be fetched. */}finally{temporary.delete()}
+        }
+    }
+
     suspend fun delete(workId: String, chapterId: String) = withContext(Dispatchers.IO){downloadLock.withLock {
         synchronized(fileLock){chapterFolder(workId, chapterId).deleteRecursively();File(root,safe(workId)).takeIf{it.listFiles().isNullOrEmpty()}?.delete()}
     }}
