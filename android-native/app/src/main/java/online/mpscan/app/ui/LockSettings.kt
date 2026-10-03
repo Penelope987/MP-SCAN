@@ -6,6 +6,10 @@ import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -49,7 +53,20 @@ private class LockStore(val context:Context){
   if(message.isNotBlank())Text(message,color=MpAccent2)
  }
 }
-@Composable private fun PatternPad(value:String,change:(String)->Unit){Column(verticalArrangement=Arrangement.spacedBy(10.dp)){(0..2).forEach{row->Row(horizontalArrangement=Arrangement.spacedBy(18.dp)){(1..3).forEach{column->val digit=(row*3+column).toString();OutlinedButton({if(digit !in value)change(value+digit)},Modifier.size(58.dp),shape=RoundedCornerShape(29.dp)){Text(if(digit in value)"●"else"○",color=if(digit in value)MpAccent2 else MpMuted)}}}}}}
+@Composable private fun PatternPad(value:String,change:(String)->Unit){
+ val latestValue by rememberUpdatedState(value)
+ val latestChange by rememberUpdatedState(change)
+ Canvas(Modifier.size(240.dp).pointerInput(Unit){
+  fun hit(position:Offset){val cell=size.width/3f;val column=(position.x/cell).toInt().coerceIn(0,2);val row=(position.y/cell).toInt().coerceIn(0,2);val center=Offset((column+.5f)*cell,(row+.5f)*cell);if((position-center).getDistance()<cell*.4f){val digit=(row*3+column+1).toString();if(digit !in latestValue)latestChange(latestValue+digit)}}
+  detectDragGestures(onDragStart={hit(it)},onDrag={event,_->event.consume();hit(event.position)})
+ }){
+  val cell=size.width/3f
+  fun center(digit:Char):Offset{val n=digit.digitToInt()-1;return Offset((n%3+.5f)*cell,(n/3+.5f)*cell)}
+  value.zipWithNext().forEach{(a,b)->drawLine(MpAccent2,center(a),center(b),strokeWidth=6.dp.toPx())}
+  ('1'..'9').forEach{digit->drawCircle(if(digit in value)MpAccent2 else MpMuted,radius=11.dp.toPx(),center=center(digit));drawCircle(MpLine,radius=22.dp.toPx(),center=center(digit),style=androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))}
+ }
+}
+
 @Composable fun AppLock(content:@Composable ()->Unit){
  val context=LocalContext.current;val store=remember{LockStore(context)};val owner=androidx.lifecycle.compose.LocalLifecycleOwner.current
  var locked by remember{mutableStateOf(store.mode.isNotBlank())};var value by remember{mutableStateOf("")};var error by remember{mutableStateOf("")}
@@ -61,7 +78,17 @@ private class LockStore(val context:Context){
   Surface(Modifier.align(Alignment.Center).padding(24.dp),color=MpSurface.copy(alpha=.96f),shape=RoundedCornerShape(26.dp)){
    Column(Modifier.padding(24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
     Text("MP SCAN",style=MaterialTheme.typography.headlineMedium);Text("Desbloqueie para continuar",color=MpMuted)
-    if(store.mode=="Biometria")Button({@Suppress("DEPRECATION") val intent=(context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).createConfirmDeviceCredentialIntent("MP SCAN","Desbloqueie para continuar");if(intent!=null)device.launch(intent)else error="Bloqueio do aparelho indisponível."}){Text("Desbloquear com o aparelho")}
+    if(store.mode=="Biometria")Button({@Suppress("DEPRECATION") val intent=(context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).createConfirmDeviceCredentialIntent("MP SCAN","Desbloqueie para continuar");val fallback={if(intent!=null)device.launch(intent)else error="Bloqueio do aparelho indisponível."}
+      if(android.os.Build.VERSION.SDK_INT>=28){
+       val executor=androidx.core.content.ContextCompat.getMainExecutor(context)
+       val builder=android.hardware.biometrics.BiometricPrompt.Builder(context).setTitle("MP SCAN").setSubtitle("Desbloqueie para continuar")
+       if(android.os.Build.VERSION.SDK_INT>=30)builder.setAllowedAuthenticators(android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG or android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+       else builder.setNegativeButton("Usar senha do aparelho",executor){_,_->fallback()}
+       builder.build().authenticate(android.os.CancellationSignal(),executor,object:android.hardware.biometrics.BiometricPrompt.AuthenticationCallback(){
+        override fun onAuthenticationSucceeded(result:android.hardware.biometrics.BiometricPrompt.AuthenticationResult){locked=false;value="";error=""}
+        override fun onAuthenticationError(code:Int,text:CharSequence){if(code!=android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED&&code!=13)fallback()}
+       })
+      }else fallback()}){Text("Desbloquear com o aparelho")}
     else{
      if(store.mode=="Padrão")PatternPad(value){value=it}else OutlinedTextField(value,{value=if(store.mode=="PIN")it.filter(Char::isDigit)else it},label={Text("Senha")},visualTransformation=PasswordVisualTransformation(),keyboardOptions=KeyboardOptions(keyboardType=if(store.mode=="PIN")KeyboardType.NumberPassword else KeyboardType.Password))
      Button({if(store.matches(value)){locked=false;value=""}else{error="Senha incorreta.";value=""}}){Text("Desbloquear")};if(store.mode=="Padrão")TextButton({value=""}){Text("Limpar")}
