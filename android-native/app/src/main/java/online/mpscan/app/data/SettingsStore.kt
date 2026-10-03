@@ -3,7 +3,13 @@ package online.mpscan.app.data
 import android.content.Context
 
 class SettingsStore(context: Context) {
-    private val prefs = context.getSharedPreferences("mp_scan_settings", Context.MODE_PRIVATE)
+    val prefs = context.getSharedPreferences("mp_scan_settings", Context.MODE_PRIVATE)
+    var lightTheme: Boolean
+        get() = prefs.getBoolean("light_theme", false)
+        set(value) = prefs.edit().putBoolean("light_theme", value).apply()
+    var roseAccent: Boolean
+        get() = prefs.getBoolean("rose_accent", false)
+        set(value) = prefs.edit().putBoolean("rose_accent", value).apply()
     var notifications: Boolean
         get() = prefs.getBoolean("notifications", true)
         set(value) = prefs.edit().putBoolean("notifications", value).apply()
