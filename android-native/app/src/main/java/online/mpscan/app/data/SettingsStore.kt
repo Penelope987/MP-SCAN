@@ -3,7 +3,23 @@ package online.mpscan.app.data
 import android.content.Context
 
 class SettingsStore(context: Context) {
-    private val prefs = context.getSharedPreferences("mp_scan_settings", Context.MODE_PRIVATE)
+    val prefs = context.getSharedPreferences("mp_scan_settings", Context.MODE_PRIVATE)
+    fun adultCovers():Set<String> = prefs.getStringSet("adult_covers",emptySet())?.toSet()?:emptySet()
+    fun cacheAdultCovers(works:List<Work>) { prefs.edit().putStringSet("adult_covers",works.filter{it.adult}.flatMap{listOf(it.cover,it.banner)}.filter{it.isNotBlank()}.toSet()).apply() }
+    var adultDisplay: String
+        get() = prefs.getString("adult_display", "show").orEmpty().takeIf { it in setOf("show","blur","hide") } ?: "show"
+        set(value) { require(value in setOf("show","blur","hide")); prefs.edit().putString("adult_display", value).apply() }
+    var discoveryDone: Boolean
+        get() = prefs.getBoolean("discovery_done", false)
+        set(value) = prefs.edit().putBoolean("discovery_done", value).apply()
+    fun choices(): Map<String,String> = runCatching { org.json.JSONObject(prefs.getString("discovery_choices", "{}").orEmpty()).let { x -> x.keys().asSequence().associateWith { x.optString(it) } } }.getOrDefault(emptyMap())
+    fun choose(id:String,value:String) { require(value in setOf("like","no","skip")); val updated=org.json.JSONObject(choices()); updated.put(id,value); prefs.edit().putString("discovery_choices",updated.toString()).apply() }
+    var lightTheme: Boolean
+        get() = prefs.getBoolean("light_theme", false)
+        set(value) = prefs.edit().putBoolean("light_theme", value).apply()
+    var roseAccent: Boolean
+        get() = prefs.getBoolean("rose_accent", false)
+        set(value) = prefs.edit().putBoolean("rose_accent", value).apply()
     var notifications: Boolean
         get() = prefs.getBoolean("notifications", true)
         set(value) = prefs.edit().putBoolean("notifications", value).apply()
