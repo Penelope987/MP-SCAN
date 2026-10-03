@@ -21,10 +21,11 @@ import androidx.compose.ui.unit.dp
 import online.mpscan.app.data.SettingsStore
 import online.mpscan.app.ui.theme.*
 
-@Composable fun SettingsScreen(back:()->Unit){
+@Composable fun SettingsScreen(onDiscovery:()->Unit={},back:()->Unit){
  val context=LocalContext.current;val store=remember{SettingsStore(context.applicationContext)}
  var page by remember{mutableStateOf<String?>(null)}
  var notifications by remember{mutableStateOf(store.notifications)};var wifiOnly by remember{mutableStateOf(store.wifiOnly)};var animations by remember{mutableStateOf(store.animations)};var wideReader by remember{mutableStateOf(store.wideReader)}
+ if(page=="Descoberta"){DiscoverySettings(onDiscovery){page=null};return}
  if(page=="Aparência"){AppearanceSettings{page=null};return}
  if(page=="Downloads"){DownloadSettings{page=null};return}
  if(page=="Bloqueio"){LockSettings{page=null};return}
@@ -32,7 +33,7 @@ import online.mpscan.app.ui.theme.*
  LazyColumn(Modifier.fillMaxSize().background(MpBackground),contentPadding=PaddingValues(bottom=34.dp)){
   item{Box(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Color(0xFF302060),MpAccent,Color(0xFFB13B80)))).padding(horizontal=16.dp,vertical=22.dp)){TextButton(back,Modifier.align(Alignment.TopStart)){Text("← Voltar",color=Color.White)};Column(Modifier.padding(top=62.dp,bottom=10.dp)){Text("Configurações",style=MaterialTheme.typography.headlineLarge,fontWeight=FontWeight.Black);Text("Personalize sua experiência na MP SCAN",color=Color.White.copy(alpha=.78f))}}}
   item{SectionTitle("Conta e privacidade")};item{InfoRow("✓","Verificação externa","O status será carregado da sua conta verificada"){page="Verificação externa"}};item{InfoRow("◈","Conteúdo sensível","Disponível somente conforme as permissões da conta"){page="Conteúdo sensível"}};item{InfoRow("♙","Conta e segurança","Login, e-mail, senha e dispositivos"){page="Conta e segurança"}};item{InfoRow("♡","Perfil","Foto, capa, nome, arroba, bio e privacidade"){page="Perfil"}}
-  item{SectionTitle("Aplicativo e leitura")};item{InfoRow("⌾","Tela de bloqueio","Senha, padrão, biometria e foto da tela"){page="Bloqueio"}};item{ToggleRow("♢","Notificações","Novos capítulos, respostas e avisos",notifications){notifications=it;store.notifications=it}};item{ToggleRow("⇣","Baixar somente por Wi-Fi","Evita o uso de dados móveis nos downloads",wifiOnly){wifiOnly=it;store.wifiOnly=it}};item{ToggleRow("▣","Leitor em largura total","Usa toda a largura disponível para as páginas",wideReader){wideReader=it;store.wideReader=it}};item{ToggleRow("✦","Animações","Movimentos suaves na interface",animations){animations=it;store.animations=it}};item{InfoRow("☾","Aparência","Tema claro, escuro e cores de destaque"){page="Aparência"}};item{InfoRow("⇣","Downloads","Capítulos salvos e armazenamento offline"){page="Downloads"}}
+  item{SectionTitle("Aplicativo e leitura")};item{InfoRow("✦","Preferências de descoberta","Obras +18 e suas próximas leituras"){page="Descoberta"}};item{InfoRow("⌾","Tela de bloqueio","Senha, padrão, biometria e foto da tela"){page="Bloqueio"}};item{ToggleRow("♢","Notificações","Novos capítulos, respostas e avisos",notifications){notifications=it;store.notifications=it}};item{ToggleRow("⇣","Baixar somente por Wi-Fi","Evita o uso de dados móveis nos downloads",wifiOnly){wifiOnly=it;store.wifiOnly=it}};item{ToggleRow("▣","Leitor em largura total","Usa toda a largura disponível para as páginas",wideReader){wideReader=it;store.wideReader=it}};item{ToggleRow("✦","Animações","Movimentos suaves na interface",animations){animations=it;store.animations=it}};item{InfoRow("☾","Aparência","Tema claro, escuro e cores de destaque"){page="Aparência"}};item{InfoRow("⇣","Downloads","Capítulos salvos e armazenamento offline"){page="Downloads"}}
   item{SectionTitle("Informações e políticas")};item{InfoRow("i","Sobre a MP SCAN","Versão, equipe e informações do aplicativo"){page="Sobre a MP SCAN"}};item{InfoRow("□","Política de privacidade","Como seus dados são tratados"){page="Política de privacidade"}};item{InfoRow("⌾","Política de segurança","Proteção da conta e da comunidade"){page="Política de segurança"}};item{InfoRow("✓","Política de uso","Regras para usar a plataforma"){page="Política de uso"}}
  }
 }
@@ -61,3 +62,7 @@ import online.mpscan.app.ui.theme.*
  items(saved,key={it.workId+":"+it.chapterId}){chapter->Surface(color=MpSurface,shape=RoundedCornerShape(18.dp)){Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(chapter.workTitle,fontWeight=FontWeight.Bold);Text("${chapter.chapterLabel} · ${chapter.pageCount} páginas",color=MpMuted)};TextButton({pending=chapter}){Text("Remover")}}}}
  if(saved.isEmpty())item{Text("Nenhum capítulo baixado ainda.",color=MpMuted)}
  }}
+
+@Composable private fun DiscoverySettings(restart:()->Unit,back:()->Unit){val context=LocalContext.current;val store=remember{SettingsStore(context)};var display by remember{mutableStateOf(store.adultDisplay)}
+ Column(Modifier.fillMaxSize().background(MpBackground).padding(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){TextButton(back){Text("← Ajustes")};Text("Preferências de descoberta",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold);Text("Como você prefere ver obras +18?",fontWeight=FontWeight.Bold);Text("A escolha é salva imediatamente. Não altera permissões de leitura.",color=MpMuted);AdultDisplayOptions(display){display=it;store.adultDisplay=it};OutlinedButton(restart,Modifier.fillMaxWidth()){Text("Refazer minhas escolhas")};Text("Mostrar restaura as obras ocultas. Desfocar preserva sua escolha também nos cartões de descoberta.",color=MpMuted)}
+}

@@ -52,7 +52,7 @@ private suspend fun publicJson(path:String,token:String=""):JSONObject=withConte
   runCatching{publicJson("workRequestCredits/$workId").takeIf{it.length()>0}?:publicJson("obras/$workId/requestedBy")}.onSuccess{root->
    val token=AccountStore(context).session()?.token.orEmpty()
    requested=root.keys().asSequence().map{id->id to (root.optJSONObject(id)?:JSONObject())}.toList().map{(id,credit)->
-    val profile=if(token.isNotBlank())runCatching{publicJson("perfisPublicos/$id",token)}.getOrDefault(JSONObject())else JSONObject()
+    val profile=runCatching{publicJson("perfisPublicos/$id",token)}.getOrDefault(JSONObject()).let{public->if(public.optString("foto").isNotBlank())public else runCatching{publicJson("identidadesComentarios/$id",token)}.getOrDefault(public)}
     listOf("nome","nomeUsuario","foto").forEach{key->if(profile.optString(key).isNotBlank())credit.put(key,profile.optString(key))};id to credit
    }
   }

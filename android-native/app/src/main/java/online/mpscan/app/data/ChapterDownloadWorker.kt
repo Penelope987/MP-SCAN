@@ -31,7 +31,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
             val work = Work(
                 id = workId, title = metadata.optString(WORK_TITLE, inputData.getString(WORK_TITLE).orEmpty()),
                 synopsis = "", cover = metadata.optString(WORK_COVER, inputData.getString(WORK_COVER).orEmpty()),
-                banner = "", type = "", status = "", author = "", genres = emptyList(), updatedAt = 0, reads = 0
+                banner = "", type = "", status = "", author = "", genres = emptyList(), updatedAt = 0, reads = 0, adult = metadata.optBoolean("adult",false)
             )
             val repository = CatalogRepository()
             val all = inputData.getBoolean(DOWNLOAD_ALL, false)
@@ -46,7 +46,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
             val store = OfflineStore(applicationContext)
             chapters.forEachIndexed { index, chapter ->
                 val sources=repository.pages(workId,chapter.id)
-                val saved=withContext(Dispatchers.IO){store.localPages(workId,chapter.id)}
+                val saved=withContext(Dispatchers.IO){store.verifiedLocalPages(workId,chapter.id)}
                 if (saved.size != sources.size || saved.isEmpty()) {
                     store.download(work, chapter, sources, onProgress = { value ->
                         setProgressAsync(Data.Builder().putInt(PROGRESS, (index * 100 + value) / chapters.size)
@@ -104,7 +104,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
                 file.baseFile.parentFile?.mkdirs()
                 val stream = file.startWrite()
                 try {
-                    stream.write(JSONObject().put(WORK_TITLE, work.title).put(WORK_COVER, work.cover).toString().toByteArray())
+                    stream.write(JSONObject().put(WORK_TITLE, work.title).put(WORK_COVER, work.cover).put("adult",work.adult).toString().toByteArray())
                     file.finishWrite(stream)
                 } catch (error: Exception) {
                     file.failWrite(stream)
