@@ -29,7 +29,7 @@ private class LockStore(val context:Context){
  val prefs=context.getSharedPreferences("mp_lock",Context.MODE_PRIVATE)
  var mode:String get()=prefs.getString("mode","").orEmpty();set(v){prefs.edit().putString("mode",v).apply()}
  var wallpaper:String get()=prefs.getString("wallpaper","").orEmpty();set(v){prefs.edit().putString("wallpaper",v).apply()}
- fun hash(value:String,salt:String):String{val spec=javax.crypto.spec.PBEKeySpec(value.toCharArray(),salt.toByteArray(),120000,256);return try{javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded.joinToString(""){"%02x".format(it)}}finally{spec.clearPassword()}}
+ fun hash(value:String,salt:String):String{val spec=javax.crypto.spec.PBEKeySpec(value.toCharArray(),salt.toByteArray(),120000,256);return try{javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1").generateSecret(spec).encoded.joinToString(""){"%02x".format(it)}}finally{spec.clearPassword()}}
 
  fun save(value:String){val salt=java.util.UUID.randomUUID().toString();prefs.edit().putString("salt",salt).putString("hash",hash(value,salt)).apply()}
  fun matches(value:String)=hash(value,prefs.getString("salt","").orEmpty())==prefs.getString("hash","")
