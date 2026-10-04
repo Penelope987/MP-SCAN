@@ -12,7 +12,7 @@ android {
 }
 dependencies {
     if (!project.hasProperty("downloadTest")) {
-        implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
+        implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
         implementation("com.google.firebase:firebase-analytics")
     }
     testImplementation("junit:junit:4.13.2")
