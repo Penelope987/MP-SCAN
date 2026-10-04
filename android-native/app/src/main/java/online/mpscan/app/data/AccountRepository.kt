@@ -1,5 +1,10 @@
 package online.mpscan.app.data
 import android.content.Context
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -60,10 +65,10 @@ class AccountRepository{
  }
  suspend fun profile(s:AccountSession)=withContext(Dispatchers.IO){
   val u=req("$base/usuarios/${e(s.uid)}.json?auth=${e(s.token)}")
-  val pub=runCatching{req("$base/perfisPublicos/${e(s.uid)}.json?auth=${e(s.token)}")}.getOrDefault(JSONObject())
+  val pub=if(u.length()==0||u.optString("nome").isBlank())runCatching{req("$base/perfisPublicos/${e(s.uid)}.json?auth=${e(s.token)}")}.getOrDefault(JSONObject())else JSONObject()
   fun value(vararg keys:String):String{for(k in keys){u.optString(k).takeIf{it.isNotBlank()}?.let{return it};pub.optString(k).takeIf{it.isNotBlank()}?.let{return it}};return ""}
-  val followers=count("$base/seguidores/${e(s.uid)}.json?auth=${e(s.token)}");val following=count("$base/seguindo/${e(s.uid)}.json?auth=${e(s.token)}")
-  AccountProfile(s.uid,value("nome","name").ifBlank{"Leitor MP SCAN"},value("nomeUsuario","username"),value("bio"),value("foto","photo"),value("capaPerfil","cover"),value("corPerfil","color").ifBlank{"#8d2bff"},if(u.has("publico"))u.optBoolean("publico") else pub.optBoolean("publico",true),value("molduraComentarioId"),if(u.optBoolean("admin"))"ADM" else value("papel","role").ifBlank{"Usuário"},followers,following,countOwn(s.uid))
+  val followers=u.optInt("followersCount",0);val following=u.optInt("followingCount",0)
+  AccountProfile(s.uid,value("nome","name").ifBlank{"Leitor MP SCAN"},value("nomeUsuario","username"),value("bio"),value("foto","photo"),value("capaPerfil","cover"),value("corPerfil","color").ifBlank{"#8d2bff"},if(u.has("publico"))u.optBoolean("publico") else pub.optBoolean("publico",true),value("molduraComentarioId"),if(u.optBoolean("admin"))"ADM" else value("papel","role").ifBlank{"Usuário"},followers,following,u.optInt("commentsCount",u.optInt("comentariosCount",0)))
  }
  suspend fun frames(s:AccountSession)=withContext(Dispatchers.IO){
   val auth="?auth=${e(s.token)}"
@@ -123,9 +128,23 @@ class AccountRepository{
   req("$base/identidadesComentarios/${e(s.uid)}.json$auth","PUT",JSONObject().put("uid",s.uid).put("nome",p.name).put("nomeUsuario",p.username.removePrefix("@")).put("foto",p.photo).put("molduraComentarioId",id).toString())
   runCatching{req("$base/perfisPublicos/${e(s.uid)}/molduraComentarioId.json$auth","PUT",JSONObject.quote(id))}
  }
+ private suspend fun people(s:AccountSession,root:JSONObject):List<ProfilePerson> = coroutineScope {
+   val auth="?auth=${e(s.token)}"
+   val requests=Semaphore(6)
+   root.keys().asSequence().filter{root.opt(it)!=false&&root.opt(it)!=JSONObject.NULL}.map{uid->async{requests.withPermit{
+    val public=runCatching{req("$base/perfisPublicos/${e(uid)}.json$auth")}.getOrDefault(JSONObject())
+    val identity=if(public.optString("nome").isBlank()||public.optString("foto").isBlank())runCatching{req("$base/identidadesComentarios/${e(uid)}.json$auth")}.getOrDefault(JSONObject())else JSONObject()
+    ProfileIdentity.person(uid,public,identity,root.optJSONObject(uid)?:JSONObject())
+   }}}.toList().awaitAll()
+  }
+ suspend fun connections(s:AccountSession)=coroutineScope {
+  val auth="?auth=${e(s.token)}"
+  val followers=async{withContext(Dispatchers.IO){people(s,req("$base/seguidores/${e(s.uid)}.json$auth"))}}
+  val following=async{withContext(Dispatchers.IO){people(s,req("$base/seguindo/${e(s.uid)}.json$auth"))}}
+  followers.await() to following.await()
+ }
  suspend fun extras(s:AccountSession)=withContext(Dispatchers.IO){
-  val auth="?auth=${e(s.token)}";val profiles=runCatching{req("$base/perfisPublicos.json$auth")}.getOrDefault(JSONObject());val works=runCatching{req("$base/obras.json")}.getOrDefault(JSONObject())
-  fun person(uid:String):ProfilePerson{val p=profiles.optJSONObject(uid)?:JSONObject();return ProfilePerson(uid,p.optString("nome","Leitor MP SCAN"),p.optString("nomeUsuario"),p.optString("foto"))}
+  val auth="?auth=${e(s.token)}";val works=runCatching{req("$base/obras.json$auth")}.getOrDefault(JSONObject())
   fun work(id:String):ProfileWork{val w=works.optJSONObject(id)?:JSONObject();return ProfileWork(id,w.optString("titulo",w.optString("nome","Obra")),w.optString("capa",w.optString("cover")))}
   val followerRoot=runCatching{req("$base/seguidores/${e(s.uid)}.json$auth")}.getOrDefault(JSONObject());val followingRoot=runCatching{req("$base/seguindo/${e(s.uid)}.json$auth")}.getOrDefault(JSONObject())
   val favRoot=runCatching{req("$base/favoritos/${e(s.uid)}.json$auth")}.getOrDefault(JSONObject());val favorites=favRoot.keys().asSequence().filter{id->val v=favRoot.opt(id);v!=false&&v!=JSONObject.NULL}.map(::work).toList()
@@ -133,7 +152,8 @@ class AccountRepository{
   val activities=mutableListOf<ProfileActivity>();val comments=runCatching{req("$base/comentariosV1.json")}.getOrDefault(JSONObject())
   fun scanComments(x:JSONObject){x.keys().forEach{k->x.optJSONObject(k)?.let{v->if(v.optString("uid")==s.uid&&v.has("texto"))activities+=ProfileActivity("comentario","Comentário",v.optString("texto"),v.optLong("data"));scanComments(v)}}};scanComments(comments)
   val ratings=runCatching{req("$base/ratings.json")}.getOrDefault(JSONObject());ratings.keys().forEach{wid->ratings.optJSONObject(wid)?.optJSONObject(s.uid)?.let{r->activities+=ProfileActivity("avaliacao",work(wid).title,"${r.optInt("nota")}/5",r.optLong("data"))}}
-  ProfileExtras(followerRoot.keys().asSequence().map(::person).toList(),followingRoot.keys().asSequence().map(::person).toList(),favorites,collections,activities.sortedByDescending{it.date})
+  val connections=coroutineScope{listOf(async{people(s,followerRoot)},async{people(s,followingRoot)}).awaitAll()}
+  ProfileExtras(connections[0],connections[1],favorites,collections,activities.sortedByDescending{it.date})
  }
  suspend fun saveProfile(s:AccountSession,p:AccountProfile)=withContext(Dispatchers.IO){val x=JSONObject().put("nome",p.name).put("nomeUsuario",p.username.removePrefix("@")).put("bio",p.bio).put("foto",p.photo).put("capaPerfil",p.cover).put("corPerfil",p.color).put("publico",p.isPublic).put("molduraComentarioId",p.frameId).put("atualizadoEm",System.currentTimeMillis());req("$base/usuarios/${e(s.uid)}.json?auth=${e(s.token)}","PATCH",x.toString());val pub=JSONObject(x.toString()).put("uid",s.uid);if(!p.isPublic){pub.remove("bio");pub.remove("capaPerfil")};req("$base/perfisPublicos/${e(s.uid)}.json?auth=${e(s.token)}","PUT",pub.toString());req("$base/identidadesComentarios/${e(s.uid)}.json?auth=${e(s.token)}","PUT",JSONObject().put("uid",s.uid).put("nome",p.name).put("nomeUsuario",p.username.removePrefix("@")).put("foto",p.photo).put("molduraComentarioId",p.frameId).toString())}
  private fun count(url:String)=runCatching{req(url).length()}.getOrDefault(0)

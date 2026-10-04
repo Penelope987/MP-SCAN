@@ -26,15 +26,21 @@ import online.mpscan.app.ui.theme.*
 
 @Composable fun AccountProfileScreen(openSettings:()->Unit){
  val ctx=LocalContext.current;val store=remember{AccountStore(ctx)};val repo=remember{AccountRepository()};val scope=rememberCoroutineScope()
- var session by remember{mutableStateOf(store.session())};var profile by remember{mutableStateOf<AccountProfile?>(null)};var frames by remember{mutableStateOf<List<CommentFrame>>(emptyList())};var extras by remember{mutableStateOf(ProfileExtras(emptyList(),emptyList(),emptyList(),emptyList(),emptyList()))}
+ var session by remember{mutableStateOf(store.session())};var profile by remember{mutableStateOf(ProfileSnapshots.get(session?.uid))};var frames by remember{mutableStateOf<List<CommentFrame>>(emptyList())};var extras by remember{mutableStateOf(ProfileExtras(emptyList(),emptyList(),emptyList(),emptyList(),emptyList()))}
+ var connectionsLoading by remember{mutableStateOf(true)}
  var tab by remember{mutableStateOf("Visão geral")};var busy by remember{mutableStateOf(session!=null)};var error by remember{mutableStateOf("")};var login by remember{mutableStateOf(false)};var edit by remember{mutableStateOf(false)}
- fun load(){val ss=session?:return;scope.launch{busy=true;runCatching{Triple(repo.profile(ss),repo.frames(ss),repo.extras(ss))}.onSuccess{profile=it.first;frames=it.second;extras=it.third;error=""}.onFailure{error=it.message?:"Não foi possível carregar o perfil."};busy=false}}
- LaunchedEffect(session?.uid){if(session!=null)load()}
+ fun load(){val ss=session?:return
+  scope.launch{busy=true;runCatching{repo.profile(ss)}.onSuccess{profile=it;ProfileSnapshots.save(it);error=""}.onFailure{error=it.message?:"Não foi possível carregar o perfil."};busy=false}
+  scope.launch{connectionsLoading=true;runCatching{repo.connections(ss)}.onSuccess{extras=extras.copy(followers=it.first,following=it.second);profile=profile?.copy(followers=it.first.size,following=it.second.size);profile?.let(ProfileSnapshots::save)}.onFailure{error="Não foi possível carregar os seguidores. Tente novamente."};connectionsLoading=false}
+  scope.launch{runCatching{repo.extras(ss)}.onSuccess{extras=it;profile=profile?.copy(followers=it.followers.size,following=it.following.size,comments=it.activities.count{a->a.type=="comentario"})}}
+ }
+ LaunchedEffect(session?.uid){profile=ProfileSnapshots.get(session?.uid);if(session!=null)load()}
+ LaunchedEffect(tab,session?.uid){if(tab=="Molduras")session?.let{runCatching{repo.frames(it)}.onSuccess{frames=it}.onFailure{error="Não foi possível carregar as molduras."}}}
  if(login){AuthScreen({login=false}){session=it;store.save(it);login=false};return}
  val p=profile;val admin=p?.role.equals("ADM",true)||p?.role.equals("Administrador",true)
  if(edit&&p!=null){
   ProfileEditScreen(p,busy,error,{edit=false}){updated->
-   scope.launch{busy=true;runCatching{repo.saveProfile(session!!,updated)}.onSuccess{profile=updated;edit=false;error=""}.onFailure{error=it.message?:"Não foi possível salvar o perfil."};busy=false}
+   scope.launch{busy=true;runCatching{repo.saveProfile(session!!,updated)}.onSuccess{profile=updated;ProfileSnapshots.save(updated);edit=false;error=""}.onFailure{error=it.message?:"Não foi possível salvar o perfil."};busy=false}
   }
   return
  }
@@ -55,10 +61,10 @@ import online.mpscan.app.ui.theme.*
    if(session==null){Text("Entre para carregar seu perfil e suas molduras.",color=MpMuted);Button({login=true},Modifier.fillMaxWidth().padding(top=12.dp)){Text("Entrar na conta")}}
    else{
     if(!p?.bio.isNullOrBlank())Surface(Modifier.fillMaxWidth(),color=MpSurface,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,MpLine)){Text(p!!.bio,Modifier.padding(16.dp))}
-    Row(Modifier.fillMaxWidth().padding(top=14.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){Button({edit=true},Modifier.weight(1f),shape=RoundedCornerShape(16.dp)){Text("Editar perfil")};OutlinedButton({store.clear();session=null;profile=null},shape=RoundedCornerShape(16.dp)){Text("Sair da conta")}}
+    Row(Modifier.fillMaxWidth().padding(top=14.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){Button({edit=true},Modifier.weight(1f),enabled=p!=null,shape=RoundedCornerShape(16.dp)){Text("Editar perfil")};OutlinedButton({store.clear();session=null;profile=null},shape=RoundedCornerShape(16.dp)){Text("Sair da conta")}}
     Row(Modifier.fillMaxWidth().padding(top=18.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){Stat("${p?.followers?:0}","Seguidores",Modifier.weight(1f));Stat("${p?.following?:0}","Seguindo",Modifier.weight(1f));Stat("${p?.comments?:0}","Comentários",Modifier.weight(1f))}
    }
-   if(busy)LinearProgressIndicator(Modifier.fillMaxWidth().padding(top=12.dp));if(error.isNotBlank())Text(error,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(top=10.dp))
+   if(busy)LinearProgressIndicator(Modifier.fillMaxWidth().padding(top=12.dp));if(error.isNotBlank()){Text(error,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(top=10.dp));TextButton({load()}){Text("Tentar novamente")}}
   }}
   if(session!=null){
    item{AchievementCard()}
@@ -69,8 +75,8 @@ import online.mpscan.app.ui.theme.*
      action={frame,claim->val current=profile?:return@FramesPanel;scope.launch{busy=true;runCatching{if(claim)repo.claimFrame(session!!,current,frame)else repo.selectFrame(session!!,current,frame.id)}.onSuccess{profile=current.copy(frameId=frame.id);frames=frames.map{it.copy(owned=it.owned||it.id==frame.id)};error=""}.onFailure{error=it.message?:"Não foi possível usar esta moldura."};busy=false}},
      clear={val current=profile?:return@FramesPanel;scope.launch{busy=true;runCatching{repo.clearFrame(session!!,current)}.onSuccess{profile=current.copy(frameId="");error=""}.onFailure{error=it.message?:"Não foi possível remover a moldura."};busy=false}}
     )
-    "Seguidores"->PeoplePanel("Seus seguidores",extras.followers)
-    "Seguindo"->PeoplePanel("Pessoas que você segue",extras.following)
+    "Seguidores"->if(connectionsLoading)Column(Modifier.padding(18.dp)){LinearProgressIndicator(Modifier.fillMaxWidth());Text("Buscando seus seguidores…",color=MpMuted,modifier=Modifier.padding(top=12.dp))}else PeoplePanel("Seus seguidores",extras.followers)
+    "Seguindo"->if(connectionsLoading)Column(Modifier.padding(18.dp)){LinearProgressIndicator(Modifier.fillMaxWidth());Text("Buscando os perfis que você segue…",color=MpMuted,modifier=Modifier.padding(top=12.dp))}else PeoplePanel("Pessoas que você segue",extras.following)
     "Atividade"->ActivitiesPanel(extras.activities)
     "Favoritos"->WorksPanel("Favoritos",extras.favorites)
     "Coleções"->CollectionsPanel(extras.collections)
@@ -113,14 +119,15 @@ import online.mpscan.app.ui.theme.*
  }
 }
 @Composable private fun PeoplePanel(title:String,people:List<ProfilePerson>){
+ val uri=LocalUriHandler.current
  Column(Modifier.padding(horizontal=18.dp)){
   Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge)
   if(people.isEmpty()) Text("Nenhum perfil encontrado.",color=MpMuted,modifier=Modifier.padding(vertical=20.dp))
   else for(person in people){
-   Surface(Modifier.fillMaxWidth().padding(top=9.dp),color=MpSurface,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,MpLine)){
+   Surface(Modifier.fillMaxWidth().padding(top=9.dp).clickable{uri.openUri("https://www.mpscan.online/#/perfil/${person.uid}")},color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(1.dp,MpLine)){
     Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically){
-     Surface(Modifier.size(52.dp),shape=CircleShape,color=MpSurface2){if(person.photo.isNotBlank())MpImage(person.photo,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)}
-     Column(Modifier.padding(start=12.dp)){Text(person.name,fontWeight=FontWeight.Bold);if(person.username.isNotBlank())Text("@"+person.username.removePrefix("@"),color=MpMuted)}
+     Surface(Modifier.size(52.dp),shape=CircleShape,color=MpSurface2){if(person.photo.isNotBlank())MpImage(person.photo,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)else Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(person.name.take(1),fontWeight=FontWeight.Bold)}}
+     Column(Modifier.weight(1f).padding(start=12.dp)){Text(person.name,fontWeight=FontWeight.Bold);if(person.username.isNotBlank())Text("@"+person.username.removePrefix("@"),color=MpMuted)}
     }
    }
   }
