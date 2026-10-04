@@ -26,7 +26,7 @@ import online.mpscan.app.ui.theme.*
 
 @Composable fun AccountProfileScreen(openSettings:()->Unit){
  val ctx=LocalContext.current;val store=remember{AccountStore(ctx)};val repo=remember{AccountRepository()};val scope=rememberCoroutineScope()
- var session by remember{mutableStateOf(store.session())};var profile by remember{mutableStateOf(ProfileSnapshots.get(session?.uid))};var frames by remember{mutableStateOf<List<CommentFrame>>(emptyList())};var extras by remember{mutableStateOf(ProfileExtras(emptyList(),emptyList(),emptyList(),emptyList(),emptyList()))}
+ var session by remember{mutableStateOf(store.session())};var profile by remember{mutableStateOf(ProfileSnapshots.get(session?.uid))};var frameKind by remember{mutableStateOf("comment")};var frames by remember{mutableStateOf<List<CommentFrame>>(emptyList())};var extras by remember{mutableStateOf(ProfileExtras(emptyList(),emptyList(),emptyList(),emptyList(),emptyList()))}
  var connectionsLoading by remember{mutableStateOf(true)}
  var tab by remember{mutableStateOf("Visão geral")};var busy by remember{mutableStateOf(session!=null)};var error by remember{mutableStateOf("")};var login by remember{mutableStateOf(false)};var edit by remember{mutableStateOf(false)}
  fun load(){val ss=session?:return
@@ -35,7 +35,7 @@ import online.mpscan.app.ui.theme.*
   scope.launch{runCatching{repo.extras(ss)}.onSuccess{extras=it;profile=profile?.copy(followers=it.followers.size,following=it.following.size,comments=it.activities.count{a->a.type=="comentario"})}}
  }
  LaunchedEffect(session?.uid){profile=ProfileSnapshots.get(session?.uid);if(session!=null)load()}
- LaunchedEffect(tab,session?.uid){if(tab=="Molduras")session?.let{runCatching{repo.frames(it)}.onSuccess{frames=it}.onFailure{error="Não foi possível carregar as molduras."}}}
+ LaunchedEffect(tab,session?.uid,frameKind){if(tab=="Molduras")session?.let{runCatching{repo.frames(it,frameKind)}.onSuccess{frames=it}.onFailure{error="Não foi possível carregar as molduras."}}}
  if(login){AuthScreen({login=false}){session=it;store.save(it);login=false};return}
  val p=profile;val admin=p?.role.equals("ADM",true)||p?.role.equals("Administrador",true)
  if(edit&&p!=null){
@@ -50,9 +50,7 @@ import online.mpscan.app.ui.theme.*
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("SEU ESPAÇO NA MP SCAN",color=MpAccent,fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelSmall);Text("Meu perfil",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge,modifier=Modifier.padding(top=6.dp))};OutlinedButton(openSettings,shape=RoundedCornerShape(16.dp)){Text("Ajustes")}}
     if(!p?.cover.isNullOrBlank())MpImage(p!!.cover,null,Modifier.fillMaxWidth().padding(top=20.dp).height(130.dp).clip(RoundedCornerShape(24.dp)),contentScale=ContentScale.Crop)
     Row(Modifier.padding(top=22.dp),verticalAlignment=Alignment.CenterVertically){
-     Surface(Modifier.size(90.dp),shape=RoundedCornerShape(28.dp),color=MpSurface2,border=BorderStroke(2.dp,MpAccent.copy(.5f))){
-      if(!p?.photo.isNullOrBlank())MpImage(p!!.photo,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)else Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(p?.name?.take(1)?.uppercase()?:"MP",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge)}
-     }
+     FramedAvatar(p?.photo.orEmpty(),p?.name?:"MP",p?.avatarFrameId.orEmpty(),90.dp)
      Column(Modifier.weight(1f).padding(start=18.dp)){Text(p?.name?:"Seu perfil",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall);if(!p?.username.isNullOrBlank())Text("@${p!!.username.removePrefix("@")}",color=MpMuted,modifier=Modifier.padding(top=4.dp));if(admin)Surface(Modifier.padding(top=8.dp),color=MpAccent.copy(.12f),shape=RoundedCornerShape(14.dp)){Text("✦ ADMINISTRADOR",Modifier.padding(horizontal=10.dp,vertical=5.dp),style=MaterialTheme.typography.labelSmall,fontWeight=FontWeight.Bold,color=MpAccent)}}
     }
    }
@@ -71,10 +69,10 @@ import online.mpscan.app.ui.theme.*
    if(admin)item{AdminCard()}
    item{LazyRow(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=14.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){items(listOf("Visão geral","Atividade","Seguidores","Seguindo","Favoritos","Coleções","Molduras")){name->FilterChip(tab==name,{tab=name},{Text(name)})}}}
    item{when(tab){
-    "Molduras"->FramesPanel(frames,p?.frameId.orEmpty(),
-     action={frame,claim->val current=profile?:return@FramesPanel;scope.launch{busy=true;runCatching{if(claim)repo.claimFrame(session!!,current,frame)else repo.selectFrame(session!!,current,frame.id)}.onSuccess{profile=current.copy(frameId=frame.id);frames=frames.map{it.copy(owned=it.owned||it.id==frame.id)};error=""}.onFailure{error=it.message?:"Não foi possível usar esta moldura."};busy=false}},
-     clear={val current=profile?:return@FramesPanel;scope.launch{busy=true;runCatching{repo.clearFrame(session!!,current)}.onSuccess{profile=current.copy(frameId="");error=""}.onFailure{error=it.message?:"Não foi possível remover a moldura."};busy=false}}
-    )
+    "Molduras"->Column{Row(Modifier.padding(horizontal=18.dp)){FilterChip(frameKind=="comment",{frameKind="comment"},{Text("Comentários")});Spacer(Modifier.width(8.dp));FilterChip(frameKind=="avatar",{frameKind="avatar"},{Text("Foto do perfil")})};FramesPanel(frames,if(frameKind=="avatar")p?.avatarFrameId.orEmpty()else p?.frameId.orEmpty(),
+     action={frame,claim->val current=profile?:return@FramesPanel;scope.launch{busy=true;runCatching{if(claim)repo.claimFrame(session!!,current,frame)else repo.selectFrame(session!!,current,frame.id,frameKind)}.onSuccess{profile=if(frameKind=="avatar")current.copy(avatarFrameId=frame.id)else current.copy(frameId=frame.id);profile?.let(ProfileSnapshots::save);frames=frames.map{it.copy(owned=it.owned||it.id==frame.id)};error=""}.onFailure{error=it.message?:"Não foi possível usar esta moldura."};busy=false}},
+     clear={val current=profile?:return@FramesPanel;scope.launch{busy=true;runCatching{repo.clearFrame(session!!,current,frameKind)}.onSuccess{profile=if(frameKind=="avatar")current.copy(avatarFrameId="")else current.copy(frameId="");profile?.let(ProfileSnapshots::save);error=""}.onFailure{error=it.message?:"Não foi possível remover a moldura."};busy=false}}
+    )}
     "Seguidores"->if(connectionsLoading)Column(Modifier.padding(18.dp)){LinearProgressIndicator(Modifier.fillMaxWidth());Text("Buscando seus seguidores…",color=MpMuted,modifier=Modifier.padding(top=12.dp))}else PeoplePanel("Seus seguidores",extras.followers)
     "Seguindo"->if(connectionsLoading)Column(Modifier.padding(18.dp)){LinearProgressIndicator(Modifier.fillMaxWidth());Text("Buscando os perfis que você segue…",color=MpMuted,modifier=Modifier.padding(top=12.dp))}else PeoplePanel("Pessoas que você segue",extras.following)
     "Atividade"->ActivitiesPanel(extras.activities)
@@ -90,8 +88,8 @@ import online.mpscan.app.ui.theme.*
 @Composable private fun FramesPanel(frames:List<CommentFrame>,selected:String,action:(CommentFrame,Boolean)->Unit,clear:()->Unit){
  val owned=frames.filter{it.owned};val available=frames.filterNot{it.owned}
  Column(Modifier.padding(horizontal=18.dp)){
-  Text("🖼 Moldura do comentário",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall)
-  Text("Escolha uma moldura criada pelo ADM. Ela também aparecerá nos seus comentários.",color=MpMuted,modifier=Modifier.padding(top=5.dp,bottom=12.dp))
+  Text(if(frames.firstOrNull()?.kind=="avatar")"Sua foto, sua identidade"else"Moldura do comentário",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall)
+  Text("Escolha uma arte para sua identidade na comunidade MP SCAN.",color=MpMuted,modifier=Modifier.padding(top=5.dp,bottom=12.dp))
   OutlinedButton(clear,Modifier.fillMaxWidth(),enabled=selected.isNotBlank()){Text(if(selected.isBlank())"Sem moldura" else "Remover moldura atual")}
   FrameGroup("Minhas molduras","As molduras que você pegou ficam guardadas aqui.",owned,selected,action,true)
   FrameGroup("Catálogo MP SCAN","Molduras publicadas pelo ADM e disponíveis para sua coleção.",available,selected,action,false)
@@ -106,7 +104,7 @@ import online.mpscan.app.ui.theme.*
   val chosen=selected==frame.id
   Surface(Modifier.fillMaxWidth().padding(bottom=14.dp),color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(if(chosen)3.dp else 1.dp,if(chosen)MpAccent else MpLine)){
    Column{
-    if(frame.image.isNotBlank())MpImage(frame.image,frame.name,Modifier.fillMaxWidth().height(220.dp),contentScale=ContentScale.Crop)
+    if(frame.kind=="avatar")Box(Modifier.fillMaxWidth().padding(20.dp),contentAlignment=Alignment.Center){FramedAvatar("","MP",frame.id,120.dp,org.json.JSONObject().put("imagemUrl",frame.image).put("cor",frame.color).put("effect",frame.effect))}else {Surface(Modifier.fillMaxWidth().heightIn(min=150.dp).commentMotion(frame.effect,frame.speed),color=runCatching{Color(android.graphics.Color.parseColor(frame.background))}.getOrDefault(MpSurface),shape=RoundedCornerShape(frame.radius.coerceIn(8,40).dp)){Box{if(frame.image.isNotBlank())MpImage(frame.image,null,Modifier.matchParentSize(),contentScale=ContentScale.Fit);Column(Modifier.padding(frame.padding.coerceIn(10,34).dp)){Text("MP SCAN • seu comentário",color=Color.White,fontWeight=FontWeight.Bold);Text("Uma nova história, uma identidade só sua.",color=Color.White.copy(.8f),modifier=Modifier.padding(top=18.dp))}}}}
     Column(Modifier.padding(16.dp)){
      Text(frame.name,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge)
      Text(if(chosen)"USANDO" else if(owned)"NA COLEÇÃO" else "DISPONÍVEL",color=if(chosen||owned)MpAccent2 else MpAccent,style=MaterialTheme.typography.labelSmall)

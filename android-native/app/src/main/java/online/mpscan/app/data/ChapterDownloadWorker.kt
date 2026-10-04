@@ -29,7 +29,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
                     else JSONObject()
                 }
             }
-            val work = Work(
+            val work = metadata.optJSONObject("work")?.let(OfflineMetadata::decode)?:Work(
                 id = workId, title = metadata.optString(WORK_TITLE, inputData.getString(WORK_TITLE).orEmpty()),
                 synopsis = "", cover = metadata.optString(WORK_COVER, inputData.getString(WORK_COVER).orEmpty()),
                 banner = "", type = "", status = "", author = "", genres = emptyList(), updatedAt = 0, reads = 0
@@ -37,7 +37,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
             val repository = CatalogRepository()
             val all = inputData.getBoolean(DOWNLOAD_ALL, false)
             val chapters = if (all) repository.chapters(workId).filter { it.available } else listOf(
-                Chapter(
+                metadata.optJSONObject("chapters")?.optJSONObject(inputData.getString(CHAPTER_ID).orEmpty())?.let(OfflineMetadata::chapter)?:Chapter(
                     id = inputData.getString(CHAPTER_ID) ?: return Result.failure(),
                     number = inputData.getDouble(CHAPTER_NUMBER, Double.NaN).takeUnless(Double::isNaN),
                     title = inputData.getString(CHAPTER_TITLE).orEmpty(), published = true, updatedAt = 0
@@ -100,13 +100,16 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
             return AtomicFile(File(File(context.filesDir, "download_metadata"), "$key.json"))
         }
 
-        private suspend fun saveMetadata(context: Context, work: Work) = withContext(Dispatchers.IO) {
+        private suspend fun saveMetadata(context: Context, work: Work,chapter:Chapter?=null) = withContext(Dispatchers.IO) {
             synchronized(metadataLock) {
                 val file = metadataFile(context, work.id)
                 file.baseFile.parentFile?.mkdirs()
+                val previous=if(file.baseFile.exists())runCatching{JSONObject(file.openRead().bufferedReader().use{it.readText()})}.getOrDefault(JSONObject())else JSONObject()
+                val chapters=previous.optJSONObject("chapters")?:JSONObject()
+                if(chapter!=null)chapters.put(chapter.id,OfflineMetadata.encode(chapter))
                 val stream = file.startWrite()
                 try {
-                    stream.write(JSONObject().put(WORK_TITLE, work.title).put(WORK_COVER, work.cover).toString().toByteArray())
+                    stream.write(JSONObject().put("work",OfflineMetadata.encode(work)).put("chapters",chapters).put(WORK_TITLE, work.title).put(WORK_COVER, work.cover).toString().toByteArray())
                     file.finishWrite(stream)
                 } catch (error: Exception) {
                     file.failWrite(stream)
@@ -116,7 +119,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
         }
 
         suspend fun enqueue(context: Context, work: Work, chapter: Chapter) {
-            saveMetadata(context, work)
+            saveMetadata(context, work,chapter)
             val data = requestData(work, chapter)
             submit(context, work.id, uniqueName(work.id, chapter.id), data)
         }

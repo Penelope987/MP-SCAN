@@ -21,7 +21,7 @@ import online.mpscan.app.ui.theme.*
  }
 }
 @OptIn(ExperimentalLayoutApi::class)
-@Composable fun SearchFilters(status:String,genre:String,genres:List<String>,close:()->Unit,apply:(String,String)->Unit){
+@Composable fun SearchFilters(status:String,genre:Set<String>,genres:List<String>,close:()->Unit,apply:(String,Set<String>)->Unit){
  var selectedStatus by remember{mutableStateOf(status)};var selectedGenre by remember{mutableStateOf(genre)};var query by remember{mutableStateOf("")}
  Dialog(close,properties=DialogProperties(usePlatformDefaultWidth=false)){
   Surface(Modifier.fillMaxWidth(.94f).widthIn(max=600.dp).fillMaxHeight(.8f),color=MpSurface,shape=RoundedCornerShape(28.dp)){
@@ -30,18 +30,18 @@ import online.mpscan.app.ui.theme.*
     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top=20.dp)){
      Text("STATUS DA OBRA",color=MpAccent,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.labelSmall)
      FlowRow(Modifier.padding(top=10.dp,bottom=22.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){listOf("","Em andamento","Completa","Em pausa","Futura","Cancelada").forEach{name->ElegantPill(name.ifBlank{"Qualquer status"},selectedStatus==name){selectedStatus=name}}}
-     Text("GÊNEROS",color=MpAccent,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.labelSmall)
+     Text("GÊNEROS • escolha quantos quiser",color=MpAccent,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.labelSmall)
      OutlinedTextField(query,{query=it},Modifier.fillMaxWidth().padding(vertical=12.dp),shape=RoundedCornerShape(16.dp),singleLine=true,placeholder={Text("Encontrar um gênero")},leadingIcon={Icon(Icons.Default.Search,null)})
-     FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){ElegantPill("Todos os gêneros",selectedGenre.isBlank()){selectedGenre=""};genres.filter{it.contains(query,true)}.forEach{name->ElegantPill(name,selectedGenre==name){selectedGenre=if(selectedGenre==name)""else name}}}
+     FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){ElegantPill("Todos os gêneros",selectedGenre.isEmpty()){selectedGenre=emptySet()};genres.filter{it.contains(query,true)}.forEach{name->ElegantPill(name,name in selectedGenre){selectedGenre=if(name in selectedGenre)selectedGenre-name else selectedGenre+name}}}
     }
     HorizontalDivider(Modifier.padding(vertical=16.dp),color=MpLine)
-    Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){OutlinedButton({selectedStatus="";selectedGenre=""},shape=RoundedCornerShape(16.dp)){Text("Limpar")};Button({apply(selectedStatus,selectedGenre);close()},Modifier.weight(1f),shape=RoundedCornerShape(16.dp)){Text("Mostrar obras")}}
+    Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){OutlinedButton({selectedStatus="";selectedGenre=emptySet()},shape=RoundedCornerShape(16.dp)){Text("Limpar")};Button({apply(selectedStatus,selectedGenre);close()},Modifier.weight(1f),shape=RoundedCornerShape(16.dp)){Text("Mostrar obras")}}
    }
   }
  }
 }
 @Composable fun LibrarySections(selected:String,change:(String)->Unit){
- LazyRow(Modifier.padding(vertical=18.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){items(listOf("favorites" to "Favoritos","continue" to "Em leitura","collections" to "Coleções","downloads" to "Downloads","history" to "Histórico")){(id,name)->ElegantPill(name,selected==id){change(id)}}}
+ LazyRow(Modifier.padding(vertical=18.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){items(listOf("favorites" to "Favoritos","continue" to "Em leitura","collections" to "Coleções","community" to "Comunidade","downloads" to "Downloads","history" to "Histórico")){(id,name)->ElegantPill(name,selected==id){change(id)}}}
 }
 @Composable fun WorkActions(favorite:Boolean,subscribed:Boolean,favoriteClick:()->Unit,notificationClick:()->Unit,collectionClick:()->Unit){
  Row(Modifier.fillMaxWidth().padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(9.dp)){

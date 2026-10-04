@@ -11,13 +11,13 @@ import org.json.JSONObject
 import java.net.*
 
 data class AccountSession(val uid:String,val email:String,val token:String,val refreshToken:String="")
-data class CommentFrame(val id:String,val name:String,val image:String,val color:String,val background:String,val active:Boolean,val owned:Boolean,val exclusiveToUid:String="")
+data class CommentFrame(val id:String,val name:String,val image:String,val color:String,val background:String,val active:Boolean,val owned:Boolean,val exclusiveToUid:String="",val kind:String="comment",val effect:String="none",val speed:Int=4,val radius:Int=24,val padding:Int=18,val textColor:String="#f7f7f8")
 data class ProfilePerson(val uid:String,val name:String,val username:String,val photo:String)
 data class ProfileWork(val id:String,val title:String,val cover:String)
 data class ProfileCollection(val id:String,val name:String,val works:List<ProfileWork>)
 data class ProfileActivity(val type:String,val title:String,val detail:String,val date:Long)
 data class ProfileExtras(val followers:List<ProfilePerson>,val following:List<ProfilePerson>,val favorites:List<ProfileWork>,val collections:List<ProfileCollection>,val activities:List<ProfileActivity>)
-data class AccountProfile(val uid:String,val name:String,val username:String,val bio:String,val photo:String,val cover:String,val color:String,val isPublic:Boolean,val frameId:String,val role:String,val followers:Int=0,val following:Int=0,val comments:Int=0)
+data class AccountProfile(val uid:String,val name:String,val username:String,val bio:String,val photo:String,val cover:String,val color:String,val isPublic:Boolean,val frameId:String,val role:String,val followers:Int=0,val following:Int=0,val comments:Int=0,val avatarFrameId:String="")
 class AccountStore(c:Context){private val p=c.getSharedPreferences("mp_account",Context.MODE_PRIVATE);fun session():AccountSession?{val u=p.getString("uid","").orEmpty();val t=p.getString("token","").orEmpty();return if(u.isBlank()||t.isBlank())null else AccountSession(u,p.getString("email","").orEmpty(),t,p.getString("refresh_token","").orEmpty())};fun save(s:AccountSession){p.edit().putString("uid",s.uid).putString("email",s.email).putString("token",s.token).putString("refresh_token",s.refreshToken).apply()};fun clear(){p.edit().clear().apply()}}
 class AccountRepository{
  private val base="https://nnnsss-23f2f-default-rtdb.firebaseio.com";private val key="AIzaSyAbpqQIxWuEnFolv3lNjNDoPKTGm0mtrxU";private fun e(v:String)=URLEncoder.encode(v,"UTF-8")
@@ -68,17 +68,17 @@ class AccountRepository{
   val pub=if(u.length()==0||u.optString("nome").isBlank())runCatching{req("$base/perfisPublicos/${e(s.uid)}.json?auth=${e(s.token)}")}.getOrDefault(JSONObject())else JSONObject()
   fun value(vararg keys:String):String{for(k in keys){u.optString(k).takeIf{it.isNotBlank()}?.let{return it};pub.optString(k).takeIf{it.isNotBlank()}?.let{return it}};return ""}
   val followers=u.optInt("followersCount",0);val following=u.optInt("followingCount",0)
-  AccountProfile(s.uid,value("nome","name").ifBlank{"Leitor MP SCAN"},value("nomeUsuario","username"),value("bio"),value("foto","photo"),value("capaPerfil","cover"),value("corPerfil","color").ifBlank{"#8d2bff"},if(u.has("publico"))u.optBoolean("publico") else pub.optBoolean("publico",true),value("molduraComentarioId"),if(u.optBoolean("admin"))"ADM" else value("papel","role").ifBlank{"Usuário"},followers,following,u.optInt("commentsCount",u.optInt("comentariosCount",0)))
+  AccountProfile(s.uid,value("nome","name").ifBlank{"Leitor MP SCAN"},value("nomeUsuario","username"),value("bio"),value("foto","photo"),value("capaPerfil","cover"),value("corPerfil","color").ifBlank{"#8d2bff"},if(u.has("publico"))u.optBoolean("publico") else pub.optBoolean("publico",true),value("molduraComentarioId"),if(u.optBoolean("admin"))"ADM" else value("papel","role").ifBlank{"Usuário"},followers,following,u.optInt("commentsCount",u.optInt("comentariosCount",0)),value("molduraPerfilId"))
  }
- suspend fun frames(s:AccountSession)=withContext(Dispatchers.IO){
-  val auth="?auth=${e(s.token)}"
-  val defs=req("$base/config/commentFrames.json")
-  val inv=runCatching{req("$base/commentFrameInventory/${e(s.uid)}.json$auth")}.getOrDefault(JSONObject())
+ suspend fun frames(s:AccountSession,kind:String="comment")=withContext(Dispatchers.IO){
+  val auth="?auth=${e(s.token)}";val catalog=if(kind=="avatar")"avatarFrames"else"commentFrames";val inventoryPath=if(kind=="avatar")"avatarFrameInventory"else"commentFrameInventory";val field=if(kind=="avatar")"molduraPerfilId"else"molduraComentarioId"
+  val defs=req("$base/config/$catalog.json");if(kind=="avatar")BuiltinAvatarFrames.definitions().keys().forEach{id->defs.put(id,BuiltinAvatarFrames.definitions().getJSONObject(id))}
+  val inv=runCatching{req("$base/$inventoryPath/${e(s.uid)}.json$auth")}.getOrDefault(JSONObject())
   fun scalar(path:String)=runCatching{req("$base/$path.json$auth").optString("value")}.getOrDefault("")
   val selected=setOf(
-   scalar("usuarios/${e(s.uid)}/molduraComentarioId"),
-   scalar("identidadesComentarios/${e(s.uid)}/molduraComentarioId"),
-   scalar("perfisPublicos/${e(s.uid)}/molduraComentarioId")
+   scalar("usuarios/${e(s.uid)}/$field"),
+   scalar("identidadesComentarios/${e(s.uid)}/$field"),
+   scalar("perfisPublicos/${e(s.uid)}/$field")
   ).filter{it.isNotBlank()}.toSet()
   val ownedIds=mutableSetOf<String>()
   fun collect(x:JSONObject){
@@ -101,32 +101,33 @@ class AccountRepository{
    val active=!f.has("ativo")||f.optBoolean("ativo")||f.optString("ativo").equals("true",true)
    val owned=id in ownedIds||definitionId in ownedIds
    val exclusive=v("exclusiveToUid")
-   if(active&&(exclusive.isBlank()||exclusive==s.uid))CommentFrame(id,v("nome","name").ifBlank{"Moldura MP SCAN"},v("imageUrl","imagemUrl","imagem","backgroundImageUrl","backgroundImage","fundoImagem","fundoUrl","url","previewUrl"),v("borderColor","bordaCor","corBorda").ifBlank{"#8d2bff"},v("bgColor","fundoCor","backgroundColor","corFundo").ifBlank{"#17171d"},active,owned,exclusive)else null
+   if(active&&(exclusive.isBlank()||exclusive==s.uid))CommentFrame(id,v("nome","name").ifBlank{"Moldura MP SCAN"},v("imageUrl","imagemUrl","imagem","backgroundImageUrl","backgroundImage","fundoImagem","fundoUrl","url","previewUrl"),v("borderColor","accentColor","cor","bordaCor","corBorda").ifBlank{"#8d2bff"},v("bgColor","fundoCor","backgroundColor","corFundo").ifBlank{"#17171d"},active,owned||kind=="avatar"&&BuiltinAvatarFrames.contains(id),exclusive,kind,f.optString("effect","none"),f.optInt("speed",4),f.optInt("radius",24),f.optInt("padding",18),f.optString("textColor","#f7f7f8"))else null
   }}.toList()
  }
  suspend fun claimFrame(s:AccountSession,p:AccountProfile,frame:CommentFrame)=withContext(Dispatchers.IO){
+  val kind=frame.kind
   if(!frame.active)error("Esta moldura não está ativa.")
   if(frame.exclusiveToUid.isNotBlank()&&frame.exclusiveToUid!=s.uid)error("Esta moldura é exclusiva de outra conta.")
-  val auth="?auth=${e(s.token)}"
-  val definition=req("$base/config/commentFrames/${e(frame.id)}.json")
+  val auth="?auth=${e(s.token)}";val catalog=if(kind=="avatar")"avatarFrames"else"commentFrames";val inventoryPath=if(kind=="avatar")"avatarFrameInventory"else"commentFrameInventory";val field=if(kind=="avatar")"molduraPerfilId"else"molduraComentarioId"
+  val definition=if(kind=="avatar"&&BuiltinAvatarFrames.contains(frame.id))BuiltinAvatarFrames.definitions().getJSONObject(frame.id)else req("$base/config/$catalog/${e(frame.id)}.json")
   if(definition.length()==0||definition.optString("ativo").equals("false",true))error("Esta moldura não está disponível.")
   val exclusive=definition.optString("exclusiveToUid")
   if(exclusive.isNotBlank()&&exclusive!=s.uid)error("Esta moldura é exclusiva de outra conta.")
-  req("$base/commentFrameInventory/${e(s.uid)}/${e(frame.id)}.json$auth","PUT",JSONObject().put("data",System.currentTimeMillis()).put("origem","app").toString())
-  selectFrame(s,p,frame.id)
+  req("$base/$inventoryPath/${e(s.uid)}/${e(frame.id)}.json$auth","PUT",JSONObject().put("data",System.currentTimeMillis()).put("origem","app").toString())
+  selectFrame(s,p,frame.id,kind)
  }
- suspend fun clearFrame(s:AccountSession,p:AccountProfile)=selectFrame(s,p,"")
- suspend fun selectFrame(s:AccountSession,p:AccountProfile,frameId:String)=withContext(Dispatchers.IO){
-  val id=frameId.trim();val auth="?auth=${e(s.token)}"
+ suspend fun clearFrame(s:AccountSession,p:AccountProfile,kind:String="comment")=selectFrame(s,p,"",kind)
+ suspend fun selectFrame(s:AccountSession,p:AccountProfile,frameId:String,kind:String="comment")=withContext(Dispatchers.IO){
+  val id=frameId.trim();val auth="?auth=${e(s.token)}";val catalog=if(kind=="avatar")"avatarFrames"else"commentFrames";val inventoryPath=if(kind=="avatar")"avatarFrameInventory"else"commentFrameInventory";val field=if(kind=="avatar")"molduraPerfilId"else"molduraComentarioId"
   if(id.isNotBlank()){
-   val definition=req("$base/config/commentFrames/${e(id)}.json")
+   val definition=if(kind=="avatar"&&BuiltinAvatarFrames.contains(id))BuiltinAvatarFrames.definitions().getJSONObject(id)else req("$base/config/$catalog/${e(id)}.json")
    if(definition.length()==0||definition.optString("ativo").equals("false",true)||(definition.has("ativo")&&!definition.optBoolean("ativo")&&!definition.optString("ativo").equals("true",true)))error("Esta moldura não está ativa.")
-   val inventory=req("$base/commentFrameInventory/${e(s.uid)}/${e(id)}.json$auth")
-   if(inventory.length()==0)error("Esta moldura não está liberada para esta conta.")
+   val inventory=req("$base/$inventoryPath/${e(s.uid)}/${e(id)}.json$auth")
+   if(inventory.length()==0&&!(kind=="avatar"&&BuiltinAvatarFrames.contains(id)))error("Esta moldura não está liberada para esta conta.")
   }
-  req("$base/usuarios/${e(s.uid)}/molduraComentarioId.json$auth","PUT",JSONObject.quote(id))
-  req("$base/identidadesComentarios/${e(s.uid)}.json$auth","PUT",JSONObject().put("uid",s.uid).put("nome",p.name).put("nomeUsuario",p.username.removePrefix("@")).put("foto",p.photo).put("molduraComentarioId",id).toString())
-  runCatching{req("$base/perfisPublicos/${e(s.uid)}/molduraComentarioId.json$auth","PUT",JSONObject.quote(id))}
+  req("$base/usuarios/${e(s.uid)}/$field.json$auth","PUT",JSONObject.quote(id))
+  req("$base/identidadesComentarios/${e(s.uid)}.json$auth","PATCH",JSONObject().put(field,id).put("atualizadoEm",System.currentTimeMillis()).toString())
+  runCatching{req("$base/perfisPublicos/${e(s.uid)}/$field.json$auth","PUT",JSONObject.quote(id))}
  }
  private suspend fun people(s:AccountSession,root:JSONObject):List<ProfilePerson> = coroutineScope {
    val auth="?auth=${e(s.token)}"
@@ -155,7 +156,7 @@ class AccountRepository{
   val connections=coroutineScope{listOf(async{people(s,followerRoot)},async{people(s,followingRoot)}).awaitAll()}
   ProfileExtras(connections[0],connections[1],favorites,collections,activities.sortedByDescending{it.date})
  }
- suspend fun saveProfile(s:AccountSession,p:AccountProfile)=withContext(Dispatchers.IO){val x=JSONObject().put("nome",p.name).put("nomeUsuario",p.username.removePrefix("@")).put("bio",p.bio).put("foto",p.photo).put("capaPerfil",p.cover).put("corPerfil",p.color).put("publico",p.isPublic).put("molduraComentarioId",p.frameId).put("atualizadoEm",System.currentTimeMillis());req("$base/usuarios/${e(s.uid)}.json?auth=${e(s.token)}","PATCH",x.toString());val pub=JSONObject(x.toString()).put("uid",s.uid);if(!p.isPublic){pub.remove("bio");pub.remove("capaPerfil")};req("$base/perfisPublicos/${e(s.uid)}.json?auth=${e(s.token)}","PUT",pub.toString());req("$base/identidadesComentarios/${e(s.uid)}.json?auth=${e(s.token)}","PUT",JSONObject().put("uid",s.uid).put("nome",p.name).put("nomeUsuario",p.username.removePrefix("@")).put("foto",p.photo).put("molduraComentarioId",p.frameId).toString())}
+ suspend fun saveProfile(s:AccountSession,p:AccountProfile)=withContext(Dispatchers.IO){val x=JSONObject().put("nome",p.name).put("nomeUsuario",p.username.removePrefix("@")).put("bio",p.bio).put("foto",p.photo).put("capaPerfil",p.cover).put("corPerfil",p.color).put("publico",p.isPublic).put("molduraComentarioId",p.frameId).put("molduraPerfilId",p.avatarFrameId).put("atualizadoEm",System.currentTimeMillis());req("$base/usuarios/${e(s.uid)}.json?auth=${e(s.token)}","PATCH",x.toString());val pub=JSONObject(x.toString()).put("uid",s.uid);if(!p.isPublic){pub.remove("bio");pub.remove("capaPerfil")};req("$base/perfisPublicos/${e(s.uid)}.json?auth=${e(s.token)}","PUT",pub.toString());req("$base/identidadesComentarios/${e(s.uid)}.json?auth=${e(s.token)}","PATCH",JSONObject().put("uid",s.uid).put("nome",p.name).put("nomeUsuario",p.username.removePrefix("@")).put("foto",p.photo).put("molduraComentarioId",p.frameId).put("molduraPerfilId",p.avatarFrameId).toString())}
  private fun count(url:String)=runCatching{req(url).length()}.getOrDefault(0)
  private fun countOwn(uid:String):Int{val root=runCatching{req("$base/comentariosV1.json")}.getOrDefault(JSONObject());var n=0;fun walk(x:JSONObject){x.keys().forEach{k->x.optJSONObject(k)?.let{v->if(v.optString("uid")==uid)n++;walk(v)}}};walk(root);return n}
  fun request(url:String,m:String="GET",body:String?=null)=req(url,m,body)

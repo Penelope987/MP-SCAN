@@ -1,6 +1,8 @@
 package online.mpscan.app.data
 
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -20,6 +22,8 @@ data class UserCollection(
 )
 
 
+data class CommunityCollection(val owner:ProfilePerson,val collection:UserCollection)
+
 class LibraryRepository(private val base: String = "https://nnnsss-23f2f-default-rtdb.firebaseio.com") {
     private fun e(value: String) = URLEncoder.encode(value, "UTF-8")
     private fun url(path: String, session: AccountSession) = "$base/$path.json?auth=${e(session.token)}"
@@ -35,6 +39,22 @@ class LibraryRepository(private val base: String = "https://nnnsss-23f2f-default
         }}.sortedBy { it.name.lowercase() }.toList()
     }
 
+
+    suspend fun publicCollections(session:AccountSession):List<CommunityCollection> = withContext(Dispatchers.IO) {
+        val root=request(url("colecoesPublicas",session))
+        kotlinx.coroutines.coroutineScope {
+            root.keys().asSequence().toList().map { uid -> async {
+                val profile=runCatching{request(url("perfisPublicos/${e(uid)}",session))}.getOrDefault(JSONObject())
+                val identity=if(profile.optString("nome").isBlank())runCatching{request(url("identidadesComentarios/${e(uid)}",session))}.getOrDefault(JSONObject())else JSONObject()
+                val person=ProfileIdentity.person(uid,profile,identity)
+                val collections=root.optJSONObject(uid)?:JSONObject()
+                collections.keys().asSequence().mapNotNull { id -> collections.optJSONObject(id)?.takeIf{it.optBoolean("publico",true)}?.let { value ->
+                    val works=value.optJSONObject("obras")?:JSONObject()
+                    CommunityCollection(person,UserCollection(id,value.optString("nome","Coleção"),value.optString("descricao"),true,value.optString("capa"),works.keys().asSequence().filter{works.opt(it)!=false&&works.opt(it)!=JSONObject.NULL}.toSet()))
+                }}.toList()
+            }}.awaitAll().flatten().sortedBy{it.collection.name.lowercase()}
+        }
+    }
 
     suspend fun createCollection(session: AccountSession, name: String, isPublic: Boolean): UserCollection = withContext(Dispatchers.IO) {
         val clean = name.trim(); require(clean.isNotBlank()) { "Dê um nome para a coleção." }

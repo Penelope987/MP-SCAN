@@ -10,6 +10,7 @@ object Discovery {
   val text=normalize(listOf(work.title,work.alternateTitle,work.synopsis,work.author,work.artist,work.scan,work.genres.joinToString(" ")).joinToString(" "))
   return normalize(query).trim().split(Regex("\\s+")).all{text.contains(it)}
  }
+ fun genresMatch(work:Work,selected:Set<String>)=selected.all{genre->work.genres.any{it.equals(genre,true)}}
  fun ranking(works:List<Work>,ratings:JSONObject):List<RankedWork> = works.mapNotNull{work->
   val votes=ratings.optJSONObject(work.id)?:return@mapNotNull null
   val notes=votes.keys().asSequence().mapNotNull{uid->votes.optJSONObject(uid)?.optInt("nota")?.takeIf{it in 1..5}}.toList()
