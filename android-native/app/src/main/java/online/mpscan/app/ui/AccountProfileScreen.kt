@@ -30,7 +30,7 @@ import online.mpscan.app.ui.theme.*
  var connectionsLoading by remember{mutableStateOf(true)}
  var tab by remember{mutableStateOf("Visão geral")};var busy by remember{mutableStateOf(session!=null)};var error by remember{mutableStateOf("")};var login by remember{mutableStateOf(false)};var edit by remember{mutableStateOf(false)}
  fun load(){val ss=session?:return
-  scope.launch{busy=true;runCatching{repo.profile(ss)}.onSuccess{profile=it;ProfileSnapshots.save(it);error=""}.onFailure{error=it.message?:"Não foi possível carregar o perfil."};busy=false}
+  scope.launch{busy=true;runCatching{repo.profile(ss)}.onSuccess{profile=it;ProfileSnapshots.save(it);error=""}.onFailure{error=PublicErrors.message(it,"Não foi possível carregar o perfil.")};busy=false}
   scope.launch{connectionsLoading=true;runCatching{repo.connections(ss)}.onSuccess{extras=extras.copy(followers=it.first,following=it.second);profile=profile?.copy(followers=it.first.size,following=it.second.size);profile?.let(ProfileSnapshots::save)}.onFailure{error="Não foi possível carregar os seguidores. Tente novamente."};connectionsLoading=false}
   scope.launch{runCatching{repo.extras(ss)}.onSuccess{extras=it;profile=profile?.copy(followers=it.followers.size,following=it.following.size,comments=it.activities.count{a->a.type=="comentario"})}}
  }
@@ -40,7 +40,7 @@ import online.mpscan.app.ui.theme.*
  val p=profile;val admin=p?.role.equals("ADM",true)||p?.role.equals("Administrador",true)
  if(edit&&p!=null){
   ProfileEditScreen(p,busy,error,{edit=false}){updated->
-   scope.launch{busy=true;runCatching{repo.saveProfile(session!!,updated)}.onSuccess{profile=updated;ProfileSnapshots.save(updated);edit=false;error=""}.onFailure{error=it.message?:"Não foi possível salvar o perfil."};busy=false}
+   scope.launch{busy=true;runCatching{repo.saveProfile(session!!,updated)}.onSuccess{profile=updated;ProfileSnapshots.save(updated);edit=false;error=""}.onFailure{error=PublicErrors.message(it,"Não foi possível salvar o perfil.")};busy=false}
   }
   return
  }
@@ -70,8 +70,8 @@ import online.mpscan.app.ui.theme.*
    item{LazyRow(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=14.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){items(listOf("Visão geral","Atividade","Seguidores","Seguindo","Favoritos","Coleções","Molduras")){name->FilterChip(tab==name,{tab=name},{Text(name)})}}}
    item{when(tab){
     "Molduras"->Column{Row(Modifier.padding(horizontal=18.dp)){FilterChip(frameKind=="comment",{frameKind="comment"},{Text("Comentários")});Spacer(Modifier.width(8.dp));FilterChip(frameKind=="avatar",{frameKind="avatar"},{Text("Foto do perfil")})};FramesPanel(frames,if(frameKind=="avatar")p?.avatarFrameId.orEmpty()else p?.frameId.orEmpty(),
-     action={frame,claim->val current=profile?:return@FramesPanel;scope.launch{busy=true;runCatching{if(claim)repo.claimFrame(session!!,current,frame)else repo.selectFrame(session!!,current,frame.id,frameKind)}.onSuccess{profile=if(frameKind=="avatar")current.copy(avatarFrameId=frame.id)else current.copy(frameId=frame.id);profile?.let(ProfileSnapshots::save);frames=frames.map{it.copy(owned=it.owned||it.id==frame.id)};error=""}.onFailure{error=it.message?:"Não foi possível usar esta moldura."};busy=false}},
-     clear={val current=profile?:return@FramesPanel;scope.launch{busy=true;runCatching{repo.clearFrame(session!!,current,frameKind)}.onSuccess{profile=if(frameKind=="avatar")current.copy(avatarFrameId="")else current.copy(frameId="");profile?.let(ProfileSnapshots::save);error=""}.onFailure{error=it.message?:"Não foi possível remover a moldura."};busy=false}}
+     action={frame,claim->val current=profile?:return@FramesPanel;scope.launch{busy=true;runCatching{if(claim)repo.claimFrame(session!!,current,frame)else repo.selectFrame(session!!,current,frame.id,frameKind)}.onSuccess{profile=if(frameKind=="avatar")current.copy(avatarFrameId=frame.id)else current.copy(frameId=frame.id);profile?.let(ProfileSnapshots::save);frames=frames.map{it.copy(owned=it.owned||it.id==frame.id)};error=""}.onFailure{error=PublicErrors.message(it,"Não foi possível usar esta moldura.")};busy=false}},
+     clear={val current=profile?:return@FramesPanel;scope.launch{busy=true;runCatching{repo.clearFrame(session!!,current,frameKind)}.onSuccess{profile=if(frameKind=="avatar")current.copy(avatarFrameId="")else current.copy(frameId="");profile?.let(ProfileSnapshots::save);error=""}.onFailure{error=PublicErrors.message(it,"Não foi possível remover a moldura.")};busy=false}}
     )}
     "Seguidores"->if(connectionsLoading)Column(Modifier.padding(18.dp)){LinearProgressIndicator(Modifier.fillMaxWidth());Text("Buscando seus seguidores…",color=MpMuted,modifier=Modifier.padding(top=12.dp))}else PeoplePanel("Seus seguidores",extras.followers)
     "Seguindo"->if(connectionsLoading)Column(Modifier.padding(18.dp)){LinearProgressIndicator(Modifier.fillMaxWidth());Text("Buscando os perfis que você segue…",color=MpMuted,modifier=Modifier.padding(top=12.dp))}else PeoplePanel("Pessoas que você segue",extras.following)
@@ -185,10 +185,10 @@ private fun imageData(context:Context,uri:Uri,maxBytes:Int):String{
  var pub by remember{x.let{mutableStateOf(it.isPublic)}}
  var imageError by remember{mutableStateOf("")}
  val photoPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
-  if(uri!=null)runCatching{imageData(context,uri,4*1024*1024)}.onSuccess{ph=it;imageError=""}.onFailure{imageError=it.message.orEmpty()}
+  if(uri!=null)runCatching{imageData(context,uri,4*1024*1024)}.onSuccess{ph=it;imageError=""}.onFailure{imageError=PublicErrors.message(it,"Não foi possível abrir esta imagem.")}
  }
  val coverPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
-  if(uri!=null)runCatching{imageData(context,uri,6*1024*1024)}.onSuccess{co=it;imageError=""}.onFailure{imageError=it.message.orEmpty()}
+  if(uri!=null)runCatching{imageData(context,uri,6*1024*1024)}.onSuccess{co=it;imageError=""}.onFailure{imageError=PublicErrors.message(it,"Não foi possível abrir esta imagem.")}
  }
  val colors=listOf("#8d2bff","#ff3d8d","#4285f4","#ad204d","#28b67a","#f1a20b")
  LazyColumn(Modifier.fillMaxSize().background(MpBackground),contentPadding=PaddingValues(bottom=42.dp)){

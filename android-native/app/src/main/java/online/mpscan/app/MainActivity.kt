@@ -119,6 +119,7 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
 
 @Composable private fun HomeRoot(){
  var selected by remember{mutableStateOf(Destination.Home)};var selectedWork by remember{mutableStateOf<Work?>(null)};var directReader by remember{mutableStateOf<Pair<Work,Chapter>?>(null)};var settingsOpen by remember{mutableStateOf(false)};var works by remember{mutableStateOf<List<Work>>(emptyList())};var newBadge by remember{mutableStateOf(NewBadgeStyle())};var loading by remember{mutableStateOf(true)};var error by remember{mutableStateOf("")}
+ var catalogOnline by remember{mutableStateOf(false)}
  val context=LocalContext.current
  val scope=rememberCoroutineScope()
  var attempt by remember{mutableIntStateOf(0)}
@@ -127,22 +128,36 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
  LaunchedEffect(attempt,connected){
   loading=true;error="";val repository=CatalogRepository()
   val saved=withContext(Dispatchers.IO){OfflineStore(context).offlineWorks()}
-  if(!connected){works=saved;loading=false}
-  else {runCatching{repository.works()}.onSuccess{works=it}.onFailure{if(it is kotlinx.coroutines.CancellationException)throw it;works=saved;if(saved.isEmpty())error="Não foi possível carregar o catálogo. Confira a conexão e tente novamente."};loading=false;scope.launch{val store=OfflineStore(context);val ids=withContext(Dispatchers.IO){store.downloads().map{it.workId}.toSet()};works.filter{it.id in ids}.forEach{store.cacheWork(it)}};newBadge=runCatching{repository.newBadge()}.getOrDefault(NewBadgeStyle())}
+  if(!connected){works=saved;catalogOnline=false;loading=false}
+  else {runCatching{repository.works()}.onSuccess{works=it;catalogOnline=true}.onFailure{if(it is kotlinx.coroutines.CancellationException)throw it;works=saved;catalogOnline=false;if(saved.isEmpty())error="Não foi possível carregar o catálogo. Confira a conexão e tente novamente."};loading=false;scope.launch{val store=OfflineStore(context);val ids=withContext(Dispatchers.IO){store.downloads().map{it.workId}.toSet()};works.filter{it.id in ids}.forEach{store.cacheWork(it)}};newBadge=runCatching{repository.newBadge()}.getOrDefault(NewBadgeStyle())}
  }
 
  DisposableEffect(Unit){
   val manager=context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-  val callback=object:android.net.ConnectivityManager.NetworkCallback(){override fun onAvailable(network:android.net.Network){scope.launch{connected=isConnected(context);attempt++}};override fun onCapabilitiesChanged(network:android.net.Network,capabilities:android.net.NetworkCapabilities){scope.launch{connected=isConnected(context)}};override fun onLost(network:android.net.Network){scope.launch{connected=isConnected(context)}}}
+  val callback=object:android.net.ConnectivityManager.NetworkCallback(){
+   private var current:android.net.Network?=null
+   override fun onAvailable(network:android.net.Network){current=network}
+   override fun onCapabilitiesChanged(network:android.net.Network,capabilities:android.net.NetworkCapabilities){
+    if(network!=current)return
+    val available=capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)&&capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    scope.launch{val wasConnected=connected;connected=available;if(available&&!wasConnected)attempt++}
+   }
+   override fun onLost(network:android.net.Network){if(network==current){current=null;scope.launch{connected=false}}}
+  }
+
   manager.registerDefaultNetworkCallback(callback)
   onDispose{manager.unregisterNetworkCallback(callback)}
  }
+
+ val lifecycleOwner=androidx.lifecycle.compose.LocalLifecycleOwner.current
+ DisposableEffect(lifecycleOwner){val observer=androidx.lifecycle.LifecycleEventObserver{_,event->if(event==androidx.lifecycle.Lifecycle.Event.ON_RESUME){scope.launch{val available=isConnected(context);connected=available;if(available&&!catalogOnline&&!loading)attempt++}}};lifecycleOwner.lifecycle.addObserver(observer);onDispose{lifecycleOwner.lifecycle.removeObserver(observer)}}
+ LaunchedEffect(connected,catalogOnline,loading){if(connected&&!catalogOnline&&!loading){delay(6000);if(connected&&!catalogOnline)attempt++}}
 
  online.mpscan.app.ui.FirstNotificationPermission()
  SiteAnnouncement(works,connected&&selectedWork==null&&directReader==null&&!settingsOpen){selectedWork=it}
  BackHandler(settingsOpen||directReader!=null||selectedWork!=null){when{settingsOpen->settingsOpen=false;directReader!=null->directReader=null;selectedWork!=null->selectedWork=null}}
  Scaffold(containerColor=MpBackground,topBar={if(!connected&&!settingsOpen&&directReader==null&&selectedWork==null)Surface(color=MpSurface2){Text("Modo offline • Suas obras baixadas estão disponíveis.",Modifier.fillMaxWidth().statusBarsPadding().padding(12.dp),color=MpAccent2,style=MaterialTheme.typography.bodySmall)}},bottomBar={if(selectedWork==null&&directReader==null&&!settingsOpen)Surface(Modifier.padding(horizontal=12.dp,vertical=8.dp),shape=RoundedCornerShape(26.dp),color=MpSurface,border=androidx.compose.foundation.BorderStroke(1.dp,MpLine)){NavigationBar(containerColor=MpSurface,tonalElevation=0.dp){Destination.entries.forEach{x->NavigationBarItem(selected=selected==x,onClick={selected=x},icon={Icon(when(x){Destination.Home->Icons.Default.Home;Destination.Search->Icons.Default.Search;Destination.Library->Icons.Default.List;Destination.Profile->Icons.Default.Person;Destination.Menu->Icons.Default.Menu},contentDescription=x.label)},label={Text(x.label,style=MaterialTheme.typography.labelSmall)},colors=NavigationBarItemDefaults.colors(indicatorColor=MpAccent.copy(.15f)))}}}}){p->
-  Box(Modifier.fillMaxSize().padding(p)){when{settingsOpen->SettingsScreen{settingsOpen=false};directReader!=null->Reader(directReader!!.first,directReader!!.second){directReader=null};selectedWork!=null->WorkDetails(selectedWork!!,newBadge,{selectedWork=null}){selectedWork=it};selected==Destination.Library->OfflineLibrary(works,{selectedWork=it}){w,c->directReader=w to c};selected==Destination.Profile->AccountProfileScreen{settingsOpen=true};selected==Destination.Menu->online.mpscan.app.ui.MenuScreen(works,{selectedWork=it}){settingsOpen=true};loading->Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){CircularProgressIndicator()};error.isNotBlank()->Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){Text(error,color=MpMuted);Button({attempt++},Modifier.padding(top=16.dp)){Text("Tentar novamente")};Text("Para ler offline, vá à Biblioteca e toque em Downloads.",color=MpAccent2,modifier=Modifier.padding(top=16.dp))};works.isEmpty()->Message("As obras publicadas aparecerão aqui.");selected==Destination.Home->Home(works,newBadge,connected,Modifier,{selectedWork=it},{w,c->directReader=w to c},{selected=Destination.Search},{selected=Destination.Profile});selected==Destination.Search->Search(works){selectedWork=it}}}
+  Box(Modifier.fillMaxSize().padding(p)){when{settingsOpen->SettingsScreen{settingsOpen=false};directReader!=null->Reader(directReader!!.first,directReader!!.second){directReader=null};selectedWork!=null->WorkDetails(selectedWork!!,newBadge,{selectedWork=null}){selectedWork=it};selected==Destination.Library->OfflineLibrary(works,{selectedWork=it}){w,c->directReader=w to c};selected==Destination.Profile->AccountProfileScreen{settingsOpen=true};selected==Destination.Menu->online.mpscan.app.ui.MenuScreen(works,{selectedWork=it}){settingsOpen=true};loading->Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){CircularProgressIndicator()};error.isNotBlank()->Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){Text(error,color=MpMuted);Button({attempt++},Modifier.padding(top=16.dp)){Text("Tentar novamente")};Text("Para ler offline, vá à Biblioteca e toque em Downloads.",color=MpAccent2,modifier=Modifier.padding(top=16.dp))};works.isEmpty()->Message("As obras publicadas aparecerão aqui.");selected==Destination.Home->Home(works,newBadge,connected&&catalogOnline,Modifier,{selectedWork=it},{w,c->directReader=w to c},{selected=Destination.Search},{selected=Destination.Profile});selected==Destination.Search->Search(works){selectedWork=it}}}
  }
 }
 @Composable private fun OfflineLibrary(works:List<Work>,openWork:(Work)->Unit,open:(Work,Chapter)->Unit){
@@ -165,7 +180,7 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
    val list=works.filter{favorites.contains(it.id)&&Discovery.matches(it,libraryQuery)}
    if(list.isEmpty())LibraryEmpty(if(libraryQuery.isBlank())"Sua coleção começa com uma história"else"Nenhum favorito encontrado",if(libraryQuery.isBlank())"Toque em Biblioteca na obra para guardá-la aqui."else"Tente outro nome, autor ou gênero.")
    else LazyVerticalGrid(GridCells.Adaptive(140.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(18.dp)){gridItems(list,key={it.id}){Card(it,openWork,Modifier.fillMaxWidth())}}
-  }else if(tab=="collections") CollectionsPanel(works,openWork)
+  }else if(tab=="collections") online.mpscan.app.ui.MyCollections(works,openWork)
   else if(tab=="community") online.mpscan.app.ui.CommunityCollections(works,openWork)
   else if(tab=="downloads"){
    val groups=downloads.groupBy{it.workId}.values.toList()
@@ -174,14 +189,6 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
   }else if(tab=="continue") ProgressList(history.filter{it.percent<100}.distinctBy{it.workId},open,"Nenhuma leitura em andamento.")
   else ProgressList(history,open,"Seu histórico ainda está vazio.")
  }
-}
-@Composable private fun CollectionsPanel(works:List<Work>,openWork:(Work)->Unit){
- val context=LocalContext.current;val accountStore=remember{AccountStore(context.applicationContext)};val account=remember{AccountRepository()};val repository=remember{LibraryRepository()};val scope=rememberCoroutineScope();var collections by remember{mutableStateOf<List<UserCollection>>(emptyList())};var selected by remember{mutableStateOf<UserCollection?>(null)};var loading by remember{mutableStateOf(true)};var error by remember{mutableStateOf("")};var creating by remember{mutableStateOf(false)};var input by remember{mutableStateOf("")};var isPublic by remember{mutableStateOf(false)}
- fun reload(){val old=accountStore.session();if(old==null){error="Entre na conta para ver suas coleções.";loading=false;return};scope.launch{loading=true;runCatching{val fresh=account.refresh(old);accountStore.save(fresh);repository.collections(fresh)}.onSuccess{collections=it}.onFailure{error=it.message?:"Não foi possível carregar suas coleções."};loading=false}}
- LaunchedEffect(Unit){reload()}
- if(creating)AlertDialog(onDismissRequest={creating=false},title={Text("Nova coleção")},text={Column{OutlinedTextField(input,{input=it},singleLine=true,label={Text("Nome")});Row(verticalAlignment=Alignment.CenterVertically){Checkbox(isPublic,{isPublic=it});Column{Text(if(isPublic)"Pública" else "Privada",fontWeight=FontWeight.Bold);Text(if(isPublic)"Outras pessoas poderão visualizar." else "Somente você poderá visualizar.",color=MpMuted,style=MaterialTheme.typography.bodySmall)}}}},confirmButton={Button({val old=accountStore.session();if(old!=null)scope.launch{runCatching{val fresh=account.refresh(old);accountStore.save(fresh);repository.createCollection(fresh,input,isPublic)}.onSuccess{creating=false;input="";reload()}.onFailure{error=it.message?:"Não foi possível criar."}}}){Text("Criar")}},dismissButton={TextButton({creating=false}){Text("Cancelar")}})
- val current=selected
- if(current==null)Column{Button({creating=true},shape=RoundedCornerShape(14.dp)){Text("＋ Criar coleção")};Spacer(Modifier.height(12.dp));when{loading->CircularProgressIndicator();error.isNotBlank()->LibraryEmpty("Coleções indisponíveis",error);collections.isEmpty()->LibraryEmpty("Nenhuma coleção criada","Crie uma coleção aqui e adicione obras pelo botão ＋ dentro da obra.");else->LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp)){items(collections,key={it.id}){item->Surface(Modifier.fillMaxWidth().clickable{selected=item},color=MpSurface,shape=RoundedCornerShape(16.dp),border=androidx.compose.foundation.BorderStroke(1.dp,MpLine)){Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically){Text(if(item.isPublic)"🌐" else "🔒");Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text(item.name,fontWeight=FontWeight.Bold);Text("${item.workIds.size} obras • ${if(item.isPublic)"Pública" else "Privada"}",color=MpMuted,style=MaterialTheme.typography.bodySmall)};Text("›",color=MpMuted)}}}}}}else Column{Row(verticalAlignment=Alignment.CenterVertically){TextButton({selected=null}){Text("← Voltar")};Column{Text(current.name,fontWeight=FontWeight.Black);Text(if(current.isPublic)"🌐 Coleção pública" else "🔒 Coleção privada",color=MpMuted,style=MaterialTheme.typography.bodySmall)}};Text("Para adicionar ou remover, abra a obra e toque no botão ＋.",color=MpMuted,modifier=Modifier.padding(vertical=10.dp));val members=works.filter{it.id in current.workIds};if(members.isEmpty())LibraryEmpty("Coleção vazia","Use o botão ＋ na página de uma obra.")else LazyVerticalGrid(GridCells.Adaptive(140.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(18.dp)){gridItems(members,key={it.id}){Card(it,openWork,Modifier.fillMaxWidth())}}}
 }
 @Composable private fun LibraryEmpty(title:String,body:String){Surface(Modifier.fillMaxWidth(),color=MpSurface,shape=RoundedCornerShape(22.dp),border=androidx.compose.foundation.BorderStroke(1.dp,MpLine)){Column(Modifier.padding(24.dp),horizontalAlignment=Alignment.CenterHorizontally){Text("▣",color=MpAccent,style=MaterialTheme.typography.displaySmall);Text(title,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=12.dp));Text(body,color=MpMuted)}}}
 @Composable private fun ProgressList(items:List<ReadingProgress>,open:(Work,Chapter)->Unit,empty:String){if(items.isEmpty()){LibraryEmpty(empty,"As leituras realizadas aparecerão aqui.");return};LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp),contentPadding=PaddingValues(bottom=24.dp)){items(items,key={it.workId+it.chapterId}){item->ProgressRow(item){open(item.toWork(),item.toChapter())}}}}
@@ -586,7 +593,7 @@ private fun localizedStatus(value:String):String=when(value.trim().lowercase(Loc
  var readerBackground by remember{mutableStateOf(prefs.getString("background","theme")?:"theme")}
  val animationMillis=if(online.mpscan.app.data.SettingsStore(context).animations)240 else 0
  val scheme=MaterialTheme.colorScheme
- val readerColor=when(readerBackground){"white"->Color.White;"black"->Color.Black;"sepia"->Color(0xFFF3E6CE);else->MpBackground}
+ val readerColor=when(readerBackground){"white"->Color.White;"black"->Color.Black;"sepia"->Color(0xFFF3E6CE);else->MaterialTheme.colorScheme.background}
  val window=(context as? android.app.Activity)?.window
  DisposableEffect(brightness,fullScreen){
   val original=window?.attributes?.screenBrightness?:-1f
