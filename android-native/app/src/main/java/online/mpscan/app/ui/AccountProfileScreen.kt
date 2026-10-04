@@ -214,7 +214,7 @@ private fun imageData(context:Context,uri:Uri,maxBytes:Int):String{
      OutlinedTextField(u,{u=it.filterNot(Char::isWhitespace).removePrefix("@").take(24)},Modifier.fillMaxWidth().padding(top=12.dp),label={Text("@username")},singleLine=true)
      OutlinedTextField(b,{b=it.take(280)},Modifier.fillMaxWidth().padding(top=12.dp),label={Text("Bio")},minLines=4,supportingText={Text("${b.length}/280")})
      Text("Cor de destaque do perfil",color=MpMuted,modifier=Modifier.padding(top=18.dp,bottom=10.dp))
-     Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){colors.forEach{hex->
+     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(10.dp)){colors.forEach{hex->
       val chosen=color.equals(hex,true);Box(Modifier.size(44.dp).clip(CircleShape).background(Color(android.graphics.Color.parseColor(hex))).border(if(chosen)3.dp else 1.dp,if(chosen)Color.White else MpLine,CircleShape).clickable{color=hex})
      }}
      Surface(Modifier.fillMaxWidth().padding(top=20.dp),color=MpSurface2,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,MpAccent.copy(.45f))){

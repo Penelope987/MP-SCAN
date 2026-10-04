@@ -56,7 +56,7 @@ import java.util.*
   }
   !verified->Column(Modifier.fillMaxSize().padding(28.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){
    if(error.isEmpty()){CircularProgressIndicator();Text("Verificando sua conta…",Modifier.padding(top=16.dp))}
-   else{Text(error,color=MpMuted);Button({retry++},Modifier.padding(top=16.dp)){Text("Tentar novamente")}}
+   else{Text(error,color=MpMuted);Button({retry++},Modifier.padding(top=16.dp)){Text("Tentar novamente")};TextButton({store.clear();uid=null}){Text("Entrar em outra conta")}}
   }
   else->content()
  }

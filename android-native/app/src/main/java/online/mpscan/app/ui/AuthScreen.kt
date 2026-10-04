@@ -44,7 +44,7 @@ import online.mpscan.app.ui.theme.*
   }
   Text("Entre para acessar suas leituras e participar da comunidade.",color=MpMuted,style=MaterialTheme.typography.bodySmall)
   val uri=androidx.compose.ui.platform.LocalUriHandler.current
-  TextButton({uri.openUri("https://www.mpscan.online/#/politicas")}){Text("Termos de uso e privacidade",style=MaterialTheme.typography.labelSmall)}
+  TextButton({uri.openUri("https://www.mpscan.online/#/termos")}){Text("Termos de uso e privacidade",style=MaterialTheme.typography.labelSmall)}
   if(busy)LinearProgressIndicator(Modifier.fillMaxWidth());if(error.isNotBlank())Text(error,color=MaterialTheme.colorScheme.error);if(notice.isNotBlank())Text(notice,color=MpAccent2)
  }
 }
