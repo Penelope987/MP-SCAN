@@ -23,6 +23,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
@@ -508,6 +509,7 @@ private fun localizedStatus(value:String):String=when(value.trim().lowercase(Loc
     TextButton({brightness=-1f;prefs.edit().putFloat("brightness",-1f).apply()}){Text("Usar brilho do aparelho")}
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("Tela cheia",Modifier.weight(1f));Switch(fullScreen,{fullScreen=it;prefs.edit().putBoolean("fullscreen",it).apply()})}
     if(!offline&&pages.isNotEmpty())OutlinedButton({val chapterToSave=current;scope.launch{ChapterDownloadWorker.enqueue(context.applicationContext,work,chapterToSave)}},enabled=!downloading,modifier=Modifier.fillMaxWidth()){Text(if(downloading)"Baixando · $progress%" else "↓ Salvar capítulo offline")}
+    if(downloadError.isNotBlank())Text(downloadError,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(vertical=8.dp))
     Text("Fundo da leitura",fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(top=10.dp))
     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)){
      listOf("theme" to "Tema","white" to "Branco","black" to "Preto","sepia" to "Sépia").forEach{(id,label)->FilterChip(readerBackground==id,{readerBackground=id;prefs.edit().putString("background",id).apply()},{Text(label)})}
