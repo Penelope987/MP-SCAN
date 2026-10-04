@@ -12,7 +12,7 @@ import java.net.URL
 
 class CatalogRepository(private val base:String="https://nnnsss-23f2f-default-rtdb.firebaseio.com"){
     suspend fun newBadge():NewBadgeStyle = withContext(Dispatchers.IO){
-        val c=URL("$base/config/newBadge.json").openConnection() as HttpURLConnection;c.connectTimeout=15000;c.readTimeout=25000
+        val c=URL(SiteAccess.authenticated("$base/config/newBadge.json")).openConnection() as HttpURLConnection;c.connectTimeout=15000;c.readTimeout=25000
         val text=c.inputStream.bufferedReader().use{it.readText()};c.disconnect();if(text.isBlank()||text=="null")return@withContext NewBadgeStyle()
         val x=JSONObject(text);NewBadgeStyle(
             x.optBoolean("enabled",true),x.optString("text","NOVO").take(18).ifBlank{"NOVO"},x.optString("imageUrl"),x.optString("backgroundMode","both"),
@@ -22,7 +22,7 @@ class CatalogRepository(private val base:String="https://nnnsss-23f2f-default-rt
         )
     }
     suspend fun works():List<Work> = withContext(Dispatchers.IO){
-        val c=URL("$base/obras.json").openConnection() as HttpURLConnection
+        val c=URL(SiteAccess.authenticated("$base/obras.json")).openConnection() as HttpURLConnection
         c.connectTimeout=15000;c.readTimeout=25000
         val text=c.inputStream.bufferedReader().use{it.readText()};c.disconnect()
         val root=if(text.trim()=="null"||text.isBlank())JSONObject()else JSONObject(text)
@@ -36,20 +36,20 @@ class CatalogRepository(private val base:String="https://nnnsss-23f2f-default-rt
 
     }
     suspend fun chapters(workId:String):List<Chapter> = withContext(Dispatchers.IO){
-        val c=URL("$base/capitulos/$workId.json").openConnection() as HttpURLConnection;c.connectTimeout=15000;c.readTimeout=25000
+        val c=URL(SiteAccess.authenticated("$base/capitulos/$workId.json")).openConnection() as HttpURLConnection;c.connectTimeout=15000;c.readTimeout=25000
         val text=c.inputStream.bufferedReader().use{it.readText()};c.disconnect();val root=if(text.trim()=="null"||text.isBlank())JSONObject()else JSONObject(text)
         root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.let{o->Chapter(id,o.string("numero","number").replace(',','.').toDoubleOrNull(),o.string("titulo","title"),!o.has("publicado")||o.optBoolean("publicado",true),o.long("atualizadoEm","updatedAt"),o.long("criadoEm","createdAt"),o.string("modoPublicacao").ifBlank{if(o.optBoolean("rascunho"))"draft" else if(o.optLong("agendadoPara")>0)"scheduled" else "published"},o.long("agendadoPara"))}}.filter{it.published&&it.publicationMode!="draft"}.sortedByDescending{it.number?:-1.0}.toList()
     }
     suspend fun pages(workId:String,chapterId:String):List<String> = withContext(Dispatchers.IO){
         val chapter=chapters(workId).firstOrNull{it.id==chapterId}?:error("Este capítulo ainda não foi publicado.")
         check(chapter.available){"Capítulo agendado. Aguarde a data de liberação."}
-        val c=URL("$base/capitulosPaginas/$workId/$chapterId.json").openConnection() as HttpURLConnection;c.connectTimeout=15000;c.readTimeout=30000
+        val c=URL(SiteAccess.authenticated("$base/capitulosPaginas/$workId/$chapterId.json")).openConnection() as HttpURLConnection;c.connectTimeout=15000;c.readTimeout=30000
         val text=c.inputStream.bufferedReader().use{it.readText()};c.disconnect()
         if(text.isNotBlank()&&text.trim()!="null"){
             val decoded=PageManifest.parse(text)
             if(decoded.isNotEmpty())return@withContext decoded
         }
-        val legacy=URL("$base/capitulos/$workId/$chapterId.json").openConnection() as HttpURLConnection
+        val legacy=URL(SiteAccess.authenticated("$base/capitulos/$workId/$chapterId.json")).openConnection() as HttpURLConnection
         legacy.connectTimeout=15000;legacy.readTimeout=30000
         val raw=try{JSONObject(legacy.inputStream.bufferedReader().use{it.readText()})}finally{legacy.disconnect()}
         listOf("paginas","pages","imagens","images").firstNotNullOfOrNull{field->raw.opt(field)?.takeIf{it!=JSONObject.NULL}?.let{PageManifest.parse(it.toString()).takeIf(List<String>::isNotEmpty)}}?:emptyList()

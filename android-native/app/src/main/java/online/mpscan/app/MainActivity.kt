@@ -3,6 +3,14 @@ package online.mpscan.app
 
 
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import android.os.Bundle
 import android.Manifest
 import android.content.pm.PackageManager
@@ -41,6 +49,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import online.mpscan.app.ui.MpImage
+import online.mpscan.app.data.SiteAccess
+import online.mpscan.app.ui.SiteAccountGate
+import online.mpscan.app.ui.SiteAnnouncement
 import online.mpscan.app.data.CatalogRepository
 import online.mpscan.app.data.Work
 import online.mpscan.app.data.RecentUpdate
@@ -66,6 +77,8 @@ import online.mpscan.app.ui.theme.*
 import online.mpscan.app.ui.SettingsScreen
 import online.mpscan.app.ui.CommentsSection
 import online.mpscan.app.ui.AccountProfileScreen
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -80,7 +93,7 @@ import java.util.Locale
 
 
 
-class MainActivity:ComponentActivity(){override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);NewChapterWorker.schedule(applicationContext);enableEdgeToEdge();setContent{MpScanTheme{online.mpscan.app.ui.AppLock{HomeRoot()}}}}}
+class MainActivity:ComponentActivity(){override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);SiteAccess.init(applicationContext);NewChapterWorker.schedule(applicationContext);enableEdgeToEdge();setContent{MpScanTheme{online.mpscan.app.ui.AppLock{SiteAccountGate{HomeRoot()}}}}}}
 private enum class Destination(val label:String,val icon:String){Home("Início","⌂"),Search("Busca","⌕"),Library("Biblioteca","▣"),Profile("Perfil","♙"),Menu("Menu","☰")}
 
 
@@ -100,9 +113,10 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
   onDispose{manager.unregisterNetworkCallback(callback)}
  }
 
+ SiteAnnouncement(works,selectedWork==null&&directReader==null&&!settingsOpen){selectedWork=it}
  BackHandler(settingsOpen||directReader!=null||selectedWork!=null){when{settingsOpen->settingsOpen=false;directReader!=null->directReader=null;selectedWork!=null->selectedWork=null}}
  Scaffold(containerColor=MpBackground,topBar={if(!connected&&!settingsOpen&&directReader==null&&selectedWork==null)Surface(color=MpSurface2){Text("Sem internet? Leia em Biblioteca → Downloads.",Modifier.fillMaxWidth().statusBarsPadding().padding(12.dp),color=MpAccent2,style=MaterialTheme.typography.bodySmall)}},bottomBar={if(selectedWork==null&&directReader==null&&!settingsOpen)NavigationBar(containerColor=MpSurface){Destination.entries.forEach{x->NavigationBarItem(selected=selected==x,onClick={selected=x},icon={Text(x.icon)},label={Text(x.label)})}}}){p->
-  Box(Modifier.fillMaxSize().padding(p)){when{settingsOpen->SettingsScreen{settingsOpen=false};directReader!=null->Reader(directReader!!.first,directReader!!.second){directReader=null};selectedWork!=null->WorkDetails(selectedWork!!,newBadge,{selectedWork=null});selected==Destination.Library->OfflineLibrary(works,{selectedWork=it}){w,c->directReader=w to c};selected==Destination.Profile->AccountProfileScreen{settingsOpen=true};selected==Destination.Menu->online.mpscan.app.ui.MenuScreen{settingsOpen=true};loading->Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){CircularProgressIndicator()};error.isNotBlank()->Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){Text(error,color=MpMuted);Button({attempt++},Modifier.padding(top=16.dp)){Text("Tentar novamente")};Text("Para ler offline, vá à Biblioteca e toque em Downloads.",color=MpAccent2,modifier=Modifier.padding(top=16.dp))};works.isEmpty()->Message("As obras publicadas aparecerão aqui.");selected==Destination.Home->Home(works,Modifier,{selectedWork=it}){w,c->directReader=w to c};selected==Destination.Search->Search(works){selectedWork=it}}}
+  Box(Modifier.fillMaxSize().padding(p)){when{settingsOpen->SettingsScreen{settingsOpen=false};directReader!=null->Reader(directReader!!.first,directReader!!.second){directReader=null};selectedWork!=null->WorkDetails(selectedWork!!,newBadge,{selectedWork=null});selected==Destination.Library->OfflineLibrary(works,{selectedWork=it}){w,c->directReader=w to c};selected==Destination.Profile->AccountProfileScreen{settingsOpen=true};selected==Destination.Menu->online.mpscan.app.ui.MenuScreen{settingsOpen=true};loading->Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){CircularProgressIndicator()};error.isNotBlank()->Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){Text(error,color=MpMuted);Button({attempt++},Modifier.padding(top=16.dp)){Text("Tentar novamente")};Text("Para ler offline, vá à Biblioteca e toque em Downloads.",color=MpAccent2,modifier=Modifier.padding(top=16.dp))};works.isEmpty()->Message("As obras publicadas aparecerão aqui.");selected==Destination.Home->Home(works,Modifier,{selectedWork=it},{w,c->directReader=w to c},{selected=Destination.Search},{selected=Destination.Profile});selected==Destination.Search->Search(works){selectedWork=it}}}
  }
 }
 @Composable private fun OfflineLibrary(works:List<Work>,openWork:(Work)->Unit,open:(Work,Chapter)->Unit){
@@ -154,7 +168,74 @@ private fun OfflineChapter.toChapter()=Chapter(chapterId,chapterLabel.substringA
 private fun ReadingProgress.toWork()=Work(workId,workTitle,"",workCover,"","","","",emptyList(),0,0)
 private fun ReadingProgress.toChapter()=Chapter(chapterId,chapterLabel.substringAfter("Capítulo ").toDoubleOrNull(),"",true,0)
 @Composable private fun Header(){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(MpAccent,MpAccent2))),contentAlignment=Alignment.Center){Text("MP",fontWeight=FontWeight.Black)};Spacer(Modifier.width(12.dp));Column{Text("MP SCAN",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleMedium);Text("Sua próxima leitura começa aqui",color=MpMuted,style=MaterialTheme.typography.bodySmall)};Spacer(Modifier.weight(1f));Surface(shape=RoundedCornerShape(14.dp),color=MpSurface,border=androidx.compose.foundation.BorderStroke(1.dp,MpLine)){Box(Modifier.size(42.dp),contentAlignment=Alignment.Center){Text("♢")}}}}
-@Composable private fun Home(works:List<Work>,modifier:Modifier,open:(Work)->Unit,continueReading:(Work,Chapter)->Unit){val context=LocalContext.current;val recent=ReadingStore(context.applicationContext).history().filter{it.percent<100}.distinctBy{it.workId}.take(10);var updates by remember(works){mutableStateOf<List<RecentUpdate>>(emptyList())};LaunchedEffect(works){updates=runCatching{CatalogRepository().recentUpdates(works)}.getOrDefault(emptyList())};LazyColumn(modifier.fillMaxSize().padding(horizontal=16.dp),contentPadding=PaddingValues(top=16.dp,bottom=32.dp),verticalArrangement=Arrangement.spacedBy(22.dp)){item{Header()};item{Hero(works.first(),open)};item{Rail("Em alta",works.sortedByDescending{it.reads}.take(10),true,open)};if(recent.isNotEmpty())item{Column{Text("Continuar lendo",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall);Spacer(Modifier.height(12.dp));LazyRow(horizontalArrangement=Arrangement.spacedBy(12.dp)){items(recent,key={it.workId}){item->Box(Modifier.width(260.dp)){ProgressRow(item){continueReading(item.toWork(),item.toChapter())}}}}}};item{RecentUpdates(updates,open)}}}
+
+@Composable private fun Home(works:List<Work>,modifier:Modifier,open:(Work)->Unit,continueReading:(Work,Chapter)->Unit,search:()->Unit,profile:()->Unit){
+ val context=LocalContext.current
+ val recent=ReadingStore(context.applicationContext).history().filter{it.percent<100}.distinctBy{it.workId}.take(10)
+ var updates by remember(works){mutableStateOf<List<RecentUpdate>>(emptyList())}
+ var updateChapters by remember(works){mutableStateOf<Map<String,List<Chapter>>>(emptyMap())}
+ LaunchedEffect(works){
+  updates=runCatching{CatalogRepository().recentUpdates(works,8)}.getOrDefault(emptyList())
+  updateChapters=kotlinx.coroutines.coroutineScope{updates.map{u->async{kotlinx.coroutines.withContext(Dispatchers.IO){u.work.id to runCatching{CatalogRepository().chapters(u.work.id).filter{it.available}.take(2)}.getOrDefault(listOf(u.chapter))}}}.awaitAll().toMap()}
+ }
+ LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(top=12.dp,bottom=30.dp),verticalArrangement=Arrangement.spacedBy(26.dp)){
+  item{Surface(Modifier.padding(horizontal=16.dp).fillMaxWidth(),color=MpSurface,shape=RoundedCornerShape(22.dp)){
+   Row(Modifier.padding(horizontal=16.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("MP SCAN",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text("Encontre sua próxima história",color=MpMuted,style=MaterialTheme.typography.labelSmall)};IconButton(search){Text("⌕",fontSize=27.sp)};IconButton(profile){Text("♙",fontSize=25.sp)}}
+  }}
+  item{HomeShowcase(works.take(5),open,continueReading)}
+  item{Box(Modifier.padding(horizontal=16.dp)){Rail("Popular hoje",works.sortedByDescending{it.reads}.take(10),false,open)}}
+  if(recent.isNotEmpty())item{Column(Modifier.padding(horizontal=16.dp)){Text("Continuar lendo",fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge);Spacer(Modifier.height(14.dp));LazyRow(horizontalArrangement=Arrangement.spacedBy(12.dp)){items(recent,key={it.workId}){item->Box(Modifier.width(280.dp)){ProgressRow(item){continueReading(item.toWork(),item.toChapter())}}}}}}
+  item{HomeUpdates(updates,updateChapters,open,continueReading)}
+ }
+}
+@Composable private fun HomeShowcase(works:List<Work>,open:(Work)->Unit,read:(Work,Chapter)->Unit){
+ if(works.isEmpty())return
+ var index by remember(works){mutableIntStateOf(0)}
+ val work=works[index.coerceIn(0,works.lastIndex)]
+ var chapters by remember(work.id){mutableStateOf<List<Chapter>>(emptyList())}
+ var rating by remember(work.id){mutableStateOf<WorkRating?>(null)}
+ LaunchedEffect(work.id){chapters=runCatching{CatalogRepository().chapters(work.id).filter{it.available}}.getOrDefault(emptyList());rating=runCatching{WorkSocialRepository().rating(work.id,null)}.getOrNull()}
+ Column(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(MpAccent.copy(.09f),MpBackground))).padding(horizontal=22.dp,vertical=24.dp),horizontalAlignment=Alignment.CenterHorizontally){
+  Text("EM DESTAQUE",color=MpMuted,fontWeight=FontWeight.SemiBold,style=MaterialTheme.typography.labelSmall)
+  MpImage(work.cover,work.title,Modifier.padding(top=18.dp).widthIn(max=210.dp).fillMaxWidth(.55f).aspectRatio(3f/4.5f).clip(RoundedCornerShape(22.dp)),contentScale=ContentScale.Crop)
+  val score=rating
+  if(score!=null&&score.total>0)Text("★ "+"%.1f".format(Locale("pt","BR"),score.average),color=Color(0xFFCC942B),fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=16.dp))
+  Text(work.title,style=MaterialTheme.typography.headlineLarge,fontWeight=FontWeight.Bold,maxLines=3,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.padding(top=12.dp))
+  Text(work.synopsis,color=MpMuted,maxLines=4,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.padding(top=12.dp))
+  LazyRow(Modifier.padding(top=16.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){items(work.genres.take(4)){genre->Surface(color=MpSurface2,shape=RoundedCornerShape(50)){Text(genre,color=MpText,style=MaterialTheme.typography.labelMedium,modifier=Modifier.padding(horizontal=13.dp,vertical=8.dp))}}}
+  Row(Modifier.widthIn(max=440.dp).fillMaxWidth().padding(top=20.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){
+   Button({val first=chapters.minByOrNull{it.number?:Double.MAX_VALUE};if(first!=null)read(work,first)else open(work)},Modifier.weight(1f),shape=RoundedCornerShape(16.dp),contentPadding=PaddingValues(vertical=14.dp)){Text("▶ Ler agora",fontWeight=FontWeight.Bold)}
+   FilledTonalButton({open(work)},Modifier.weight(1f),shape=RoundedCornerShape(16.dp),contentPadding=PaddingValues(vertical=14.dp)){Text("Detalhes")}
+  }
+  if(chapters.isNotEmpty())Text("${chapters.size} capítulos",color=MpMuted,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(top=12.dp))
+  Row(Modifier.padding(top=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+   IconButton({index=(index-1+works.size)%works.size}){Text("‹",fontSize=26.sp)}
+   works.forEachIndexed{i,_->Box(Modifier.width(if(i==index)24.dp else 7.dp).height(7.dp).clip(RoundedCornerShape(50)).background(if(i==index)MpAccent else MpLine).clickable{index=i})}
+   IconButton({index=(index+1)%works.size}){Text("›",fontSize=26.sp)}
+  }
+ }
+}
+@Composable private fun HomeUpdates(updates:List<RecentUpdate>,chapters:Map<String,List<Chapter>>,open:(Work)->Unit,read:(Work,Chapter)->Unit){
+ var grid by remember{mutableStateOf(true)}
+ Column(Modifier.padding(horizontal=16.dp)){
+  Row(verticalAlignment=Alignment.CenterVertically){Text("Últimas atualizações",Modifier.weight(1f),fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge);TextButton({grid=!grid}){Text(if(grid)"☷" else "▦",fontSize=23.sp)}}
+  Spacer(Modifier.height(14.dp))
+  if(updates.isEmpty())Text("Os próximos capítulos aparecerão aqui.",color=MpMuted)
+  else updates.chunked(if(grid)2 else 1).forEach{pair->
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(14.dp)){
+    pair.forEach{update->Column(Modifier.weight(1f)){
+     MpImage(update.work.cover,update.work.title,Modifier.fillMaxWidth().aspectRatio(if(grid)3f/4.5f else 1.4f).clip(RoundedCornerShape(20.dp)).clickable{open(update.work)},contentScale=ContentScale.Crop)
+     Text(update.work.title,fontWeight=FontWeight.SemiBold,maxLines=2,minLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=10.dp,bottom=6.dp))
+     (chapters[update.work.id]?:listOf(update.chapter)).forEach{chapter->Surface(Modifier.fillMaxWidth().padding(bottom=6.dp).clickable{read(update.work,chapter)},color=MpSurface2,shape=RoundedCornerShape(10.dp)){
+      Column(Modifier.padding(horizontal=10.dp,vertical=9.dp)){Text(chapter.label,style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.SemiBold);Text(formatWorkDate(maxOf(chapter.updatedAt,chapter.createdAt)),color=MpMuted,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(top=2.dp))}
+     }}
+    }}
+    if(grid&&pair.size==1)Spacer(Modifier.weight(1f))
+   }
+   Spacer(Modifier.height(20.dp))
+  }
+ }
+}
 @Composable private fun Hero(w:Work,open:(Work)->Unit){Box(Modifier.fillMaxWidth().height(370.dp).clip(RoundedCornerShape(34.dp)).background(MpSurface)){MpImage(w.banner.ifBlank{w.cover},w.title,Modifier.fillMaxSize(),contentScale=ContentScale.Crop);Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xF207070A),Color(0xA607070A),Color.Transparent))));Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent,Color(0xF507070A)))));Column(Modifier.align(Alignment.BottomStart).padding(26.dp).fillMaxWidth(.92f)){Text("DESTAQUE MP SCAN",color=MpAccent2,fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelSmall);Spacer(Modifier.height(10.dp));Text(w.title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge,maxLines=2,overflow=TextOverflow.Ellipsis);Text(w.synopsis,color=MpMuted,maxLines=3,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(vertical=12.dp));Button(onClick={open(w)},shape=RoundedCornerShape(14.dp)){Text("Ver detalhes",fontWeight=FontWeight.Black)}}}}
 @Composable private fun Rail(title:String,works:List<Work>,ranked:Boolean,open:(Work)->Unit){Column{Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall);Spacer(Modifier.height(12.dp));LazyRow(horizontalArrangement=Arrangement.spacedBy(13.dp)){items(works,key={it.id}){w->Box{Card(w,open);if(ranked)Text((works.indexOf(w)+1).toString(),fontWeight=FontWeight.Black,style=MaterialTheme.typography.displaySmall,color=Color.White,modifier=Modifier.align(Alignment.BottomStart).background(Color(0xB30B0B0D)).padding(horizontal=8.dp))}}}}}
 @Composable private fun RecentUpdates(updates:List<RecentUpdate>,open:(Work)->Unit){Column{Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("Atualizações recentes",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text("Capítulos que acabaram de chegar",color=MpMuted,style=MaterialTheme.typography.bodySmall)}};Spacer(Modifier.height(14.dp));if(updates.isEmpty()){Text("As próximas atualizações aparecerão aqui.",color=MpMuted)}else updates.chunked(2).forEach{pair->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){pair.forEach{update->val w=update.work;Surface(Modifier.weight(1f),color=MpSurface,shape=RoundedCornerShape(20.dp),border=androidx.compose.foundation.BorderStroke(1.dp,MpLine)){Column{Box(Modifier.fillMaxWidth().height(142.dp).clickable{open(w)}){MpImage(w.cover,w.title,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)};Column(Modifier.padding(12.dp)){Text(w.title,fontWeight=FontWeight.Black,maxLines=2,minLines=2,overflow=TextOverflow.Ellipsis);Row(Modifier.padding(top=6.dp),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically){Text(update.chapter.label,color=MpAccent2,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.bodySmall);if(System.currentTimeMillis()-normalizeMillis(update.updatedAt) in 0..14L*24*60*60*1000)Surface(color=MpAccent.copy(.18f),shape=RoundedCornerShape(6.dp)){Text("NOVO",color=MpAccent2,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(horizontal=5.dp,vertical=3.dp))}};Text(update.chapter.subtitle.ifBlank{" "},color=MpMuted,style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=TextOverflow.Ellipsis);Text(formatUpdateDate(update.updatedAt),color=MpMuted,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(top=3.dp));Button(onClick={open(w)},modifier=Modifier.fillMaxWidth().padding(top=10.dp),shape=RoundedCornerShape(12.dp),contentPadding=PaddingValues(vertical=8.dp)){Text("LER AGORA",fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelMedium)}}}}};if(pair.size==1)Spacer(Modifier.weight(1f))};Spacer(Modifier.height(12.dp))}}}
@@ -368,32 +449,120 @@ private fun localizedStatus(value:String):String=when(value.trim().lowercase(Loc
  LaunchedEffect(listState,pages.size,current.id){if(pages.isNotEmpty())snapshotFlow{listState.firstVisibleItemIndex}.distinctUntilChanged().collect{index->readingStore.save(work,current,index+1,pages.size)}}
  val position=chapters.indexOfFirst{it.id==current.id};val previous=chapters.getOrNull(position-1);val next=chapters.getOrNull(position+1)
  if(listOpen)ChapterListDialog(chapters,current.id,store,work.id,{listOpen=false}){current=it;listOpen=false}
- Column(Modifier.fillMaxSize().background(Color(0xFF050507))){
-  Surface(color=MpSurface,shadowElevation=6.dp){
-   Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=10.dp)){
-    Row(verticalAlignment=Alignment.CenterVertically){
-     FilledTonalIconButton(back,modifier=Modifier.size(44.dp),shape=RoundedCornerShape(14.dp)){Text("←",fontSize=22.sp)}
-     Column(Modifier.weight(1f).padding(horizontal=12.dp)){
-      Text(work.title,fontWeight=FontWeight.SemiBold,style=MaterialTheme.typography.labelMedium,maxLines=1,overflow=TextOverflow.Ellipsis,color=MpMuted)
-      Text(current.label,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium)
-     }
-     if(pages.isNotEmpty())Surface(color=MpAccent.copy(.12f),shape=RoundedCornerShape(12.dp)){
-      Text("${(listState.firstVisibleItemIndex+1).coerceAtMost(pages.size)} / ${pages.size}",color=MpAccent2,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.labelMedium,modifier=Modifier.padding(horizontal=10.dp,vertical=8.dp))
-     }
+
+ val prefs=remember{context.getSharedPreferences("mp_reader",0)}
+ var controls by remember(current.id){mutableStateOf(true)}
+ var commentsOpen by remember{mutableStateOf(false)}
+ var settingsOpen by remember{mutableStateOf(false)}
+ var autoScroll by remember{mutableStateOf(false)}
+ var speed by remember{mutableFloatStateOf(prefs.getFloat("speed",50f))}
+ var width by remember{mutableFloatStateOf(prefs.getFloat("width",1f))}
+ var zoom by remember{mutableFloatStateOf(prefs.getFloat("zoom",1f))}
+ var brightness by remember{mutableFloatStateOf(prefs.getFloat("brightness",-1f))}
+ var fullScreen by remember{mutableStateOf(prefs.getBoolean("fullscreen",false))}
+ var readerBackground by remember{mutableStateOf(prefs.getString("background","theme")?:"theme")}
+ val animationMillis=if(online.mpscan.app.data.SettingsStore(context).animations)240 else 0
+ val scheme=MaterialTheme.colorScheme
+ val readerColor=when(readerBackground){"white"->Color.White;"black"->Color.Black;"sepia"->Color(0xFFF3E6CE);else->MpBackground}
+ val window=(context as? android.app.Activity)?.window
+ DisposableEffect(brightness,fullScreen){
+  val original=window?.attributes?.screenBrightness?:-1f
+  window?.let{w->val attributes=w.attributes;attributes.screenBrightness=brightness;w.attributes=attributes
+   val controller=androidx.core.view.WindowCompat.getInsetsController(w,w.decorView)
+   controller.systemBarsBehavior=androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+   if(fullScreen)controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())else controller.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+  }
+  onDispose{window?.let{w->val attributes=w.attributes;attributes.screenBrightness=original;w.attributes=attributes;androidx.core.view.WindowCompat.getInsetsController(w,w.decorView).show(androidx.core.view.WindowInsetsCompat.Type.systemBars())}}
+ }
+ LaunchedEffect(current.id,listState){
+  var lastIndex=listState.firstVisibleItemIndex;var lastOffset=listState.firstVisibleItemScrollOffset
+  snapshotFlow{listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset}.collect{(index,offset)->
+   if(listState.isScrollInProgress&&!commentsOpen&&!settingsOpen){
+    if(index>lastIndex||(index==lastIndex&&offset-lastOffset>3))controls=false
+    else if(index<lastIndex||(index==lastIndex&&lastOffset-offset>3))controls=true
+   }
+   lastIndex=index;lastOffset=offset
+  }
+ }
+ LaunchedEffect(autoScroll,speed,loading,current.id,commentsOpen,settingsOpen,listOpen){
+  if(autoScroll&&!loading&&!commentsOpen&&!settingsOpen&&!listOpen){controls=false;while(true){delay(16);if(!listState.canScrollForward){autoScroll=false;controls=true;break};listState.scrollBy(speed*0.016f)}}
+ }
+ BackHandler(commentsOpen||settingsOpen){commentsOpen=false;settingsOpen=false}
+ if(commentsOpen)Dialog(onDismissRequest={commentsOpen=false},properties=DialogProperties(usePlatformDefaultWidth=false)){
+  Surface(Modifier.fillMaxWidth(.94f).fillMaxHeight(.85f).widthIn(max=720.dp),shape=RoundedCornerShape(26.dp),color=MpSurface){
+   Column{Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("Comentários",fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge);Text(current.label,color=MpMuted)};TextButton({commentsOpen=false}){Text("Fechar")}}
+    LazyColumn(Modifier.weight(1f)){item{CommentsSection("capitulo",work.id,current.id,Modifier.fillMaxWidth().padding(16.dp))}}
+   }
+  }
+ }
+ if(settingsOpen)Dialog(onDismissRequest={settingsOpen=false},properties=DialogProperties(usePlatformDefaultWidth=false)){
+  Surface(Modifier.fillMaxWidth(.94f).widthIn(max=560.dp).heightIn(max=640.dp),shape=RoundedCornerShape(26.dp),color=MpSurface){
+   Column(Modifier.verticalScroll(rememberScrollState()).padding(22.dp)){
+    Row(verticalAlignment=Alignment.CenterVertically){Text("Sua leitura, seu ritmo",Modifier.weight(1f),fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge);TextButton({settingsOpen=false}){Text("Fechar")}}
+    Text("Ajuste para ficar confortável",color=MpMuted)
+    Row(Modifier.fillMaxWidth().padding(top=18.dp),verticalAlignment=Alignment.CenterVertically){Text("Rolagem automática",Modifier.weight(1f));Switch(autoScroll,{autoScroll=it})}
+    Text("Velocidade · ${speed.toInt()} px/s",color=MpMuted);Slider(speed,{speed=it;prefs.edit().putFloat("speed",it).apply()},valueRange=10f..180f)
+    Text("Largura · ${(width*100).toInt()}%",fontWeight=FontWeight.SemiBold);Slider(width,{width=it;prefs.edit().putFloat("width",it).apply()},valueRange=.55f..1f)
+    Text("Zoom · ${(zoom*100).toInt()}%",fontWeight=FontWeight.SemiBold);Slider(zoom,{zoom=it;prefs.edit().putFloat("zoom",it).apply()},valueRange=1f..2f)
+    Text("Brilho",fontWeight=FontWeight.SemiBold);Slider(if(brightness<0).5f else brightness,{brightness=it;prefs.edit().putFloat("brightness",it).apply()},valueRange=.05f..1f)
+    TextButton({brightness=-1f;prefs.edit().putFloat("brightness",-1f).apply()}){Text("Usar brilho do aparelho")}
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("Tela cheia",Modifier.weight(1f));Switch(fullScreen,{fullScreen=it;prefs.edit().putBoolean("fullscreen",it).apply()})}
+    if(!offline&&pages.isNotEmpty())OutlinedButton({val chapterToSave=current;scope.launch{ChapterDownloadWorker.enqueue(context.applicationContext,work,chapterToSave)}},enabled=!downloading,modifier=Modifier.fillMaxWidth()){Text(if(downloading)"Baixando · $progress%" else "↓ Salvar capítulo offline")}
+    Text("Fundo da leitura",fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(top=10.dp))
+    Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)){
+     listOf("theme" to "Tema","white" to "Branco","black" to "Preto","sepia" to "Sépia").forEach{(id,label)->FilterChip(readerBackground==id,{readerBackground=id;prefs.edit().putString("background",id).apply()},{Text(label)})}
     }
-    Row(Modifier.fillMaxWidth().padding(top=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
-     TextButton({listOpen=true},contentPadding=PaddingValues(horizontal=10.dp)){Text("☰ Capítulos")}
-     Spacer(Modifier.weight(1f))
-     if(offline)Text("✓ Leitura offline",color=MpAccent2,style=MaterialTheme.typography.labelMedium)
-     else if(pages.isNotEmpty())OutlinedButton(onClick={val selected=current;downloading=true;downloadError="";scope.launch{try{ChapterDownloadWorker.enqueue(context.applicationContext,work,selected)}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){downloading=false;downloadError=e.message?:"Não foi possível iniciar o download."}}},enabled=!downloading,shape=RoundedCornerShape(12.dp),contentPadding=PaddingValues(horizontal=14.dp,vertical=8.dp)){
-      Text(if(downloading)"Baixando · $progress%" else "↓ Baixar")
-     }
+    Text("Deslize para baixo para ocultar as barras. Suba ou toque duas vezes para mostrá-las.",color=MpMuted,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(top=14.dp))
+   }
+  }
+ }
+ Box(Modifier.fillMaxSize().background(readerColor)){
+  when{
+   !current.available->Message("Capítulo agendado. Disponível em "+formatScheduled(current.scheduledAt))
+   loading->Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){CircularProgressIndicator()}
+   failed->Message("Não foi possível abrir o capítulo. Confira sua conexão ou escolha um capítulo salvo offline.")
+   pages.isEmpty()->Message("Nenhuma página encontrada.")
+   else->LazyColumn(Modifier.fillMaxSize().pointerInput(current.id){detectTapGestures(onDoubleTap={controls=true})},state=listState,horizontalAlignment=Alignment.CenterHorizontally){
+    items(pages){page->BoxWithConstraints(Modifier.fillMaxWidth(width).widthIn(max=1000.dp)){val pageWidth=maxWidth*zoom;Box(Modifier.horizontalScroll(rememberScrollState())){Box(Modifier.width(pageWidth)){ReaderPage(page)}}}}
+   }
+  }
+  AnimatedVisibility(controls,Modifier.align(Alignment.TopCenter).padding(horizontal=12.dp,vertical=12.dp),enter=fadeIn(tween(animationMillis))+slideInVertically(tween(animationMillis)){ -it/2 },exit=fadeOut(tween(animationMillis))+slideOutVertically(tween(animationMillis)){ -it/2 }){
+   Surface(Modifier.fillMaxWidth().widthIn(max=850.dp),color=scheme.surface.copy(alpha=.90f),shape=RoundedCornerShape(22.dp),border=androidx.compose.foundation.BorderStroke(1.dp,scheme.outline.copy(alpha=.35f)),shadowElevation=6.dp){
+    Row(Modifier.padding(horizontal=6.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
+     IconButton(back){Text("‹",fontSize=30.sp)}
+     Column(Modifier.weight(1f)){Text(work.title,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis);Text("${current.label} · ${(listState.firstVisibleItemIndex+1).coerceAtMost(pages.size)} / ${pages.size}"+(if(offline)" · Offline" else ""),color=MpMuted,style=MaterialTheme.typography.labelSmall)}
+     IconButton({commentsOpen=true}){ReaderGlyph("comments",MpText)}
+     IconButton({settingsOpen=true}){ReaderGlyph("settings",MpText)}
     }
    }
   }
-  if(downloading)LinearProgressIndicator(progress={progress/100f},Modifier.fillMaxWidth())
-  if(downloadError.isNotBlank())Text(downloadError,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(12.dp))
-  when{!current.available->Message("Capítulo agendado. Disponível em "+formatScheduled(current.scheduledAt));loading->Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){CircularProgressIndicator()};failed->Message("Este capítulo não está baixado. Conecte-se à internet ou escolha um capítulo marcado como OFFLINE.");pages.isEmpty()->Message("Nenhuma página encontrada.");else->LazyColumn(Modifier.fillMaxSize(),state=listState,horizontalAlignment=Alignment.CenterHorizontally){items(pages){page->ReaderPage(page)};if(!offline)item{CommentsSection("capitulo",work.id,current.id,Modifier.fillMaxWidth().padding(16.dp))};item{ChapterNavigation(previous,next,{listOpen=true}){current=it}}}}
+  AnimatedVisibility(controls,Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(12.dp),enter=fadeIn(tween(animationMillis))+slideInVertically(tween(animationMillis)){it/2},exit=fadeOut(tween(animationMillis))+slideOutVertically(tween(animationMillis)){it/2}){
+   Surface(Modifier.widthIn(max=480.dp).fillMaxWidth(),color=scheme.surface.copy(alpha=.90f),shape=RoundedCornerShape(22.dp),border=androidx.compose.foundation.BorderStroke(1.dp,scheme.outline.copy(alpha=.35f)),shadowElevation=6.dp){
+    Row(Modifier.padding(8.dp),horizontalArrangement=Arrangement.SpaceEvenly){
+     ReaderNavAction("Anterior","‹",previous!=null){previous?.let{current=it;controls=true;autoScroll=false}}
+     ReaderNavAction("Capítulos","☰",true){listOpen=true;autoScroll=false}
+     ReaderNavAction("Obra","⌂",true,back)
+     ReaderNavAction("Próximo","›",next!=null){next?.let{current=it;controls=true;autoScroll=false}}
+    }
+   }
+  }
+ }
+}
+@Composable private fun ReaderNavAction(label:String,icon:String,enabled:Boolean,action:()->Unit){
+ TextButton(action,enabled=enabled,contentPadding=PaddingValues(horizontal=6.dp,vertical=6.dp)){
+  Column(horizontalAlignment=Alignment.CenterHorizontally){Text(icon,fontSize=24.sp);Text(label,style=MaterialTheme.typography.labelSmall)}
+ }
+}
+@Composable private fun ReaderGlyph(kind:String,color:Color){
+ androidx.compose.foundation.Canvas(Modifier.size(23.dp)){
+  val stroke=androidx.compose.ui.graphics.drawscope.Stroke(width=2.dp.toPx())
+  if(kind=="comments"){
+   drawRoundRect(color,topLeft=androidx.compose.ui.geometry.Offset(size.width*.1f,size.height*.1f),size=androidx.compose.ui.geometry.Size(size.width*.8f,size.height*.6f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(3.dp.toPx()),style=stroke)
+   drawLine(color,androidx.compose.ui.geometry.Offset(size.width*.2f,size.height*.7f),androidx.compose.ui.geometry.Offset(size.width*.2f,size.height*.95f),stroke.width)
+   drawLine(color,androidx.compose.ui.geometry.Offset(size.width*.2f,size.height*.95f),androidx.compose.ui.geometry.Offset(size.width*.45f,size.height*.7f),stroke.width)
+  }else{
+   listOf(.2f,.5f,.8f).forEachIndexed{i,y->drawLine(color,androidx.compose.ui.geometry.Offset(0f,size.height*y),androidx.compose.ui.geometry.Offset(size.width,size.height*y),stroke.width);drawCircle(color,3.dp.toPx(),androidx.compose.ui.geometry.Offset(size.width*(if(i==1).3f else .7f),size.height*y))}
+  }
  }
 }
 @Composable private fun ChapterNavigation(previous:Chapter?,next:Chapter?,openList:()->Unit,open:(Chapter)->Unit){
