@@ -23,7 +23,7 @@ import org.json.JSONObject
 
 object AvatarArtCache { val definitions=java.util.concurrent.ConcurrentHashMap<String,JSONObject>() }
 @Composable fun FramedAvatar(photo:String,name:String,frameId:String="",size:Dp=60.dp,definition:JSONObject?=null){
- var frame by remember(frameId,definition){mutableStateOf(definition?:AvatarArtCache.definitions[frameId]?:BuiltinAvatarFrames.definitions().optJSONObject(frameId))}
+ var frame by remember(frameId,definition){mutableStateOf(definition?:AvatarArtCache.definitions[frameId]?:BuiltinAvatarFrames.definitions().optJSONObject(frameId)?:BuiltinAvatarFrames.rankingArt(frameId))}
  LaunchedEffect(frameId){if(frameId.isNotBlank()&&frame==null)runCatching{withContext(Dispatchers.IO){SiteAccess.json("config/avatarFrames/$frameId")}}.onSuccess{frame=it;AvatarArtCache.definitions[frameId]=it}}
  val art=frame?.optString("imagemUrl",frame?.optString("imageUrl").orEmpty()).orEmpty()
  val effect=frame?.optString("effect","none").orEmpty()
@@ -46,6 +46,7 @@ object AvatarArtCache { val definitions=java.util.concurrent.ConcurrentHashMap<S
     for(i in 0..3){val angle=Math.toRadians((rotation+i*90).toDouble());val point=Offset(center.x+kotlin.math.cos(angle).toFloat()*radius,center.y+kotlin.math.sin(angle).toFloat()*radius);drawCircle(glow,radius=2.dp.toPx(),center=point)}
    }
    val symbol=when(effect){"dog"->"🐕";"paws"->"🐾";"sakura","garden"->"❀";"moon"->"☾";"butterfly"->"🦋";"hearts"->"♥";"crown"->"♛";"snow"->"❄";"pearls"->"●";"comet"->"☄";else->"✧"}
+   if((frame?.optInt("rank")?:0)>0)Text("${frame?.optInt("rank")}º",color=glow,fontSize=(size.value*.15f).sp,fontWeight=FontWeight.Bold,modifier=Modifier.align(Alignment.BottomCenter))
    Text(symbol,color=glow,fontSize=(size.value*.22f).sp,modifier=Modifier.align(Alignment.TopCenter))
   }
  }
