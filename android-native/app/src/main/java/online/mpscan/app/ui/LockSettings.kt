@@ -57,14 +57,15 @@ private class LockStore(val context:Context){
 @Composable private fun PatternPad(value:String,change:(String)->Unit){
  val latestValue by rememberUpdatedState(value)
  val latestChange by rememberUpdatedState(change)
+ val accent=MpAccent2;val muted=MpMuted;val line=MpLine
  Canvas(Modifier.size(240.dp).pointerInput(Unit){
   fun hit(position:Offset){val cell=size.width/3f;val column=(position.x/cell).toInt().coerceIn(0,2);val row=(position.y/cell).toInt().coerceIn(0,2);val center=Offset((column+.5f)*cell,(row+.5f)*cell);if((position-center).getDistance()<cell*.4f){val digit=(row*3+column+1).toString();if(digit !in latestValue)latestChange(latestValue+digit)}}
   detectDragGestures(onDragStart={hit(it)},onDrag={event,_->event.consume();hit(event.position)})
  }){
   val cell=size.width/3f
   fun center(digit:Char):Offset{val n=digit.digitToInt()-1;return Offset((n%3+.5f)*cell,(n/3+.5f)*cell)}
-  value.zipWithNext().forEach{(a,b)->drawLine(MpAccent2,center(a),center(b),strokeWidth=6.dp.toPx())}
-  ('1'..'9').forEach{digit->drawCircle(if(digit in value)MpAccent2 else MpMuted,radius=11.dp.toPx(),center=center(digit));drawCircle(MpLine,radius=22.dp.toPx(),center=center(digit),style=androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))}
+  value.zipWithNext().forEach{(a,b)->drawLine(accent,center(a),center(b),strokeWidth=6.dp.toPx())}
+  ('1'..'9').forEach{digit->drawCircle(if(digit in value)accent else muted,radius=11.dp.toPx(),center=center(digit));drawCircle(line,radius=22.dp.toPx(),center=center(digit),style=androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))}
  }
 }
 

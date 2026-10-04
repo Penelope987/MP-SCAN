@@ -20,6 +20,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
     override suspend fun doWork(): Result {
         val workId = inputData.getString(WORK_ID) ?: return Result.failure()
         try {
+            SiteAccess.requireAllowed(applicationContext)
             setForeground(foregroundInfo())
             val metadata = withContext(Dispatchers.IO) {
                 synchronized(metadataLock) {
@@ -45,6 +46,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
             check(chapters.isNotEmpty()) { "Nenhum capítulo disponível para baixar." }
             val store = OfflineStore(applicationContext)
             chapters.forEachIndexed { index, chapter ->
+                SiteAccess.requireAllowed(applicationContext)
                 val sources=repository.pages(workId,chapter.id)
                 val saved=withContext(Dispatchers.IO){store.localPages(workId,chapter.id)}
                 if (saved.size != sources.size || saved.isEmpty()) {
