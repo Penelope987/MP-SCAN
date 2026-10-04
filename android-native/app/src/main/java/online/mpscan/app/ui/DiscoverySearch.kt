@@ -44,7 +44,7 @@ import online.mpscan.app.ui.theme.*
 }
 @Composable fun SupportCard(){
  val uri=androidx.compose.ui.platform.LocalUriHandler.current
- Surface(Modifier.fillMaxWidth(),color=MpAccent.copy(.08f),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,MpAccent.copy(.18f))){
-  Column(Modifier.padding(20.dp)){Text("Feita com carinho, apoiada por você",fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium);Text("Seu apoio ajuda a MP SCAN a continuar trazendo novas histórias.",color=MpMuted,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(top=8.dp));Button({uri.openUri("https://livepix.gg/mpscan")},Modifier.fillMaxWidth().padding(top=14.dp),shape=RoundedCornerShape(14.dp)){Text("♡ Apoiar a MP SCAN")}}
+ Surface(Modifier.fillMaxWidth(),color=MpSurface,shape=RoundedCornerShape(28.dp),border=BorderStroke(1.dp,MpAccent.copy(.18f))){
+  Column(Modifier.padding(24.dp)){Text("♡ JUNTOS PELA MP SCAN",color=MpAccent,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.labelSmall);Text("Histórias que continuam com você",modifier=Modifier.padding(top=10.dp),fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge);Text("Seu apoio ajuda a MP SCAN a continuar trazendo novas histórias.",color=MpMuted,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(top=8.dp));Button({uri.openUri("https://livepix.gg/mpscan")},Modifier.fillMaxWidth().padding(top=14.dp),shape=RoundedCornerShape(14.dp)){Text("♡ Apoiar a MP SCAN")}}
  }
 }
