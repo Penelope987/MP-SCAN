@@ -122,18 +122,18 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
  val context=LocalContext.current
  val scope=rememberCoroutineScope()
  var attempt by remember{mutableIntStateOf(0)}
- var connected by remember{mutableStateOf((context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager).activeNetwork!=null)}
+ var connected by remember{mutableStateOf(isConnected(context))}
  LaunchedEffect(Unit){AccountStore(context).session()?.let{runCatching{AccountRepository().profile(it)}.onSuccess{online.mpscan.app.data.ProfileSnapshots.save(it)}}}
  LaunchedEffect(attempt,connected){
   loading=true;error="";val repository=CatalogRepository()
   val saved=withContext(Dispatchers.IO){OfflineStore(context).offlineWorks()}
   if(!connected){works=saved;loading=false}
-  else {runCatching{repository.works()}.onSuccess{works=it}.onFailure{if(it is kotlinx.coroutines.CancellationException)throw it;works=saved;if(saved.isEmpty())error="Não foi possível carregar o catálogo. Confira a conexão e tente novamente."};loading=false;newBadge=runCatching{repository.newBadge()}.getOrDefault(NewBadgeStyle())}
+  else {runCatching{repository.works()}.onSuccess{works=it}.onFailure{if(it is kotlinx.coroutines.CancellationException)throw it;works=saved;if(saved.isEmpty())error="Não foi possível carregar o catálogo. Confira a conexão e tente novamente."};loading=false;scope.launch{val store=OfflineStore(context);val ids=withContext(Dispatchers.IO){store.downloads().map{it.workId}.toSet()};works.filter{it.id in ids}.forEach{store.cacheWork(it)}};newBadge=runCatching{repository.newBadge()}.getOrDefault(NewBadgeStyle())}
  }
 
  DisposableEffect(Unit){
   val manager=context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-  val callback=object:android.net.ConnectivityManager.NetworkCallback(){override fun onAvailable(network:android.net.Network){scope.launch{connected=true;attempt++}};override fun onLost(network:android.net.Network){scope.launch{connected=false}}}
+  val callback=object:android.net.ConnectivityManager.NetworkCallback(){override fun onAvailable(network:android.net.Network){scope.launch{connected=isConnected(context);attempt++}};override fun onCapabilitiesChanged(network:android.net.Network,capabilities:android.net.NetworkCapabilities){scope.launch{connected=isConnected(context)}};override fun onLost(network:android.net.Network){scope.launch{connected=isConnected(context)}}}
   manager.registerDefaultNetworkCallback(callback)
   onDispose{manager.unregisterNetworkCallback(callback)}
  }
@@ -725,4 +725,4 @@ private fun formatScheduled(value:Long):String=SimpleDateFormat("dd/MM/yyyy 'às
  }
 }
 
-private fun isConnected(context:android.content.Context)=(context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager).activeNetwork!=null
+private fun isConnected(context:android.content.Context):Boolean { val manager=context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager;val capabilities=manager.getNetworkCapabilities(manager.activeNetwork)?:return false;return capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)&&capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) }

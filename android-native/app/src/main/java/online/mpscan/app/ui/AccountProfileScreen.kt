@@ -88,8 +88,8 @@ import online.mpscan.app.ui.theme.*
 @Composable private fun FramesPanel(frames:List<CommentFrame>,selected:String,action:(CommentFrame,Boolean)->Unit,clear:()->Unit){
  val owned=frames.filter{it.owned};val available=frames.filterNot{it.owned}
  Column(Modifier.padding(horizontal=18.dp)){
-  Text("🖼 Moldura do comentário",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall)
-  Text("Escolha uma moldura criada pelo ADM. Ela também aparecerá nos seus comentários.",color=MpMuted,modifier=Modifier.padding(top=5.dp,bottom=12.dp))
+  Text(if(frames.firstOrNull()?.kind=="avatar")"Sua foto, sua identidade"else"Moldura do comentário",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall)
+  Text("Escolha uma arte para sua identidade na comunidade MP SCAN.",color=MpMuted,modifier=Modifier.padding(top=5.dp,bottom=12.dp))
   OutlinedButton(clear,Modifier.fillMaxWidth(),enabled=selected.isNotBlank()){Text(if(selected.isBlank())"Sem moldura" else "Remover moldura atual")}
   FrameGroup("Minhas molduras","As molduras que você pegou ficam guardadas aqui.",owned,selected,action,true)
   FrameGroup("Catálogo MP SCAN","Molduras publicadas pelo ADM e disponíveis para sua coleção.",available,selected,action,false)

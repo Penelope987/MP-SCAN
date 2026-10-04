@@ -75,6 +75,26 @@ class OfflineStore(context: Context) {
         (saved.work ?: Work(saved.workId,saved.workTitle,"",saved.workCover,"","","","",emptyList(),0,0)).copy(cover=saved.workCover,banner="")
     }
 
+    suspend fun cacheWork(work:Work) = withContext(Dispatchers.IO) { downloadLock.withLock {
+        val folder=File(root,safe(work.id))
+        if(!folder.isDirectory)return@withLock
+        folder.listFiles()?.filter{it.isDirectory&&!it.name.endsWith("_download")}?.forEach{chapterFolder->
+            val metadata=File(chapterFolder,"chapter.json")
+            runCatching{
+                val value=JSONObject(metadata.readText()).put("work",OfflineMetadata.encode(work))
+                val pending=File(chapterFolder,"chapter_pending.json")
+                pending.writeText(value.toString());check(pending.renameTo(metadata))
+            }
+        }
+        val cover=File(folder,"cover.img")
+        if(!cover.isFile&&work.cover.startsWith("https://"))runCatching{
+            val pending=File(folder,"cover_pending.img");writePage(work.cover,pending)
+            val bounds=android.graphics.BitmapFactory.Options().apply{inJustDecodeBounds=true}
+            android.graphics.BitmapFactory.decodeFile(pending.absolutePath,bounds)
+            check(bounds.outWidth>0&&bounds.outHeight>0);check(pending.renameTo(cover))
+        }
+    }}
+
     fun delete(workId: String, chapterId: String) {
         chapterFolder(workId, chapterId).deleteRecursively()
         File(root, safe(workId)).takeIf { folder->folder.listFiles()?.none{it.isDirectory}!=false }?.deleteRecursively()
