@@ -14,6 +14,7 @@ import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -39,16 +40,14 @@ import online.mpscan.app.ui.theme.*
  }
  LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(bottom=34.dp)){
   item{
-   Box(Modifier.fillMaxWidth().height(330.dp).background(Brush.linearGradient(listOf(Color(0xff2b183d),MpAccent,Color(0xff111014))))){
-    if(!p?.cover.isNullOrBlank())MpImage(p!!.cover,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent,Color(0xdd08080b),MpBackground))))
-    Text("MP SCAN",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge,modifier=Modifier.padding(18.dp))
-    OutlinedButton(openSettings,Modifier.align(Alignment.TopEnd).padding(14.dp),shape=RoundedCornerShape(14.dp)){Text("⚙ Ajustes")}
-    Row(Modifier.align(Alignment.BottomStart).padding(18.dp),verticalAlignment=Alignment.Bottom){
-     Surface(Modifier.size(108.dp),shape=RoundedCornerShape(28.dp),color=MpSurface2,border=BorderStroke(3.dp,Color(0xffffd258))){
+   Column(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(MpAccent.copy(.1f),MpBackground))).padding(18.dp)){
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("SEU ESPAÇO NA MP SCAN",color=MpAccent,fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelSmall);Text("Meu perfil",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge,modifier=Modifier.padding(top=6.dp))};OutlinedButton(openSettings,shape=RoundedCornerShape(16.dp)){Text("Ajustes")}}
+    if(!p?.cover.isNullOrBlank())MpImage(p!!.cover,null,Modifier.fillMaxWidth().padding(top=20.dp).height(130.dp).clip(RoundedCornerShape(24.dp)),contentScale=ContentScale.Crop)
+    Row(Modifier.padding(top=22.dp),verticalAlignment=Alignment.CenterVertically){
+     Surface(Modifier.size(90.dp),shape=RoundedCornerShape(28.dp),color=MpSurface2,border=BorderStroke(2.dp,MpAccent.copy(.5f))){
       if(!p?.photo.isNullOrBlank())MpImage(p!!.photo,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)else Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(p?.name?.take(1)?.uppercase()?:"MP",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge)}
      }
-     Column(Modifier.padding(start=14.dp,bottom=4.dp)){Text(p?.name?:"Seu perfil",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineMedium,color=Color(0xffffd258));if(!p?.username.isNullOrBlank())Text("@${p!!.username.removePrefix("@")}",color=Color.White.copy(.8f));if(admin)Surface(Modifier.padding(top=8.dp),color=Color(0xff6b20bd).copy(.8f),shape=RoundedCornerShape(14.dp)){Text("✦ ADM",Modifier.padding(horizontal=12.dp,vertical=5.dp),fontWeight=FontWeight.Bold,color=Color(0xffc692ff))}}
+     Column(Modifier.weight(1f).padding(start=18.dp)){Text(p?.name?:"Seu perfil",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall);if(!p?.username.isNullOrBlank())Text("@${p!!.username.removePrefix("@")}",color=MpMuted,modifier=Modifier.padding(top=4.dp));if(admin)Surface(Modifier.padding(top=8.dp),color=MpAccent.copy(.12f),shape=RoundedCornerShape(14.dp)){Text("✦ ADMINISTRADOR",Modifier.padding(horizontal=10.dp,vertical=5.dp),style=MaterialTheme.typography.labelSmall,fontWeight=FontWeight.Bold,color=MpAccent)}}
     }
    }
   }
@@ -56,7 +55,7 @@ import online.mpscan.app.ui.theme.*
    if(session==null){Text("Entre para carregar seu perfil e suas molduras.",color=MpMuted);Button({login=true},Modifier.fillMaxWidth().padding(top=12.dp)){Text("Entrar na conta")}}
    else{
     if(!p?.bio.isNullOrBlank())Surface(Modifier.fillMaxWidth(),color=MpSurface,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,MpLine)){Text(p!!.bio,Modifier.padding(16.dp))}
-    Row(Modifier.padding(top=14.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){Button({edit=true}){Text("✎ Editar perfil")};OutlinedButton(openSettings){Text("⚙ Ajustes")};OutlinedButton({store.clear();session=null;profile=null}){Text("Sair")}}
+    Row(Modifier.fillMaxWidth().padding(top=14.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){Button({edit=true},Modifier.weight(1f),shape=RoundedCornerShape(16.dp)){Text("Editar perfil")};OutlinedButton({store.clear();session=null;profile=null},shape=RoundedCornerShape(16.dp)){Text("Sair da conta")}}
     Row(Modifier.fillMaxWidth().padding(top=18.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){Stat("${p?.followers?:0}","Seguidores",Modifier.weight(1f));Stat("${p?.following?:0}","Seguindo",Modifier.weight(1f));Stat("${p?.comments?:0}","Comentários",Modifier.weight(1f))}
    }
    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth().padding(top=12.dp));if(error.isNotBlank())Text(error,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(top=10.dp))
@@ -80,8 +79,8 @@ import online.mpscan.app.ui.theme.*
   }
  }
 }
-@Composable private fun AchievementCard(){Surface(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=10.dp),color=Color(0xff18171d),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,Color(0xff715a2a))){Column(Modifier.padding(20.dp)){Text("✦ Galeria de conquistas",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text("Medalhas de jornada e presentes especiais entregues pela equipe MP SCAN.",color=MpMuted,modifier=Modifier.padding(top=6.dp));LinearProgressIndicator(progress={.43f},Modifier.fillMaxWidth().padding(top=18.dp),color=Color(0xffffc13d));Text("A primeira conquista de jornada chegará após um mês de cadastro.",color=MpMuted,modifier=Modifier.padding(top=16.dp))}}}
-@Composable private fun AdminCard(){Surface(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=10.dp),color=Color(0xff21131b),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,Color(0xff7f294f))){Column(Modifier.padding(20.dp)){Text("🛠 Painel administrativo",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text("Gerencie obras, capítulos, usuários, comentários, banners e notificações.",color=MpMuted,modifier=Modifier.padding(top=5.dp));Button({},Modifier.fillMaxWidth().padding(top=16.dp)){Text("Abrir painel ADM")}}}}
+@Composable private fun AchievementCard(){Surface(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=10.dp),color=MpSurface,shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,MpLine)){Column(Modifier.padding(20.dp)){Text("Sua identidade de leitor",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text("Organize suas coleções, acompanhe sua atividade e escolha uma moldura para seus comentários.",color=MpMuted,modifier=Modifier.padding(top=8.dp))}}}
+@Composable private fun AdminCard(){val uri=LocalUriHandler.current;Surface(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=10.dp),color=MpAccent.copy(.08f),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,MpAccent.copy(.25f))){Column(Modifier.padding(20.dp)){Text("Painel administrativo",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text("Gerencie a MP SCAN no painel do site.",color=MpMuted,modifier=Modifier.padding(top=6.dp));Button({uri.openUri("https://www.mpscan.online/#/adm/visao-geral")},Modifier.fillMaxWidth().padding(top=16.dp)){Text("Abrir painel ADM")}}}}
 @Composable private fun FramesPanel(frames:List<CommentFrame>,selected:String,action:(CommentFrame,Boolean)->Unit,clear:()->Unit){
  val owned=frames.filter{it.owned};val available=frames.filterNot{it.owned}
  Column(Modifier.padding(horizontal=18.dp)){
@@ -189,9 +188,9 @@ private fun imageData(context:Context,uri:Uri,maxBytes:Int):String{
  val colors=listOf("#8d2bff","#ff3d8d","#4285f4","#ad204d","#28b67a","#f1a20b")
  LazyColumn(Modifier.fillMaxSize().background(MpBackground),contentPadding=PaddingValues(bottom=42.dp)){
   item{
-   Box(Modifier.fillMaxWidth().height(330.dp).background(Brush.linearGradient(listOf(Color(0xff2b183d),MpAccent,Color(0xff111014))))){
+   Box(Modifier.fillMaxWidth().height(330.dp).background(Brush.linearGradient(listOf(MpAccent.copy(.18f),MpSurface,MpBackground)))){
     if(co.isNotBlank())MpImage(co,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x22000000),Color(0xdd08080b)))))
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent,MpBackground.copy(.92f)))))
     OutlinedButton(close,Modifier.padding(16.dp),shape=RoundedCornerShape(16.dp)){Text("← Perfil")}
     Row(Modifier.align(Alignment.BottomStart).padding(24.dp),verticalAlignment=Alignment.Bottom){
      Surface(Modifier.size(108.dp),shape=RoundedCornerShape(28.dp),color=MpSurface2,border=BorderStroke(3.dp,runCatching{Color(android.graphics.Color.parseColor(color))}.getOrDefault(MpAccent))){
@@ -215,7 +214,7 @@ private fun imageData(context:Context,uri:Uri,maxBytes:Int):String{
      OutlinedTextField(u,{u=it.filterNot(Char::isWhitespace).removePrefix("@").take(24)},Modifier.fillMaxWidth().padding(top=12.dp),label={Text("@username")},singleLine=true)
      OutlinedTextField(b,{b=it.take(280)},Modifier.fillMaxWidth().padding(top=12.dp),label={Text("Bio")},minLines=4,supportingText={Text("${b.length}/280")})
      Text("Cor de destaque do perfil",color=MpMuted,modifier=Modifier.padding(top=18.dp,bottom=10.dp))
-     Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){colors.forEach{hex->
+     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(10.dp)){colors.forEach{hex->
       val chosen=color.equals(hex,true);Box(Modifier.size(44.dp).clip(CircleShape).background(Color(android.graphics.Color.parseColor(hex))).border(if(chosen)3.dp else 1.dp,if(chosen)Color.White else MpLine,CircleShape).clickable{color=hex})
      }}
      Surface(Modifier.fillMaxWidth().padding(top=20.dp),color=MpSurface2,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,MpAccent.copy(.45f))){

@@ -30,7 +30,7 @@ import java.util.*
  var ban by remember(uid){mutableStateOf(uid?.let{SiteAccess.cachedBan(context,it)}?:SiteBan())}
  var verified by remember(uid){mutableStateOf(uid==null)}
  var error by remember(uid){mutableStateOf("")};var retry by remember{mutableIntStateOf(0)}
- DisposableEffect(prefs){val listener=SharedPreferences.OnSharedPreferenceChangeListener{_,key->if(key=="uid")uid=store.session()?.uid};prefs.registerOnSharedPreferenceChangeListener(listener);onDispose{prefs.unregisterOnSharedPreferenceChangeListener(listener)}}
+ DisposableEffect(prefs){val listener=SharedPreferences.OnSharedPreferenceChangeListener{_,key->if(key==null||key=="uid")uid=store.session()?.uid};prefs.registerOnSharedPreferenceChangeListener(listener);onDispose{prefs.unregisterOnSharedPreferenceChangeListener(listener)}}
  LaunchedEffect(uid,retry){
   if(uid==null){verified=true;return@LaunchedEffect}
   while(true){
@@ -38,23 +38,25 @@ import java.util.*
    catch(e:CancellationException){throw e}
    catch(e:Exception){
     val manager=context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-    if(manager.activeNetwork==null&&!ban.blocks())verified=true
+    if(manager.getNetworkCapabilities(manager.activeNetwork)?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)!=true&&!ban.blocks())verified=true
     else {verified=false;error="Não foi possível verificar o acesso da conta. Confira a conexão e tente novamente."}
    }
    delay(15000)
   }
  }
  when{
+  uid==null->AuthScreen({},mandatory=true){store.save(it);uid=it.uid}
   ban.blocks()->Column(Modifier.fillMaxSize().padding(28.dp),verticalArrangement=Arrangement.Center){
    Text("Conta suspensa",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)
    Text(ban.reason.ifBlank{"Entre em contato com a equipe da MP SCAN."},color=MpMuted,modifier=Modifier.padding(top=16.dp))
    Text(if(ban.permanent)"Banimento permanente" else "Até "+SimpleDateFormat("dd/MM/yyyy 'às' HH:mm",Locale("pt","BR")).apply{timeZone=TimeZone.getTimeZone("America/Sao_Paulo")}.format(Date(ban.until)),modifier=Modifier.padding(top=12.dp))
    Button({context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.mpscan.online/#/suporte")))},Modifier.padding(top=20.dp)){Text("Falar com a equipe")}
    TextButton({retry++}){Text("Verificar novamente")}
+   TextButton({store.clear();uid=null}){Text("Sair da conta")}
   }
   !verified->Column(Modifier.fillMaxSize().padding(28.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){
    if(error.isEmpty()){CircularProgressIndicator();Text("Verificando sua conta…",Modifier.padding(top=16.dp))}
-   else{Text(error,color=MpMuted);Button({retry++},Modifier.padding(top=16.dp)){Text("Tentar novamente")}}
+   else{Text(error,color=MpMuted);Button({retry++},Modifier.padding(top=16.dp)){Text("Tentar novamente")};TextButton({store.clear();uid=null}){Text("Entrar em outra conta")}}
   }
   else->content()
  }
@@ -62,7 +64,7 @@ import java.util.*
 @Composable fun SiteAnnouncement(works:List<Work>,allowed:Boolean,openWork:(Work)->Unit){
  val context=LocalContext.current;val prefs=remember{context.getSharedPreferences("mp_announcements",0)}
  var announcement by remember{mutableStateOf<org.json.JSONObject?>(null)};var visible by remember{mutableStateOf(false)}
- LaunchedEffect(allowed){
+ LaunchedEffect(allowed,works){
   visible=false
   if(allowed)while(true){
    try{

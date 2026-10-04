@@ -29,6 +29,7 @@ import org.json.JSONObject
    item{MenuTile("♡","Parceiros","Hospedagem, obras doadas e como hospedar"){page="Parceiros"}}
    item{MenuTile("◈","Personalizar","Sua tela de bloqueio, senha e foto"){page="Personalizar"}}
    item{MenuTile("⚙","Ajustes","Conta, notificações e leitura",settings)}
+   item{SupportCard()}
   }else{
    item{PartnerList("partnerScans","Hospedagem")}
    item{PartnerList("donationScans","Obras doadas")}
