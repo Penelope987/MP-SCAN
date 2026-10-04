@@ -35,6 +35,11 @@ import java.util.*
  LaunchedEffect(uid,retry){
   if(uid==null){verified=true;return@LaunchedEffect}
   while(true){
+   val networkManager=context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+   if(networkManager.getNetworkCapabilities(networkManager.activeNetwork)?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)!=true){
+    ban=SiteAccess.cachedBan(context,uid.orEmpty());verified=context.getSharedPreferences("mp_bans",0).contains(uid)&&!ban.blocks();error=if(verified||ban.blocks())""else"Conecte-se uma vez para verificar o acesso desta conta antes de ler offline."
+    delay(15000);continue
+   }
    try{ban=SiteAccess.checkBan(context);verified=true;error=""}
    catch(e:CancellationException){throw e}
    catch(e:Exception){
