@@ -26,7 +26,9 @@ data class OfflineChapter(
     val workCover: String,
     val chapterId: String,
     val chapterLabel: String,
-    val pageCount: Int
+    val pageCount: Int,
+    val work: Work? = null,
+    val chapter: Chapter? = null
 )
 
 class OfflineStore(context: Context) {
@@ -56,10 +58,12 @@ class OfflineStore(context: Context) {
                     OfflineChapter(
                         workId = metadata.getString("workId"),
                         workTitle = metadata.optString("workTitle", "Obra baixada"),
-                        workCover = metadata.optString("workCover"),
+                        workCover = File(workFolder,"cover.img").takeIf{it.isFile&&it.length()>0}?.toURI()?.toString()?:metadata.optString("workCover"),
                         chapterId = metadata.getString("chapterId"),
                         chapterLabel = metadata.optString("chapterLabel", "Capítulo"),
-                        pageCount = files.length()
+                        pageCount = files.length(),
+                        work = runCatching{OfflineMetadata.decode(metadata.getJSONObject("work"))}.getOrNull(),
+                        chapter = runCatching{OfflineMetadata.chapter(metadata.getJSONObject("chapter"))}.getOrNull()
                     )
                 }.getOrNull()
             } ?: emptyList()
@@ -67,9 +71,13 @@ class OfflineStore(context: Context) {
         ?.sortedWith(compareBy<OfflineChapter> { it.workTitle.lowercase() }.thenBy { it.chapterLabel })
         ?: emptyList()
 
+    fun offlineWorks(): List<Work> = downloads().distinctBy{it.workId}.map { saved ->
+        (saved.work ?: Work(saved.workId,saved.workTitle,"",saved.workCover,"","","","",emptyList(),0,0)).copy(cover=saved.workCover,banner="")
+    }
+
     fun delete(workId: String, chapterId: String) {
         chapterFolder(workId, chapterId).deleteRecursively()
-        File(root, safe(workId)).takeIf { it.listFiles().isNullOrEmpty() }?.delete()
+        File(root, safe(workId)).takeIf { folder->folder.listFiles()?.none{it.isDirectory}!=false }?.deleteRecursively()
     }
 
     suspend fun download(
@@ -108,6 +116,8 @@ class OfflineStore(context: Context) {
             currentCoroutineContext().ensureActive()
             File(temporary, "chapter.json").writeText(
                 JSONObject()
+                    .put("work",OfflineMetadata.encode(work))
+                    .put("chapter",OfflineMetadata.encode(chapter))
                     .put("workId", work.id)
                     .put("workTitle", work.title)
                     .put("workCover", work.cover)
@@ -116,6 +126,15 @@ class OfflineStore(context: Context) {
                     .put("files", JSONArray(names))
                     .toString()
             )
+            val cover=File(destination.parentFile,"cover.img")
+            if(!cover.isFile&&work.cover.isNotBlank())runCatching{
+                val pending=File(destination.parentFile,"cover_pending.img")
+                writePage(work.cover,pending)
+                val bounds=android.graphics.BitmapFactory.Options().apply{inJustDecodeBounds=true}
+                android.graphics.BitmapFactory.decodeFile(pending.absolutePath,bounds)
+                check(bounds.outWidth>0&&bounds.outHeight>0)
+                check(pending.renameTo(cover))
+            }
             destination.deleteRecursively()
             check(temporary.renameTo(destination)) { "Não foi possível finalizar o download" }
             localPages(work.id, chapter.id)

@@ -6,6 +6,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -20,10 +22,10 @@ import online.mpscan.app.data.*
 import online.mpscan.app.ui.theme.*
 import org.json.JSONObject
 import java.net.*
-private data class CM(val id:String,val uid:String,val name:String,val username:String,val photo:String,val text:String,val commentImage:String,val spoiler:Boolean,val date:Long,val admin:Boolean,val rank:String,val reactions:JSONObject,val replies:JSONObject,val frame:CF)
-private data class CF(val name:String="",val color:String="#8d2bff",val background:String="#17171d",val image:String="",val width:Int=2)
+private data class CM(val id:String,val uid:String,val name:String,val username:String,val photo:String,val text:String,val commentImage:String,val spoiler:Boolean,val date:Long,val admin:Boolean,val rank:String,val reactions:JSONObject,val replies:JSONObject,val frame:CF,val avatarFrameId:String="")
+private data class CF(val name:String="",val color:String="#8d2bff",val background:String="#17171d",val image:String="",val width:Int=2,val radius:Int=24,val padding:Int=18,val textColor:String="#f7f7f8",val effect:String="none",val speed:Int=4)
 private class API{val adminIds=setOf("eHLv7TlUOAW5rLsMwWVCGeu1KSI2","pc87zkEpz0Ra7HfKvRIwLkbl5K13");val b="https://nnnsss-23f2f-default-rtdb.firebaseio.com";fun e(v:String)=URLEncoder.encode(v,"UTF-8");fun path(t:String,w:String,c:String)=if(t=="obra")"comentariosV1/obra/${e(w)}" else "comentariosV1/capitulo/${e(w)}/${e(c)}";fun q(url:String,m:String="GET",body:String?=null):JSONObject{val x=URL(url).openConnection() as HttpURLConnection;x.requestMethod=m;x.connectTimeout=15000;x.readTimeout=25000;x.setRequestProperty("Content-Type","application/json");if(body!=null){x.doOutput=true;x.outputStream.use{it.write(body.toByteArray())}};val ok=x.responseCode in 200..299;val s=(if(ok)x.inputStream else x.errorStream)?.bufferedReader()?.use{it.readText()}.orEmpty();x.disconnect();if(!ok)error(if("TOKEN_EXPIRED" in s)"Sua sessão expirou. Entre novamente." else "Não foi possível conectar.");return if(s.isBlank()||s=="null")JSONObject()else JSONObject(s)}
- suspend fun list(t:String,w:String,c:String)=withContext(Dispatchers.IO){val values=coroutineScope{listOf(async{q(SiteAccess.authenticated("$b/${path(t,w,c)}.json"))},async{runCatching{q(SiteAccess.authenticated("$b/identidadesComentarios.json"))}.getOrDefault(JSONObject())},async{runCatching{q(SiteAccess.authenticated("$b/perfisPublicos.json"))}.getOrDefault(JSONObject())},async{runCatching{q(SiteAccess.authenticated("$b/config/commentFrames.json"))}.getOrDefault(JSONObject())}).awaitAll()};val x=values[0];val ids=values[1];val profiles=values[2];val frames=values[3];x.keys().asSequence().mapNotNull{id->x.optJSONObject(id)?.let{n->val uid=n.optString("uid");val i=ids.optJSONObject(uid)?:profiles.optJSONObject(uid)?:JSONObject();val fid=i.optString("molduraComentarioId",profiles.optJSONObject(uid)?.optString("molduraComentarioId").orEmpty());val fr=frames.optJSONObject(fid)?:JSONObject();fun fs(vararg k:String):String{k.forEach{z->fr.optString(z).takeIf{it.isNotBlank()}?.let{return it}};return ""};val papel=i.optString("papel",i.optString("role"));val person=ProfileIdentity.person(uid,i,profiles.optJSONObject(uid)?:JSONObject(),n);CM(id,uid,person.name,person.username,person.photo,n.optString("texto"),n.optString("imagemUrl"),n.optBoolean("spoiler"),n.optLong("data"),uid in adminIds||i.optBoolean("admin")||papel.equals("ADM",true)||papel.equals("Administrador",true),i.optString("ranking",i.optString("rank")),n.optJSONObject("reacoes")?:JSONObject(),n.optJSONObject("respostas")?:JSONObject(),CF(fs("nome","name"),fs("borderColor","bordaCor","corBorda").ifBlank{"#8d2bff"},fs("bgColor","fundoCor","backgroundColor","corFundo").ifBlank{"#17171d"},fs("imageUrl","imagem","imagemUrl","backgroundImage","backgroundImageUrl","fundoImagem","fundoUrl","url"),fr.optInt("borderWidth",fr.optInt("espessuraBorda",2)).coerceIn(1,8)))}}.toList().reversed()}
+ suspend fun list(t:String,w:String,c:String)=withContext(Dispatchers.IO){val values=coroutineScope{listOf(async{q(SiteAccess.authenticated("$b/${path(t,w,c)}.json"))},async{runCatching{q(SiteAccess.authenticated("$b/identidadesComentarios.json"))}.getOrDefault(JSONObject())},async{runCatching{q(SiteAccess.authenticated("$b/perfisPublicos.json"))}.getOrDefault(JSONObject())},async{runCatching{q(SiteAccess.authenticated("$b/config/commentFrames.json"))}.getOrDefault(JSONObject())}).awaitAll()};val x=values[0];val ids=values[1];val profiles=values[2];val frames=values[3];x.keys().asSequence().mapNotNull{id->x.optJSONObject(id)?.let{n->val uid=n.optString("uid");val i=ids.optJSONObject(uid)?:profiles.optJSONObject(uid)?:JSONObject();val fid=i.optString("molduraComentarioId",profiles.optJSONObject(uid)?.optString("molduraComentarioId").orEmpty());val fr=frames.optJSONObject(fid)?:JSONObject();fun fs(vararg k:String):String{k.forEach{z->fr.optString(z).takeIf{it.isNotBlank()}?.let{return it}};return ""};val papel=i.optString("papel",i.optString("role"));val person=ProfileIdentity.person(uid,i,profiles.optJSONObject(uid)?:JSONObject(),n);CM(id,uid,person.name,person.username,person.photo,n.optString("texto"),n.optString("imagemUrl"),n.optBoolean("spoiler"),n.optLong("data"),uid in adminIds||i.optBoolean("admin")||papel.equals("ADM",true)||papel.equals("Administrador",true),i.optString("ranking",i.optString("rank")),n.optJSONObject("reacoes")?:JSONObject(),n.optJSONObject("respostas")?:JSONObject(),CF(fs("nome","name"),fs("borderColor","accentColor","glowColor","bordaCor","corBorda").ifBlank{"#8d2bff"},fs("bgColor","fundoCor","backgroundColor","corFundo").ifBlank{"#17171d"},fs("imageUrl","imagem","imagemUrl","backgroundImage","backgroundImageUrl","fundoImagem","fundoUrl","url"),fr.optInt("borderWidth",fr.optInt("espessuraBorda",2)).coerceIn(1,8),fr.optInt("radius",24).coerceIn(8,40),fr.optInt("padding",18).coerceIn(10,34),fr.optString("textColor","#f7f7f8"),fr.optString("effect","none"),fr.optInt("speed",4).coerceIn(1,12)),i.optString("molduraPerfilId",profiles.optJSONObject(uid)?.optString("molduraPerfilId").orEmpty()))}}.toList().reversed()}
  suspend fun send(t:String,w:String,c:String,text:String,sp:Boolean,s:AccountSession)=withContext(Dispatchers.IO){q("$b/${path(t,w,c)}.json?auth=${e(s.token)}","POST",JSONObject().put("uid",s.uid).put("data",System.currentTimeMillis()).put("texto",text).put("imagemUrl","").put("spoiler",sp).toString())}
  suspend fun viewerAdmin(s:AccountSession)=withContext(Dispatchers.IO){if(s.uid in adminIds)true else runCatching{val u=q("$b/usuarios/${e(s.uid)}.json?auth=${e(s.token)}");val p=u.optString("papel");u.optBoolean("admin")||p.equals("ADM",true)||p.equals("Administrador",true)}.getOrDefault(false)}
  suspend fun edit(t:String,w:String,c:String,id:String,value:String,s:AccountSession)=withContext(Dispatchers.IO){q("$b/${path(t,w,c)}/${e(id)}.json?auth=${e(s.token)}","PATCH",JSONObject().put("texto",value).put("editadoEm",System.currentTimeMillis()).toString())}
@@ -45,18 +47,15 @@ private fun color(v:String,f:Color)=runCatching{Color(android.graphics.Color.par
 )}}}
 @Composable private fun Card(x:CM,viewerUid:String,viewerAdmin:Boolean,onEdit:(String)->Unit,onDelete:()->Unit,onPin:()->Unit,onReact:(String)->Unit,onReply:(String)->Unit){var replying by remember(x.id){mutableStateOf(false)};var replyText by remember(x.id){mutableStateOf("")};var editing by remember(x.id){mutableStateOf(false)};var editText by remember(x.id){mutableStateOf(x.text)};var confirmDelete by remember(x.id){mutableStateOf(false)};val canManage=viewerUid.isNotBlank()&&(viewerUid==x.uid||viewerAdmin);
  var show by remember(x.id){mutableStateOf(!x.spoiler)}
- val custom=x.frame.name.isNotBlank()||x.frame.image.isNotBlank();val bc=if(custom)color(x.frame.color,MpAccent)else MpLine;val bg=if(custom)color(x.frame.background,MpSurface)else MpSurface;val foreground=if(custom)Color.White else MaterialTheme.colorScheme.onSurface;val secondary=if(custom)Color.White.copy(.7f)else MpMuted
+ val custom=x.frame.name.isNotBlank()||x.frame.image.isNotBlank();val bc=if(custom)color(x.frame.color,MpAccent)else MpLine;val bg=if(custom)color(x.frame.background,MpSurface)else MpSurface;val foreground=if(custom)color(x.frame.textColor,Color.White) else MaterialTheme.colorScheme.onSurface;val secondary=if(custom)Color.White.copy(.7f)else MpMuted
  val date=remember(x.date){if(x.date>0)SimpleDateFormat("dd/MM/yyyy 'às' HH:mm",Locale("pt","BR")).format(Date(x.date)) else ""}
- Surface(Modifier.fillMaxWidth().padding(top=12.dp),color=bg,shape=RoundedCornerShape(24.dp),border=BorderStroke(if(custom)x.frame.width.dp else 1.dp,bc)){
+ Surface(Modifier.fillMaxWidth().padding(top=14.dp).commentMotion(x.frame.effect,x.frame.speed),color=bg,shape=RoundedCornerShape(x.frame.radius.dp),border=BorderStroke(if(custom)x.frame.width.dp else 1.dp,bc)){
   Box(Modifier.defaultMinSize(minHeight=190.dp)){
-   if(x.frame.image.isNotBlank())MpImage(x.frame.image,null,Modifier.matchParentSize(),contentScale=ContentScale.Crop)
+   if(x.frame.image.isNotBlank())MpImage(x.frame.image,null,Modifier.matchParentSize(),contentScale=ContentScale.FillBounds)
    Box(Modifier.matchParentSize().background(Color.Black.copy(alpha=if(x.frame.image.isNotBlank())0.38f else 0f)))
-   Column(Modifier.padding(16.dp)){
+   Column(Modifier.padding(x.frame.padding.dp)){
     Row(verticalAlignment=Alignment.CenterVertically){
-     Surface(Modifier.size(52.dp),shape=CircleShape,color=MpSurface2,border=BorderStroke(2.dp,bc)){
-      if(x.photo.isNotBlank())MpImage(x.photo,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-      else Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(x.name.take(1).uppercase(),fontWeight=FontWeight.Black)}
-     }
+     FramedAvatar(x.photo,x.name,x.avatarFrameId,60.dp)
      Column(Modifier.padding(start=10.dp).weight(1f)){
       Row(verticalAlignment=Alignment.CenterVertically){
        Text(x.name,fontWeight=FontWeight.Black,color=foreground)
@@ -68,10 +67,12 @@ private fun color(v:String,f:Color)=runCatching{Color(android.graphics.Color.par
      }
     }
     Spacer(Modifier.height(18.dp))
-    if(x.spoiler&&!show)Text("⚠ Spoiler — toque para revelar",color=foreground,modifier=Modifier.clickable{show=true})
-    else {
-     Text(x.text.ifBlank{"Comentário sem texto."},color=foreground,style=MaterialTheme.typography.bodyLarge)
-     if(x.commentImage.isNotBlank())MpImage(x.commentImage,null,Modifier.fillMaxWidth().heightIn(max=280.dp).padding(top=10.dp),contentScale=ContentScale.Fit)
+    SpoilerText(x.text.ifBlank{"Comentário sem texto."},x.spoiler&&!show,foreground){show=true}
+    if(x.commentImage.isNotBlank()){
+     Box(Modifier.fillMaxWidth().clickable(enabled=x.spoiler&&!show,onClickLabel="Revelar spoiler"){show=true}){
+      MpImage(x.commentImage,null,Modifier.fillMaxWidth().heightIn(max=280.dp).padding(top=10.dp).then(if(x.spoiler&&!show)Modifier.blur(24.dp).alpha(if(android.os.Build.VERSION.SDK_INT<31)0f else 1f)else Modifier),contentScale=ContentScale.Fit)
+      if(x.spoiler&&!show&&android.os.Build.VERSION.SDK_INT<31)Box(Modifier.fillMaxWidth().height(160.dp).background(bg))
+     }
     }
     HorizontalDivider(Modifier.padding(top=18.dp),color=MpLine)
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top=10.dp),horizontalArrangement=Arrangement.spacedBy(7.dp)){
