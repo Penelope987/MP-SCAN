@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.CustomCredential
+import androidx.credentials.exceptions.*
 import com.google.android.libraries.identity.googleid.*
 import kotlinx.coroutines.launch
 import online.mpscan.app.data.*
@@ -22,7 +23,7 @@ import online.mpscan.app.ui.theme.*
 @Composable fun AuthScreen(close:()->Unit,mandatory:Boolean=false,signedIn:(AccountSession)->Unit){
  val context=LocalContext.current;val repo=remember{AccountRepository()};val scope=rememberCoroutineScope()
  var mode by remember{mutableStateOf("Entrar")};var email by remember{mutableStateOf("")};var password by remember{mutableStateOf("")};var name by remember{mutableStateOf("")};var username by remember{mutableStateOf("")};var visible by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf("")};var notice by remember{mutableStateOf("")}
- fun runAction(action:suspend ()->Unit){if(busy)return;scope.launch{busy=true;error="";notice="";try{action()}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){error=e.message?:"Não foi possível concluir. Tente novamente."}finally{busy=false}}}
+ fun runAction(action:suspend ()->Unit){if(busy)return;scope.launch{busy=true;error="";notice="";try{action()}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){error=when(e){is GetCredentialCancellationException->"A seleção da conta foi cancelada. Toque em Google para tentar novamente.";is NoCredentialException->"Nenhuma conta Google disponível. Adicione uma conta Google ao celular e tente novamente.";is GetCredentialException->"O Google não conseguiu verificar este aplicativo. Confira a configuração de assinatura no Firebase e tente novamente.";else->e.message?.takeIf{message->listOf("Não ","Sua ","Seu ","Informe ","Use ","Este ","A senha","E-mail ","O login").any{message.startsWith(it)}}?:"Não foi possível entrar. Confira sua conexão e tente novamente."}}finally{busy=false}}}
  Column(Modifier.fillMaxSize().background(MpBackground).safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
   Spacer(Modifier.height(if(mandatory)36.dp else 0.dp));if(!mandatory)TextButton(close,enabled=!busy){Text("← Voltar")};Surface(color=MpAccent.copy(.12f),shape=RoundedCornerShape(20.dp)){Text("MP SCAN",color=MpAccent,fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineMedium,modifier=Modifier.padding(18.dp))};Text(if(mode=="Cadastrar")"Sua história começa aqui"else if(mode=="Recuperar")"Recupere seu acesso"else "Sua próxima história espera por você",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineMedium);Text("Sua biblioteca, suas leituras e sua comunidade em um só lugar.",color=MpMuted)
   Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){FilterChip(mode=="Entrar",{mode="Entrar";error=""},{Text("Entrar")},enabled=!busy);FilterChip(mode=="Cadastrar",{mode="Cadastrar";error=""},{Text("Cadastrar")},enabled=!busy)}
@@ -34,7 +35,8 @@ import online.mpscan.app.ui.theme.*
    TextButton({mode="Recuperar"},enabled=!busy){Text("Esqueceu sua senha?")}
    HorizontalDivider(color=MpLine)
    OutlinedButton({runAction{
-    val clientId=runCatching{repo.googleClientId()}.getOrElse{failure->val resource=context.resources.getIdentifier("default_web_client_id","string",context.packageName);if(resource==0)throw failure;context.getString(resource)}
+    val resource=context.resources.getIdentifier("default_web_client_id","string",context.packageName)
+    val clientId=if(resource!=0)context.getString(resource)else repo.googleClientId()
     val option=GetSignInWithGoogleOption.Builder(clientId).build()
     val result=CredentialManager.create(context).getCredential(context,GetCredentialRequest.Builder().addCredentialOption(option).build())
     val credential=result.credential

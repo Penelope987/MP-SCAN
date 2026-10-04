@@ -3,6 +3,7 @@ package online.mpscan.app.ui
 import android.content.SharedPreferences
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -46,13 +47,18 @@ import java.util.*
  }
  when{
   uid==null->AuthScreen({},mandatory=true){store.save(it);uid=it.uid}
-  ban.blocks()->Column(Modifier.fillMaxSize().padding(28.dp),verticalArrangement=Arrangement.Center){
-   Text("Conta suspensa",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)
-   Text(ban.reason.ifBlank{"Entre em contato com a equipe da MP SCAN."},color=MpMuted,modifier=Modifier.padding(top=16.dp))
-   Text(if(ban.permanent)"Banimento permanente" else "Até "+SimpleDateFormat("dd/MM/yyyy 'às' HH:mm",Locale("pt","BR")).apply{timeZone=TimeZone.getTimeZone("America/Sao_Paulo")}.format(Date(ban.until)),modifier=Modifier.padding(top=12.dp))
-   Button({context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.mpscan.online/#/suporte")))},Modifier.padding(top=20.dp)){Text("Falar com a equipe")}
-   TextButton({retry++}){Text("Verificar novamente")}
-   TextButton({store.clear();uid=null}){Text("Sair da conta")}
+  ban.blocks()->Column(Modifier.fillMaxSize().background(MpBackground).safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){
+   Surface(Modifier.size(84.dp),color=MpAccent.copy(.1f),shape=RoundedCornerShape(28.dp),border=androidx.compose.foundation.BorderStroke(1.dp,MpAccent.copy(.3f))){Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text("!",color=MpAccent,fontWeight=FontWeight.Black,style=MaterialTheme.typography.displaySmall)}}
+   Text("Vamos conversar sobre sua conta",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold,textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.padding(top=24.dp))
+   Text("Seu acesso está suspenso. Confira os detalhes abaixo ou fale com a equipe.",color=MpMuted,textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.padding(top=12.dp,bottom=24.dp))
+   Surface(Modifier.fillMaxWidth(),color=MpSurface,shape=RoundedCornerShape(24.dp),border=androidx.compose.foundation.BorderStroke(1.dp,MpLine)){Column(Modifier.padding(20.dp)){
+    Text(if(ban.permanent)"SUSPENSÃO PERMANENTE"else"SUSPENSÃO TEMPORÁRIA",color=MpAccent,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.labelSmall)
+    Text(ban.reason.ifBlank{"Entre em contato com a equipe para entender o motivo."},modifier=Modifier.padding(top=12.dp))
+    if(!ban.permanent)Text("Até "+SimpleDateFormat("dd/MM/yyyy 'às' HH:mm",Locale("pt","BR")).apply{timeZone=TimeZone.getTimeZone("America/Sao_Paulo")}.format(Date(ban.until)),color=MpMuted,modifier=Modifier.padding(top=14.dp))
+   }}
+   Button({context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.mpscan.online/#/suporte")))},Modifier.fillMaxWidth().padding(top=20.dp).height(52.dp),shape=RoundedCornerShape(16.dp)){Text("Conversar com a equipe")}
+   OutlinedButton({retry++},Modifier.fillMaxWidth().padding(top=10.dp).height(50.dp),shape=RoundedCornerShape(16.dp)){Text("Verificar meu acesso novamente")}
+   TextButton({store.clear();uid=null},Modifier.padding(top=10.dp)){Text("Sair da conta")}
   }
   !verified->Column(Modifier.fillMaxSize().padding(28.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){
    if(error.isEmpty()){CircularProgressIndicator();Text("Verificando sua conta…",Modifier.padding(top=16.dp))}

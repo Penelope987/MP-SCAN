@@ -4,7 +4,7 @@ if (!project.hasProperty("downloadTest")) { apply(plugin = "com.google.gms.googl
 android {
     namespace = "online.mpscan.app"
     compileSdk = 35
-    defaultConfig { applicationId = "online.mpscan.app"; minSdk = 24; targetSdk = 35; versionCode = 30; versionName = "5.0.0-dev30-polished-app"; manifestPlaceholders["appLabel"] = "MP SCAN"
+    defaultConfig { applicationId = "online.mpscan.app"; minSdk = 24; targetSdk = 35; versionCode = 31; versionName = "5.0.0-dev31-account-notifications"; manifestPlaceholders["appLabel"] = "MP SCAN"
         if (project.hasProperty("downloadTest")) { applicationIdSuffix = ".downloadtest"; manifestPlaceholders["appLabel"] = "MP SCAN Teste" } }
     buildFeatures { compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
