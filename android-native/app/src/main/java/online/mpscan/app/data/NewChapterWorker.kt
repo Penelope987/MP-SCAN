@@ -34,10 +34,11 @@ object NotificationSync {
   if(SiteAccess.checkBan(context).blocks())return@withContext
   val session=store.session()?:old;val repo=LibraryRepository()
   val prefs=context.getSharedPreferences("mp_scan_remote_notifications_${session.uid}",Context.MODE_PRIVATE)
-  val seen=prefs.getStringSet("shown",emptySet())!!.toMutableSet()
-  val remote=repo.notifications(session)
+  val seen=(prefs.getStringSet("shown",null)?:context.getSharedPreferences("mp_scan_remote_notifications",Context.MODE_PRIVATE).getStringSet("shown",emptySet())).orEmpty().toMutableSet()
+  var remoteFailure:Throwable?=null
+  val remote=try{repo.notifications(session)}catch(e:CancellationException){throw e}catch(e:Exception){remoteFailure=e;org.json.JSONObject()}
   remote.keys().asSequence().mapNotNull{id->remote.optJSONObject(id)?.let{id to it}}.sortedBy{it.second.optLong("data")}.forEach{(id,n)->
-   if(id !in seen){val title=n.optString("titulo",n.optString("title","Novidades da MP SCAN"));val text=n.optString("texto",n.optString("text"));if(post(context,title,text,"remote-$id")){seen+=id;prefs.edit().putStringSet("shown",seen).apply()}}
+   if(NotificationRules.pendingRemote(id,n,seen)){val title=n.optString("titulo",n.optString("title","Novidades da MP SCAN"));val text=n.optString("texto",n.optString("text"));if(post(context,title,text,"remote-$id")){seen+=id;prefs.edit().putStringSet("shown",seen).apply()}}
   }
   val preferences=SiteAccess.json("notificacoesPreferencias/${session.uid}")
   val chapters=CatalogRepository()
@@ -53,6 +54,7 @@ object NotificationSync {
    }
    state.edit().putStringSet("known_$workId",available.map{it.id}.toSet()).apply()
   }
+  remoteFailure?.let{throw it}
  }}
  private fun post(context:Context,title:String,text:String,id:String):Boolean {
   val manager=context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
