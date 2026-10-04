@@ -1,5 +1,7 @@
 package online.mpscan.app.data
 
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -29,16 +31,16 @@ class CatalogRepository(private val base:String="https://nnnsss-23f2f-default-rt
         root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.let{it.toWork(id)}}.filter{it.title.isNotBlank()}.sortedByDescending{it.updatedAt}.toList()
     }
     suspend fun recentUpdates(works:List<Work>,limit:Int=4):List<RecentUpdate>{
-        val candidates=works.distinctBy{it.id}.sortedByDescending{it.updatedAt}.take(12)
+        val candidates=works.distinctBy{it.id};val requests=Semaphore(6)
         return coroutineScope { candidates.map { work -> async {
-            runCatching { chapters(work.id).filter { it.available }.maxByOrNull { maxOf(it.updatedAt,it.createdAt) }?.let { RecentUpdate(work,it,maxOf(it.updatedAt,it.createdAt)) } }.getOrNull()
+            requests.withPermit { runCatching { chapters(work.id).filter { it.available }.maxByOrNull { maxOf(it.updatedAt,it.createdAt,it.scheduledAt) }?.let { RecentUpdate(work,it,maxOf(it.updatedAt,it.createdAt,it.scheduledAt)) } }.getOrNull() }
         } }.awaitAll().filterNotNull().sortedByDescending { it.updatedAt }.take(limit) }
 
     }
     suspend fun chapters(workId:String):List<Chapter> = withContext(Dispatchers.IO){
         val c=URL(SiteAccess.authenticated("$base/capitulos/$workId.json")).openConnection() as HttpURLConnection;c.connectTimeout=15000;c.readTimeout=25000
         val text=c.inputStream.bufferedReader().use{it.readText()};c.disconnect();val root=if(text.trim()=="null"||text.isBlank())JSONObject()else JSONObject(text)
-        root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.let{o->Chapter(id,o.string("numero","number").replace(',','.').toDoubleOrNull(),o.string("titulo","title"),!o.has("publicado")||o.optBoolean("publicado",true),o.long("atualizadoEm","updatedAt"),o.long("criadoEm","createdAt"),o.string("modoPublicacao").ifBlank{if(o.optBoolean("rascunho"))"draft" else if(o.optLong("agendadoPara")>0)"scheduled" else "published"},o.long("agendadoPara"))}}.filter{it.published&&it.publicationMode!="draft"}.sortedByDescending{it.number?:-1.0}.toList()
+        root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.let{o->Chapter(id,o.string("numero","number").replace(',','.').toDoubleOrNull(),o.string("titulo","title"),!o.has("publicado")||o.optBoolean("publicado",true),o.long("atualizadoEm","updatedAt"),o.long("criadoEm","createdAt"),o.string("modoPublicacao","publicationMode").ifBlank{if(o.optBoolean("rascunho"))"draft" else if(o.optLong("agendadoPara")>0)"scheduled" else "published"},o.long("agendadoPara","scheduledAt"))}}.filter{it.published&&it.publicationMode!="draft"}.sortedByDescending{it.number?:-1.0}.toList()
     }
     suspend fun pages(workId:String,chapterId:String):List<String> = withContext(Dispatchers.IO){
         val chapter=chapters(workId).firstOrNull{it.id==chapterId}?:error("Este capítulo ainda não foi publicado.")
