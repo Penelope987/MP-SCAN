@@ -1,5 +1,8 @@
 name: Build MP SCAN Native V2
 on:
+  pull_request:
+    branches: [app-mp-scan-desenvolvimento]
+    paths: ['android-native/**', '.github/workflows/build-mp-scan-native.yml']
   push:
     branches: [app-mp-scan-desenvolvimento, fix/app-design-offline]
     paths: ['android-native/**', '.github/workflows/build-mp-scan-native.yml']

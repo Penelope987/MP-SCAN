@@ -1,14 +1,20 @@
-plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id("org.jetbrains.kotlin.plugin.compose") }
+plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id("org.jetbrains.kotlin.plugin.compose"); id("com.google.gms.google-services") apply false }
+// The separate download test app is not registered with Firebase.
+if (!project.hasProperty("downloadTest")) { apply(plugin = "com.google.gms.google-services") }
 android {
     namespace = "online.mpscan.app"
     compileSdk = 35
-    defaultConfig { applicationId = "online.mpscan.app"; minSdk = 24; targetSdk = 35; versionCode = 27; versionName = "5.0.0-dev27-design-offline"; manifestPlaceholders["appLabel"] = "MP SCAN"
+    defaultConfig { applicationId = "online.mpscan.app"; minSdk = 24; targetSdk = 35; versionCode = 28; versionName = "5.0.0-dev28-firebase-analytics"; manifestPlaceholders["appLabel"] = "MP SCAN"
         if (project.hasProperty("downloadTest")) { applicationIdSuffix = ".downloadtest"; manifestPlaceholders["appLabel"] = "MP SCAN Teste" } }
     buildFeatures { compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
 }
 dependencies {
+    if (!project.hasProperty("downloadTest")) {
+        implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
+        implementation("com.google.firebase:firebase-analytics")
+    }
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
     implementation("androidx.credentials:credentials:1.3.0")
