@@ -49,6 +49,8 @@ class PartnershipVisualTest {
   val bitmap=compose.onRoot().captureToImage().asAndroidBitmap();val dir=File(context.getExternalFilesDir(null),"ui-checks").apply{mkdirs()}
   val file=File(dir,name)
   file.outputStream().use{bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}
-  InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("mkdir -p /sdcard/Download/mpscan-ui-checks && cp ${file.absolutePath} /sdcard/Download/mpscan-ui-checks/$name").use { descriptor -> java.io.FileInputStream(descriptor.fileDescriptor).use { it.readBytes() } }
+  listOf("mkdir -p /sdcard/Download/mpscan-ui-checks", "cp ${file.absolutePath} /sdcard/Download/mpscan-ui-checks/$name").forEach { command ->
+   android.os.ParcelFileDescriptor.AutoCloseInputStream(InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(command)).use { it.readBytes() }
+  }
  }
 }
