@@ -37,24 +37,28 @@ class OfflineStore(context: Context) {
 
     fun localPages(workId: String, chapterId: String): List<String> {
         val folder = chapterFolder(workId, chapterId)
+        val backup=File(folder.parentFile,folder.name+"_backup")
+        if(!folder.exists()&&backup.exists())backup.renameTo(folder)
         val metadata = File(folder, "chapter.json")
         if (!metadata.isFile) return emptyList()
         return runCatching {
-            val files = JSONObject(metadata.readText()).optJSONArray("files") ?: JSONArray()
+            val value=JSONObject(metadata.readText());val files = value.optJSONArray("files") ?: JSONArray();val sizes=value.optJSONArray("sizes")
             (0 until files.length()).mapNotNull { index ->
-                File(folder, files.optString(index)).takeIf { it.isFile && it.length()>0 }?.toURI()?.toString()
+                File(folder, files.optString(index)).takeIf { file->val expected=sizes?.optLong(index,0)?:0;file.isFile&&file.length()>0&&(expected<=0||file.length()==expected) }?.toURI()?.toString()
             }.takeIf { it.size == files.length() } ?: emptyList()
         }.getOrDefault(emptyList())
     }
 
-    fun downloads(): List<OfflineChapter> = root.listFiles()
+    fun downloads(): List<OfflineChapter> {
+        root.listFiles()?.filter(File::isDirectory)?.forEach{work->work.listFiles()?.filter{it.isDirectory&&it.name.endsWith("_backup")}?.forEach{backup->val target=File(work,backup.name.removeSuffix("_backup"));if(!target.exists())backup.renameTo(target)}}
+        return root.listFiles()
         ?.filter(File::isDirectory)
         ?.flatMap { workFolder ->
-            workFolder.listFiles()?.filter { it.isDirectory && !it.name.endsWith("_download") }?.mapNotNull { chapterFolder ->
+            workFolder.listFiles()?.filter { it.isDirectory && !it.name.endsWith("_download")&&!it.name.endsWith("_backup") }?.mapNotNull { chapterFolder ->
                 runCatching {
                     val metadata = JSONObject(File(chapterFolder, "chapter.json").readText())
                     val files = metadata.optJSONArray("files") ?: JSONArray()
-                    if (files.length() == 0 || (0 until files.length()).any { !File(chapterFolder, files.getString(it)).let{file->file.isFile&&file.length()>0} }) return@runCatching null
+                    if (files.length() == 0 || (0 until files.length()).any { index->val expected=metadata.optJSONArray("sizes")?.optLong(index,0)?:0;!File(chapterFolder, files.getString(index)).let{file->file.isFile&&file.length()>0&&(expected<=0||file.length()==expected)} }) return@runCatching null
                     OfflineChapter(
                         workId = metadata.getString("workId"),
                         workTitle = metadata.optString("workTitle", "Obra baixada"),
@@ -70,6 +74,7 @@ class OfflineStore(context: Context) {
         }
         ?.sortedWith(compareBy<OfflineChapter> { it.workTitle.lowercase() }.thenBy { it.chapterLabel })
         ?: emptyList()
+    }
 
     fun offlineWorks(): List<Work> = downloads().distinctBy{it.workId}.map { saved ->
         (saved.work ?: Work(saved.workId,saved.workTitle,"",saved.workCover,"","","","",emptyList(),0,0)).copy(cover=saved.workCover,banner="")
@@ -78,7 +83,7 @@ class OfflineStore(context: Context) {
     suspend fun cacheWork(work:Work) = withContext(Dispatchers.IO) { downloadLock.withLock {
         val folder=File(root,safe(work.id))
         if(!folder.isDirectory)return@withLock
-        folder.listFiles()?.filter{it.isDirectory&&!it.name.endsWith("_download")}?.forEach{chapterFolder->
+        folder.listFiles()?.filter{it.isDirectory&&!it.name.endsWith("_download")&&!it.name.endsWith("_backup")}?.forEach{chapterFolder->
             val metadata=File(chapterFolder,"chapter.json")
             runCatching{
                 val value=JSONObject(metadata.readText()).put("work",OfflineMetadata.encode(work))
@@ -144,6 +149,10 @@ class OfflineStore(context: Context) {
                     .put("chapterId", chapter.id)
                     .put("chapterLabel", chapter.label)
                     .put("files", JSONArray(names))
+                    .put("sources",JSONArray(pageUrls.map{if(it.startsWith("data:"))""else it}))
+                    .put("sizes",JSONArray(names.map{File(temporary,it).length()}))
+                    .put("hashes",JSONArray(names.map{PageFiles.digest(File(temporary,it))}))
+                    .put("fingerprint",fingerprint(pageUrls))
                     .toString()
             )
             val cover=File(destination.parentFile,"cover.img")
@@ -155,9 +164,14 @@ class OfflineStore(context: Context) {
                 check(bounds.outWidth>0&&bounds.outHeight>0)
                 check(pending.renameTo(cover))
             }
-            destination.deleteRecursively()
-            check(temporary.renameTo(destination)) { "Não foi possível finalizar o download" }
-            localPages(work.id, chapter.id)
+            val backup=File(destination.parentFile,destination.name+"_backup")
+            backup.deleteRecursively()
+            if(destination.exists())check(destination.renameTo(backup)){"Não foi possível preservar o capítulo salvo."}
+            if(!temporary.renameTo(destination)){backup.renameTo(destination);error("Não foi possível finalizar o download.")}
+            val complete=localPages(work.id,chapter.id)
+            if(complete.size!=names.size){destination.deleteRecursively();backup.renameTo(destination);error("O capítulo ficou incompleto.")}
+            backup.deleteRecursively()
+            complete
         } catch (error: Throwable) {
             temporary.deleteRecursively()
             throw error
@@ -171,29 +185,25 @@ class OfflineStore(context: Context) {
 
     private fun safe(value: String) = value.replace(Regex("[^A-Za-z0-9._-]"), "_")
 
-    private fun writePage(source: String, target: File) {
-        if (source.startsWith("data:", ignoreCase = true)) {
-            val comma = source.indexOf(',')
-            require(comma > 0) { "Imagem inválida" }
-            target.outputStream().use { output ->
-                android.util.Base64InputStream(source.substring(comma + 1).byteInputStream(), Base64.DEFAULT).use { it.copyTo(output) }
-            }
-            check(target.length() > 0) { "Imagem vazia" }
-            return
-        }
-        val connection = URL(source).openConnection() as HttpURLConnection
-        connection.connectTimeout = 20_000
-        connection.readTimeout = 60_000
-        connection.instanceFollowRedirects = true
-        connection.setRequestProperty("User-Agent", "MP-SCAN-Android")
-        try {
-            if (connection.responseCode !in 200..299) throw java.io.IOException("Falha ao baixar página (HTTP ${connection.responseCode})")
-            target.outputStream().use { output -> connection.inputStream.use { it.copyTo(output) } }
-            check(target.length() > 0) { "Imagem vazia" }
-        } finally {
-            connection.disconnect()
-        }
-    }
+    private suspend fun writePage(source:String,target:File)=PageFiles.writeVerified(source,target)
+
+    suspend fun restorePage(workId:String,chapterId:String,index:Int,source:String):String=withContext(Dispatchers.IO){downloadLock.withLock{
+        val folder=chapterFolder(workId,chapterId);val metadata=File(folder,"chapter.json");val value=JSONObject(metadata.readText());val files=value.getJSONArray("files")
+        require(index in 0 until files.length())
+        val file=File(folder,files.getString(index));require(file.canonicalFile.parentFile==folder.canonicalFile)
+        PageFiles.writeVerified(source,file)
+        val sizes=value.optJSONArray("sizes")?:JSONArray();sizes.put(index,file.length());value.put("sizes",sizes)
+        val sources=value.optJSONArray("sources")?:JSONArray();sources.put(index,if(source.startsWith("data:"))""else source);value.put("sources",sources)
+        val hashes=value.optJSONArray("hashes")?:JSONArray();hashes.put(index,PageFiles.digest(file));value.put("hashes",hashes)
+        val pending=File(folder,"chapter_pending.json");pending.writeText(value.toString());check(pending.renameTo(metadata))
+        file.toURI().toString()
+    }}
+    fun matches(workId:String,chapter:Chapter,sources:List<String>):Boolean=runCatching{
+        val value=JSONObject(File(chapterFolder(workId,chapter.id),"chapter.json").readText())
+        val saved=localPages(workId,chapter.id)
+        saved.size==sources.size&&saved.isNotEmpty()&&value.optString("fingerprint")==fingerprint(sources)&&value.optJSONObject("chapter")?.optLong("updatedAt")==chapter.updatedAt
+    }.getOrDefault(false)
+    private fun fingerprint(sources:List<String>):String{val digest=java.security.MessageDigest.getInstance("SHA-256");sources.forEach{digest.update(it.toByteArray());digest.update(0.toByte())};return digest.digest().joinToString(""){"%02x".format(it)}}
 
     private fun extensionFor(source: String): String {
         val value = source.substringBefore(';').substringBefore('?').lowercase()

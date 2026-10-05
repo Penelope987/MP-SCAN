@@ -560,10 +560,11 @@ private fun localizedStatus(value:String):String=when(value.trim().lowercase(Loc
  val context=LocalContext.current;val store=remember{OfflineStore(context.applicationContext)};val readingStore=remember{ReadingStore(context.applicationContext)};val scope=rememberCoroutineScope();val listState=rememberLazyListState()
  var current by remember(work.id,chapter.id){mutableStateOf(chapter)}
  var chapters by remember(work.id){mutableStateOf<List<Chapter>>(emptyList())}
- var listOpen by remember{mutableStateOf(false)}
+ var listOpen by remember{mutableStateOf(false)};val readerConnected=online.mpscan.app.ui.networkAvailable();var readerAttempt by remember(current.id){mutableIntStateOf(0)}
  var pages by remember(current.id){mutableStateOf<List<String>>(emptyList())};var remotePages by remember(current.id){mutableStateOf<List<String>>(emptyList())};var loading by remember(current.id){mutableStateOf(true)};var failed by remember(current.id){mutableStateOf(false)};var offline by remember(current.id){mutableStateOf(false)};var downloading by remember(current.id){mutableStateOf(false)};var progress by remember(current.id){mutableIntStateOf(0)};var downloadError by remember(current.id){mutableStateOf("")}
- LaunchedEffect(work.id){val saved=store.downloads().filter{it.workId==work.id}.map{it.toChapter()};chapters=runCatching{check(isConnected(context));(CatalogRepository().chapters(work.id).filter{it.available}+saved).distinctBy{it.id}.sortedBy{it.number?:Double.MAX_VALUE}}.getOrDefault(saved.sortedBy{it.number?:Double.MAX_VALUE});if(chapters.none{it.id==current.id})chapters=(chapters+current).distinctBy{it.id}.sortedBy{it.number?:Double.MAX_VALUE}}
- LaunchedEffect(current.id){if(!current.available){loading=false;return@LaunchedEffect};val saved=store.localPages(work.id,current.id);if(saved.isNotEmpty()){pages=saved;offline=true;loading=false}else{runCatching{CatalogRepository().pages(work.id,current.id)}.onSuccess{remotePages=it;pages=it}.onFailure{failed=true};loading=false};if(pages.isNotEmpty()){val last=readingStore.progress(work.id,current.id)?.page?.minus(1)?.coerceIn(0,pages.lastIndex)?:0;listState.scrollToItem(last)}}
+ LaunchedEffect(work.id,readerConnected){val saved=withContext(Dispatchers.IO){store.downloads()}.filter{it.workId==work.id}.map{it.toChapter()};chapters=runCatching{check(isConnected(context));(CatalogRepository().chapters(work.id).filter{it.available}+saved).distinctBy{it.id}.sortedBy{it.number?:Double.MAX_VALUE}}.getOrDefault(saved.sortedBy{it.number?:Double.MAX_VALUE});if(chapters.none{it.id==current.id})chapters=(chapters+current).distinctBy{it.id}.sortedBy{it.number?:Double.MAX_VALUE}}
+ LaunchedEffect(current.id,readerAttempt){loading=true;failed=false;if(!current.available){loading=false;return@LaunchedEffect};val saved=withContext(Dispatchers.IO){store.localPages(work.id,current.id)};if(saved.isNotEmpty()){pages=saved;offline=true;loading=false}else{runCatching{CatalogRepository().pages(work.id,current.id)}.onSuccess{remotePages=it;pages=it}.onFailure{if(it is kotlinx.coroutines.CancellationException)throw it;failed=true};loading=false};if(pages.isNotEmpty()){val last=readingStore.progress(work.id,current.id)?.page?.minus(1)?.coerceIn(0,pages.lastIndex)?:0;listState.scrollToItem(last)}}
+ LaunchedEffect(readerConnected){if(readerConnected&&failed)readerAttempt++}
  LaunchedEffect(work.id,current.id){
   WorkManager.getInstance(context.applicationContext).getWorkInfosByTagFlow("work-download-${work.id}").catch{downloadError="Não foi possível acompanhar o download. Abra o capítulo novamente.";downloading=false}.collect{infos->
    val saved=withContext(Dispatchers.IO){store.localPages(work.id,current.id)}
@@ -577,7 +578,7 @@ private fun localizedStatus(value:String):String=when(value.trim().lowercase(Loc
    }
   }
  }
- LaunchedEffect(listState,pages.size,current.id){if(pages.isNotEmpty())snapshotFlow{listState.firstVisibleItemIndex}.distinctUntilChanged().collect{index->readingStore.save(work,current,index+1,pages.size)}}
+ LaunchedEffect(listState,pages.size,current.id){if(pages.isNotEmpty())snapshotFlow{online.mpscan.app.data.PageTiles.sourceIndex(listState.layoutInfo.visibleItemsInfo.firstOrNull()?.key)}.distinctUntilChanged().collect{index->if(index!=null)readingStore.save(work,current,index+1,pages.size)}}
  val position=chapters.indexOfFirst{it.id==current.id};val previous=chapters.getOrNull(position-1);val next=chapters.getOrNull(position+1)
  if(listOpen)ChapterListDialog(chapters,current.id,store,work.id,{listOpen=false}){current=it;listOpen=false}
 
@@ -652,17 +653,20 @@ private fun localizedStatus(value:String):String=when(value.trim().lowercase(Loc
   when{
    !current.available->Message("Capítulo agendado. Disponível em "+formatScheduled(current.scheduledAt))
    loading->Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){CircularProgressIndicator()}
-   failed->Message("Não foi possível abrir o capítulo. Confira sua conexão ou escolha um capítulo salvo offline.")
+   failed->Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){Text("Não foi possível abrir o capítulo. Confira sua conexão ou escolha um capítulo salvo offline.",color=MpMuted);Button({readerAttempt++},Modifier.padding(top=16.dp)){Text("Carregar capítulo")}}
    pages.isEmpty()->Message("Nenhuma página encontrada.")
-   else->LazyColumn(Modifier.fillMaxSize().pointerInput(current.id){detectTapGestures(onDoubleTap={controls=true})},state=listState,horizontalAlignment=Alignment.CenterHorizontally){
-    items(pages){page->BoxWithConstraints(Modifier.fillMaxWidth(width).widthIn(max=1000.dp)){val pageWidth=maxWidth*zoom;Box(Modifier.horizontalScroll(rememberScrollState())){Box(Modifier.width(pageWidth)){ReaderPage(page)}}}}
+   else->online.mpscan.app.ui.ReaderImages(pages,listState,width,zoom,readerConnected,Modifier.fillMaxSize().pointerInput(current.id){detectTapGestures(onDoubleTap={controls=true})}){index->
+    if(!readerConnected)null else{
+     val sources=if(remotePages.isNotEmpty())remotePages else CatalogRepository().pages(work.id,current.id).also{remotePages=it}
+     sources.getOrNull(index)?.let{source->store.restorePage(work.id,current.id,index,source)}
+    }
    }
   }
   AnimatedVisibility(controls,Modifier.align(Alignment.TopCenter).padding(horizontal=12.dp,vertical=12.dp),enter=fadeIn(tween(animationMillis))+slideInVertically(tween(animationMillis)){ -it/2 },exit=fadeOut(tween(animationMillis))+slideOutVertically(tween(animationMillis)){ -it/2 }){
    Surface(Modifier.fillMaxWidth().widthIn(max=850.dp),color=scheme.surface.copy(alpha=.90f),shape=RoundedCornerShape(22.dp),border=androidx.compose.foundation.BorderStroke(1.dp,scheme.outline.copy(alpha=.35f)),shadowElevation=6.dp){
     Row(Modifier.padding(horizontal=6.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
      IconButton(back){Text("‹",fontSize=30.sp)}
-     Column(Modifier.weight(1f)){Text(work.title,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis);Text("${current.label} · ${(listState.firstVisibleItemIndex+1).coerceAtMost(pages.size)} / ${pages.size}"+(if(offline)" · Offline" else ""),color=MpMuted,style=MaterialTheme.typography.labelSmall)}
+     Column(Modifier.weight(1f)){Text(work.title,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis);Text("${current.label} · ${((online.mpscan.app.data.PageTiles.sourceIndex(listState.layoutInfo.visibleItemsInfo.firstOrNull()?.key)?:0)+1).coerceAtMost(pages.size)} / ${pages.size}"+(if(offline)" · Offline" else ""),color=MpMuted,style=MaterialTheme.typography.labelSmall)}
      IconButton({commentsOpen=true}){ReaderGlyph("comments",MpText)}
      IconButton({settingsOpen=true}){ReaderGlyph("settings",MpText)}
     }
@@ -715,17 +719,6 @@ private fun localizedStatus(value:String):String=when(value.trim().lowercase(Loc
 }
 @Composable private fun Message(text:String){Box(Modifier.fillMaxSize().padding(24.dp),contentAlignment=Alignment.Center){Text(text,color=MpMuted)}}
 
-@Composable private fun ReaderPage(source:String){
- var ratio by remember(source){mutableFloatStateOf(0.7f)}
- var failed by remember(source){mutableStateOf(false)}
- var attempt by remember(source){mutableIntStateOf(0)}
- val context=LocalContext.current
- Column(Modifier.fillMaxWidth()){
-  key(attempt){MpImage(coil3.request.ImageRequest.Builder(context).data(if(source.startsWith("file:"))java.io.File(java.net.URI(source))else source).build(),"Página do capítulo",Modifier.fillMaxWidth().aspectRatio(ratio),contentScale=ContentScale.FillWidth,
-   onSuccess={result->val image=result.result.image;if(image.width>0&&image.height>0)ratio=image.width.toFloat()/image.height;failed=false},onError={failed=true})}
-  if(failed)OutlinedButton({attempt++;failed=false},Modifier.fillMaxWidth().padding(12.dp)){Text("Esta página não carregou. Toque para tentar novamente.")}
- }
-}
 private fun formatScheduled(value:Long):String=SimpleDateFormat("dd/MM/yyyy 'às' HH:mm",Locale("pt","BR")).apply{timeZone=java.util.TimeZone.getTimeZone("America/Sao_Paulo")}.format(Date(value))
 @Composable private fun ScheduledChapterRow(chapter:Chapter){
  Surface(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=6.dp),color=MpSurface,shape=RoundedCornerShape(20.dp),border=androidx.compose.foundation.BorderStroke(1.dp,MpLine)){

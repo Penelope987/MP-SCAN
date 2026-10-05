@@ -4,8 +4,10 @@ if (!project.hasProperty("downloadTest")) { apply(plugin = "com.google.gms.googl
 android {
     namespace = "online.mpscan.app"
     compileSdk = 35
-    defaultConfig { applicationId = "online.mpscan.app"; minSdk = 24; targetSdk = 35; versionCode = 34; versionName = "5.0.0-dev34-telegram-lock"; manifestPlaceholders["appLabel"] = "MP SCAN"
+    defaultConfig { applicationId = "online.mpscan.app"; minSdk = 24; targetSdk = 35; versionCode = 35; versionName = "5.0.0"; manifestPlaceholders["appLabel"] = "MP SCAN"
         if (project.hasProperty("downloadTest")) { applicationIdSuffix = ".downloadtest"; manifestPlaceholders["appLabel"] = "MP SCAN Teste" } }
+    defaultConfig { testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
+    buildTypes { getByName("release") { isDebuggable = false; isMinifyEnabled = false } }
     buildFeatures { compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
@@ -16,6 +18,10 @@ dependencies {
         implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
         implementation("com.google.firebase:firebase-analytics")
     }
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
     implementation("androidx.credentials:credentials:1.3.0")

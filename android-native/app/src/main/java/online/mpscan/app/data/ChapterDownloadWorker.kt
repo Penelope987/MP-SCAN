@@ -49,7 +49,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
                 SiteAccess.requireAllowed(applicationContext)
                 val sources=repository.pages(workId,chapter.id)
                 val saved=withContext(Dispatchers.IO){store.localPages(workId,chapter.id)}
-                if (saved.size != sources.size || saved.isEmpty()) {
+                if (!withContext(Dispatchers.IO){store.matches(workId,chapter,sources)}) {
                     store.download(work, chapter, sources, onProgress = { value ->
                         setProgressAsync(Data.Builder().putInt(PROGRESS, (index * 100 + value) / chapters.size)
                             .putString(CHAPTER_ID, chapter.id).putInt(CHAPTER_PROGRESS, value).build())

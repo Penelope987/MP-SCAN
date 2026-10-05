@@ -1,4 +1,4 @@
-name: Build MP SCAN Native V2
+name: Build and validate MP SCAN release
 on:
   pull_request:
     branches: [app-mp-scan-desenvolvimento]
@@ -10,6 +10,7 @@ permissions: { contents: read }
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v5
@@ -20,10 +21,41 @@ jobs:
       - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: '8.9' }
-      - name: Build clean native app
+      - name: Compile and test release
         working-directory: android-native
-        run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace
-      - name: Prepare APK
-        run: cp android-native/app/build/outputs/apk/debug/app-debug.apk MP-SCAN-native-v2.apk
+        run: gradle :app:testDebugUnitTest :app:assembleRelease :app:assembleDebugAndroidTest --stacktrace
+      - name: Enable emulator acceleration
+        run: |
+          sudo chmod 666 /dev/kvm
+      - name: Verify long images and offline reading on Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 2048
+          working-directory: android-native
+          script: |
+            adb shell svc wifi disable
+            adb shell svc data disable
+            gradle :app:connectedDebugAndroidTest --stacktrace
+      - name: Prepare unsigned release and signing tool
+        run: |
+          mkdir -p release-output
+          cp android-native/app/build/outputs/apk/release/app-release-unsigned.apk release-output/MP-SCAN-release-unsigned.apk
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" release-output/apksigner.jar
       - uses: actions/upload-artifact@v4
-        with: { name: mp-scan-native-v2, path: MP-SCAN-native-v2.apk }
+        with:
+          name: mp-scan-release-unsigned
+          path: release-output
+          if-no-files-found: error
+      - name: Preserve verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-verification-reports
+          path: |
+            android-native/app/build/reports/tests
+            android-native/app/build/reports/androidTests
+            android-native/app/build/outputs/androidTest-results
