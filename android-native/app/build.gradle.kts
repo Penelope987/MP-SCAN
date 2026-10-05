@@ -18,6 +18,7 @@ dependencies {
         implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
         implementation("com.google.firebase:firebase-analytics")
     }
+    androidTestImplementation(platform("androidx.compose:compose-bom:2025.02.00"))
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
