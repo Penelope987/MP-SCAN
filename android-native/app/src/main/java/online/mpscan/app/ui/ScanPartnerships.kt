@@ -104,7 +104,16 @@ import androidx.compose.ui.window.DialogProperties
     item{OutlinedTextField(url,{url=it.take(2048)},Modifier.fillMaxWidth(),label={Text("Página do catálogo")},supportingText={Text("Somente as obras desta página serão importadas.")},singleLine=true,shape=RoundedCornerShape(16.dp))}
     item{if(cover.isNotBlank())MpImage(cover,"Capa da parceria",Modifier.fillMaxWidth().height(140.dp).clip(RoundedCornerShape(20.dp)),contentScale=ContentScale.Crop);OutlinedButton({photoTarget=false;picker.launch("image/*")},enabled=!preparing&&!saving){Text("Escolher capa da vitrine")}}
     item{Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){FramedAvatar(photo,name,size=60.dp);OutlinedButton({photoTarget=true;picker.launch("image/*")},enabled=!preparing&&!saving){Text("Escolher foto da scan")}}}
-    item{OutlinedTextField(handle,{handle=it.take(100);responsibleUid="";responsible=null},Modifier.fillMaxWidth(),label={Text("Buscar responsável por nome ou @")},singleLine=true,shape=RoundedCornerShape(16.dp));if(responsible==null)UserSearchResults(handle){person->responsible=person;responsibleUid=person.uid;handle=person.username};responsible?.let{person->Column(Modifier.padding(top=10.dp)){UserIdentityCard(person){};TextButton({responsible=null;responsibleUid="";handle=""}){Text("Trocar responsável")}}}
+    item {
+     OutlinedTextField(handle,{handle=it.take(100);responsibleUid="";responsible=null},Modifier.fillMaxWidth(),label={Text("Buscar responsável por nome ou @")},singleLine=true,shape=RoundedCornerShape(16.dp))
+     if(responsible==null)UserSearchResults(handle){person->responsible=person;responsibleUid=person.uid;handle=person.username}
+     responsible?.let{person->
+      Column(Modifier.padding(top=10.dp)){
+       UserIdentityCard(person){}
+       TextButton({responsible=null;responsibleUid="";handle=""}){Text("Trocar responsável")}
+      }
+     }
+    }
     item{OutlinedTextField(description,{description=it.take(1000)},Modifier.fillMaxWidth(),label={Text("Apresentação da scan")},minLines=3,shape=RoundedCornerShape(16.dp))}
     item{Text("Visibilidade",fontWeight=FontWeight.Bold);Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){FilterChip(draft,{draft=true},{Text("Rascunho")});FilterChip(!draft,{draft=false},{Text("Público")})};Text(if(draft)"Só você verá este rascunho. Publique quando a vitrine estiver pronta."else"Todos os leitores poderão encontrar esta parceria.",color=MpMuted,style=MaterialTheme.typography.bodySmall)}
     if(localError.isNotBlank())item{Text(localError,color=MaterialTheme.colorScheme.error)}

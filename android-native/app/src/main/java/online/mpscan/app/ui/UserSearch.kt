@@ -39,7 +39,7 @@ import org.json.JSONObject
 }
 @Composable fun NativeProfileDialog(uid:String,close:()->Unit){
  var profile by remember(uid){mutableStateOf<JSONObject?>(null)};var error by remember(uid){mutableStateOf("")};var attempt by remember(uid){mutableIntStateOf(0)}
- LaunchedEffect(uid,attempt){profile=null;error="";try{profile=UserDirectory.profile(uid)}catch(e:CancellationException){throw e}catch(e:Exception){error="Não foi possível abrir o perfil. Confira sua conexão."}}
+ LaunchedEffect(uid,attempt){profile=null;error="";try{profile=UserDirectory.viewerProfile(uid)}catch(e:CancellationException){throw e}catch(e:Exception){error="Não foi possível abrir o perfil. Confira sua conexão."}}
  Dialog(close){Surface(Modifier.fillMaxWidth().widthIn(max=560.dp),color=MpSurface,shape=RoundedCornerShape(28.dp)){
   Column(Modifier.padding(24.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(14.dp)){
    Row{Text("Perfil",Modifier.weight(1f),style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold);TextButton(close){Text("Fechar")}}
@@ -47,7 +47,7 @@ import org.json.JSONObject
    else if(profile==null)CircularProgressIndicator()
    else{val p=profile!!;if(p.length()==0)Text("Este perfil não está disponível.",color=MpMuted)else{
     val person=ProfileIdentity.person(uid,p);FramedAvatar(person.photo,person.name,p.optString("molduraPerfilId"),84.dp);Text(person.name,fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall);Text("@"+person.username.removePrefix("@"),color=MpAccent)
-    if(p.optBoolean("publico",false)){if(p.optString("bio").isNotBlank())Text(p.optString("bio"),color=MpMuted)}else Text("Perfil privado. As informações pessoais ficam restritas conforme as permissões desta conta.",color=MpMuted)
+    if(p.optBoolean("publico",false)||p.optBoolean("_privateAllowed")){val cover=p.optString("capaPerfil",p.optString("cover"));if(cover.isNotBlank())MpImage(cover,person.name,Modifier.fillMaxWidth().height(130.dp),contentScale=androidx.compose.ui.layout.ContentScale.Crop);if(p.optString("bio").isNotBlank())Text(p.optString("bio"),color=MpMuted)}else Text("Perfil privado. As informações pessoais ficam restritas conforme as permissões desta conta.",color=MpMuted)
    }}
   }
  }}

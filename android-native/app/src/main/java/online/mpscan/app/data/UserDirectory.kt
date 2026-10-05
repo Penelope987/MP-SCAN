@@ -27,4 +27,13 @@ object UserDirectory {
   return if(query.trim().startsWith("@"))person.username.removePrefix("@").lowercase().contains(q)else person.name.lowercase().contains(q)||person.username.lowercase().contains(q)
  }
  suspend fun profile(uid:String):JSONObject=SiteAccess.json("perfisPublicos/$uid")
+ suspend fun viewerProfile(uid:String):JSONObject {
+  val public=profile(uid)
+  if(public.length()>0&&!public.optBoolean("publico",false)){
+   try{val details=SiteAccess.json("perfisPrivados/$uid");if(details.length()>0){details.keys().forEach{key->public.put(key,details.opt(key))};public.put("_privateAllowed",true)}}
+   catch(e:CancellationException){throw e}catch(e:Exception){}
+  }
+  return public
+ }
+
 }

@@ -31,8 +31,8 @@ object ExternalCatalog {
   val published=root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.let{ScanPartnership.parse(id,it)}}.filter{it.enabled&&!it.draft}.toList()
   if(uid.isBlank())return published.sortedBy{it.name}
   val drafts=try{SiteAccess.json("config/externalScanDrafts/$uid").also{put("drafts_$uid",it)}}catch(e:CancellationException){throw e}catch(e:Exception){read("drafts_$uid")}
-  val private=drafts.keys().asSequence().mapNotNull{id->drafts.optJSONObject(id)?.let{ScanPartnership.parse(id,it)}}.filter{it.ownerUid==uid&&it.draft}.toList()
-  return (published+private).distinctBy{it.id}.sortedBy{it.name}
+  val personal=drafts.keys().asSequence().mapNotNull{id->drafts.optJSONObject(id)?.let{ScanPartnership.parse(id,it)}}.filter{it.ownerUid==uid&&it.draft}.toList()
+  return (published+personal).distinctBy{it.id}.sortedBy{it.name}
  }
  private suspend fun admin(context:Context):AccountSession {
   val store=AccountStore(context);val old=store.session()?:throw ExternalSourceException("Entre com uma conta ADM para gerenciar parcerias.")
