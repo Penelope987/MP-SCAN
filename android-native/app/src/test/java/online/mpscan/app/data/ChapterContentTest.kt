@@ -29,4 +29,9 @@ class ChapterContentTest {
   val person=ProfilePerson("uid","Ana Maria","penelope","photo")
   assertTrue(UserDirectory.matches(person,"@pene"));assertFalse(UserDirectory.matches(person,"@ana"));assertTrue(UserDirectory.matches(person,"maria"));assertFalse(UserDirectory.matches(person,"@"))
  }
+ @Test fun mixedManifestKeepsTextBetweenImagePages(){
+  val parts=PageManifest.parse("""[{"ordem":0,"url":"https://scan.example/1.jpg"},{"ordem":1,"tipo":"text","texto":"Uma pausa para ler."},{"ordem":2,"url":"https://scan.example/2.jpg"}]""")
+  assertEquals(3,parts.size);assertEquals("Uma pausa para ler.",ChapterText.decode(parts[1]))
+ }
+
 }

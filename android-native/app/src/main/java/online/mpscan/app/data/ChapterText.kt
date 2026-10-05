@@ -21,7 +21,7 @@ object ChapterText {
     is TextNode->buffer.append(node.wholeText)
     is Element->{
      if(node.tagName()=="img"){
-      flush();val source=listOf("data-src","data-lazy-src","data-original","src").firstNotNullOfOrNull{key->node.attr(key).trim().takeIf{it.isNotBlank()&&!it.startsWith("data:image/gif")}}
+      flush();val source=listOf("data-src","data-lazy-src","data-original","src").firstNotNullOfOrNull{key->node.attr(key).trim().takeIf{it.isNotBlank()}}
        ?:throw ExternalSourceException("Uma imagem do capítulo está sem endereço. O download não será salvo incompleto.")
       val image=PageManifest.normalize(if(source.startsWith("data:"))source else node.absUrl(listOf("data-src","data-lazy-src","data-original","src").first{node.attr(it).trim()==source}))
        ?:throw ExternalSourceException("O capítulo contém uma imagem em formato não suportado.")

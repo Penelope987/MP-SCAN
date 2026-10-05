@@ -20,7 +20,7 @@ import org.json.JSONObject
  var people by remember{mutableStateOf(emptyList<ProfilePerson>())};var loading by remember{mutableStateOf(false)};var error by remember{mutableStateOf("")};var selected by remember{mutableStateOf<String?>(null)}
  LaunchedEffect(query,online,uid){people=emptyList();error="";loading=false;if(query.trim().removePrefix("@").length<2)return@LaunchedEffect
   loading=true;delay(250)
-  try{if(!online)error="Conecte à internet para pesquisar perfis."else people=UserDirectory.people(uid).filter{UserDirectory.matches(it,query)}.sortedBy{it.username.lowercase()}.take(12)}
+  try{if(!online)error="Conecte à internet para pesquisar perfis."else people=UserDirectory.search(uid,query).filter{UserDirectory.matches(it,query)}.sortedBy{it.username.lowercase()}.take(12)}
   catch(e:CancellationException){throw e}catch(e:Exception){error="Não foi possível pesquisar perfis agora."}finally{loading=false}
  }
  selected?.let{NativeProfileDialog(it){selected=null}}

@@ -3,15 +3,24 @@ package online.mpscan.app.data
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 import org.json.JSONObject
 
 object UserDirectory {
- private val lock=Mutex();private var cached=emptyList<ProfilePerson>();private var loadedAt=0L;private var account=""
- suspend fun people(uid:String):List<ProfilePerson> = lock.withLock {
-  if(account==uid&&System.currentTimeMillis()-loadedAt<120000)return@withLock cached
-  val profiles=SiteAccess.json("perfisPublicos")
-  cached=profiles.keys().asSequence().mapNotNull{id->profiles.optJSONObject(id)?.let{ProfileIdentity.person(id,it)}}.toList()
-  account=uid;loadedAt=System.currentTimeMillis();cached
+
+ private val lock=Mutex();private val cache=linkedMapOf<String,Pair<Long,List<ProfilePerson>>>()
+ suspend fun search(uid:String,query:String):List<ProfilePerson> {
+  val term=query.trim().removePrefix("@");if(term.length<2)return emptyList()
+  val key=uid+"|"+query.trim()
+  lock.withLock{cache[key]?.takeIf{System.currentTimeMillis()-it.first<60000}?.let{return it.second}}
+  fun encode(value:String)=java.net.URLEncoder.encode(JSONObject.quote(value),"UTF-8")
+  val variants=if(query.trim().startsWith("@"))listOf("nomeUsuario" to term.lowercase())else (listOf("nomeUsuario" to term.lowercase())+listOf(term,term.lowercase(),term.replaceFirstChar{it.uppercase()}).distinct().map{"nome" to it})
+  val result=kotlinx.coroutines.coroutineScope{variants.map{(field,prefix)->async{
+   val profiles=SiteAccess.json("perfisPublicos","?orderBy="+encode(field)+"&startAt="+encode(prefix)+"&endAt="+encode(prefix+"\uf8ff")+"&limitToFirst=50")
+   profiles.keys().asSequence().mapNotNull{id->profiles.optJSONObject(id)?.let{ProfileIdentity.person(id,it)}}.toList()
+  }}.map{it.await()}.flatten().distinctBy{it.uid}}
+  lock.withLock{cache[key]=System.currentTimeMillis() to result;while(cache.size>30)cache.remove(cache.keys.first())}
+  return result
  }
  fun matches(person:ProfilePerson,query:String):Boolean {
   val q=query.trim().removePrefix("@").lowercase();if(q.isBlank())return false

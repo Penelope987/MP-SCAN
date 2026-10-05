@@ -26,7 +26,9 @@ import online.mpscan.app.ui.theme.*
 
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Edit
@@ -61,7 +63,7 @@ import androidx.compose.ui.window.DialogProperties
   item(span={GridItemSpan(maxLineSpan)}){OutlinedButton({retry++},Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp)){Text("Atualizar parcerias")}}
  }
 }
-@Composable private fun PartnerVitrine(partner:ScanPartnership,open:()->Unit){
+@Composable internal fun PartnerVitrine(partner:ScanPartnership,open:()->Unit){
  Surface(Modifier.fillMaxWidth().clickable(onClick=open),color=MpSurface,shape=RoundedCornerShape(28.dp),border=BorderStroke(1.dp,MpLine)){
   Column{Box(Modifier.fillMaxWidth().height(180.dp).background(Brush.linearGradient(listOf(MpAccent.copy(.30f),MpSurface2)))){
    if(partner.cover.isNotBlank())MpImage(partner.cover,partner.name,Modifier.matchParentSize(),contentScale=ContentScale.Crop)
@@ -131,7 +133,7 @@ private fun encodePartnerImage(context:android.content.Context,uri:android.net.U
  LaunchedEffect(initial.id){WorkManager.getInstance(context).getWorkInfosByTagFlow("work-download-${initial.id}").collect{infos->
   val active=infos.filter{!it.state.isFinished};downloading=active.isNotEmpty();if(downloading)error="";pending=chapters.filter{chapter->active.any{ChapterDownloadWorker.uniqueName(initial.id,chapter.id) in it.tags||it.progress.getString(ChapterDownloadWorker.CHAPTER_ID)==chapter.id}}.map{it.id}.toSet();progress=active.maxOfOrNull{it.progress.getInt(ChapterDownloadWorker.PROGRESS,0)}?:0
   saved=withContext(Dispatchers.IO){offlineStore.downloads().filter{it.workId==work.id}.map{it.chapterId}.toSet()}
-  infos.filter{it.state==androidx.work.WorkInfo.State.FAILED}.maxByOrNull{it.id.toString()}?.outputData?.getString(ChapterDownloadWorker.ERROR)?.takeIf{it.isNotBlank()}?.let{error=it}
+  if(!downloading)infos.filter{it.state==androidx.work.WorkInfo.State.FAILED&&chapters.any{chapter->chapter.id !in saved&&(ChapterDownloadWorker.uniqueName(initial.id,chapter.id) in it.tags||"work-download-all-${initial.id}" in it.tags)}}.maxByOrNull{it.id.toString()}?.outputData?.getString(ChapterDownloadWorker.ERROR)?.takeIf{it.isNotBlank()}?.let{error=it}
  }}
  fun download(chapter:Chapter?){scope.launch{try{if(chapter==null)ChapterDownloadWorker.enqueueAll(context,work)else ChapterDownloadWorker.enqueue(context,work,chapter)}catch(e:CancellationException){throw e}catch(e:Exception){error=PublicErrors.message(e,"Não foi possível iniciar o download.")}}}
  BackHandler(onBack=back)
@@ -141,7 +143,7 @@ private fun encodePartnerImage(context:android.content.Context,uri:android.net.U
   item{Text("Atualizada pela scan na própria origem",color=MpAccent2,style=MaterialTheme.typography.labelMedium)}
   if(loading)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
   if(error.isNotBlank())item{Surface(color=MpSurface,shape=RoundedCornerShape(18.dp)){Column(Modifier.padding(16.dp)){Text(error,color=MpMuted);TextButton({retry++}){Text("Atualizar capítulos")}}}}
-  item{Button({download(null)},Modifier.fillMaxWidth(),enabled=online&&!downloading&&chapters.isNotEmpty(),shape=RoundedCornerShape(16.dp)){Icon(Icons.Default.Download,null,Modifier.size(20.dp));Spacer(Modifier.width(10.dp));Text(if(downloading)"Baixando… $progress%"else"Baixar capítulos para ler offline")};if(downloading)LinearProgressIndicator(progress={progress/100f},Modifier.fillMaxWidth().padding(top=8.dp))}
+  item{Button({download(null)},Modifier.fillMaxWidth(),enabled=online&&!downloading&&chapters.isNotEmpty(),shape=RoundedCornerShape(16.dp)){Icon(ScanDownloadIcon,null,Modifier.size(20.dp));Spacer(Modifier.width(10.dp));Text(if(downloading)"Baixando… $progress%"else"Baixar capítulos para ler offline")};if(downloading)LinearProgressIndicator(progress={progress/100f},Modifier.fillMaxWidth().padding(top=8.dp))}
   items(chapters,key={it.id}){chapter->val complete=chapter.id in saved;val active=chapter.id in pending
    Surface(color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(1.dp,if(complete)MpAccent.copy(.3f)else MpLine)){
     Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
@@ -149,7 +151,7 @@ private fun encodePartnerImage(context:android.content.Context,uri:android.net.U
      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
       OutlinedButton({read(work,chapter)},Modifier.weight(1f),shape=RoundedCornerShape(14.dp)){Text("Ler capítulo")}
       FilledTonalButton({download(chapter)},Modifier.weight(1f),enabled=online&&!active&&!complete,shape=RoundedCornerShape(14.dp)){
-       if(active)CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp)else Icon(if(complete)Icons.Default.CheckCircle else Icons.Default.Download,null,Modifier.size(18.dp));Spacer(Modifier.width(7.dp));Text(if(complete)"Salvo"else if(active)"Baixando"else"Baixar")
+       if(active)CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp)else Icon(if(complete)Icons.Default.CheckCircle else ScanDownloadIcon,null,Modifier.size(18.dp));Spacer(Modifier.width(7.dp));Text(if(complete)"Salvo"else if(active)"Baixando"else"Baixar")
       }
      }
     }
@@ -158,3 +160,7 @@ private fun encodePartnerImage(context:android.content.Context,uri:android.net.U
   if(!loading&&chapters.isEmpty())item{Text("Os capítulos aparecerão quando a origem fornecer uma lista compatível.",color=MpMuted)}
  }
 }
+
+private val ScanDownloadIcon=ImageVector.Builder(name="Download",defaultWidth=24.dp,defaultHeight=24.dp,viewportWidth=24f,viewportHeight=24f).apply{
+ path(fill=SolidColor(Color.Black)){moveTo(11f,3f);lineTo(13f,3f);lineTo(13f,12f);lineTo(16f,9f);lineTo(17.4f,10.4f);lineTo(12f,15.8f);lineTo(6.6f,10.4f);lineTo(8f,9f);lineTo(11f,12f);close();moveTo(4f,16f);lineTo(6f,16f);lineTo(6f,19f);lineTo(18f,19f);lineTo(18f,16f);lineTo(20f,16f);lineTo(20f,21f);lineTo(4f,21f);close()}
+}.build()
