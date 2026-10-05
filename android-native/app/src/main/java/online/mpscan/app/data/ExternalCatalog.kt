@@ -23,7 +23,7 @@ object ExternalCatalog {
  private lateinit var prefs:SharedPreferences
  fun init(context:Context){prefs=context.applicationContext.getSharedPreferences("mp_external_catalog",0)}
  fun isExternal(id:String)=id.startsWith("ext_")
- private fun read(key:String)=JSONObject(prefs.getString(key,"{}")?:"{}")
+ private fun read(key:String)=runCatching{JSONObject(prefs.getString(key,"{}")?:"{}")}.getOrDefault(JSONObject())
  private fun put(key:String,value:JSONObject){prefs.edit().putString(key,value.toString()).apply()}
  suspend fun partners():List<ScanPartnership> {
   val root=try{SiteAccess.json(CONFIG).also{put("partners",it)}}catch(e:CancellationException){throw e}catch(e:Exception){read("partners")}
