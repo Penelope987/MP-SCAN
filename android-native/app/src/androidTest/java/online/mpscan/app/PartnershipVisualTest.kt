@@ -2,6 +2,7 @@ package online.mpscan.app
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.runtime.*
@@ -46,6 +47,8 @@ class PartnershipVisualTest {
  }
  private fun save(context:Context,name:String){
   val bitmap=compose.onRoot().captureToImage().asAndroidBitmap();val dir=File(context.getExternalFilesDir(null),"ui-checks").apply{mkdirs()}
-  File(dir,name).outputStream().use{bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}
+  val file=File(dir,name)
+  file.outputStream().use{bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}
+  InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("mkdir -p /sdcard/Download/mpscan-ui-checks && cp ${file.absolutePath} /sdcard/Download/mpscan-ui-checks/$name").use { descriptor -> java.io.FileInputStream(descriptor.fileDescriptor).use { it.readBytes() } }
  }
 }
