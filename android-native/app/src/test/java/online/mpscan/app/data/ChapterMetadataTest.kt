@@ -20,4 +20,18 @@ class ChapterMetadataTest {
   assertFalse(ChapterMetadata.isNew(ChapterMetadata.parse("c",JSONObject()),now))
  }
  @Test fun timestampsInSecondsAreNormalized(){assertEquals(1_800_000_000_000L,ChapterMetadata.parse("c",JSONObject().put("criadoEm",1_800_000_000L)).createdAt)}
+ @Test fun newBadgeExpiresAtExactly48Hours(){
+  val published=1_800_000_000_000L
+  val chapter=Chapter("c",1.0,"",true,published)
+  assertTrue(ChapterMetadata.isNew(chapter,published))
+  assertTrue(ChapterMetadata.isNew(chapter,published+ChapterMetadata.NEW_WINDOW_MILLIS-1))
+  assertFalse(ChapterMetadata.isNew(chapter,published+ChapterMetadata.NEW_WINDOW_MILLIS))
+  assertFalse(ChapterMetadata.isNew(chapter,published+30L*24*60*60*1000))
+  assertFalse(ChapterMetadata.isNew(chapter,published-1))
+ }
+ @Test fun secondBasedTimestampsUseTheSameExpiry(){
+  val chapter=Chapter("c",1.0,"",true,1_800_000_000L)
+  assertTrue(ChapterMetadata.isNew(chapter,1_800_000_000_000L+47L*60*60*1000))
+  assertFalse(ChapterMetadata.isNew(chapter,1_800_000_000_000L+48L*60*60*1000))
+ }
 }
