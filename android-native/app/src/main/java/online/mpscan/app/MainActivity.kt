@@ -111,7 +111,7 @@ import java.util.Locale
 
 
 
-class MainActivity:ComponentActivity(){override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);SiteAccess.init(applicationContext);NewChapterWorker.schedule(applicationContext);lifecycleScope.launch{repeatOnLifecycle(Lifecycle.State.STARTED){while(true){NewChapterWorker.runNow(applicationContext);delay(60000)}}};enableEdgeToEdge();setContent{MpScanTheme{online.mpscan.app.ui.AppLock{SiteAccountGate{HomeRoot()}}}}}}
+class MainActivity:ComponentActivity(){override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);SiteAccess.init(applicationContext);NewChapterWorker.schedule(applicationContext);lifecycleScope.launch{repeatOnLifecycle(Lifecycle.State.STARTED){while(true){NewChapterWorker.runNow(applicationContext);delay(60000)}}};enableEdgeToEdge();setContent{MpScanTheme{online.mpscan.app.ui.AppLock{SiteAccountGate{Box(Modifier.fillMaxSize()){HomeRoot();online.mpscan.app.ui.TelegramBubble()}}}}}}}
 private enum class Destination(val label:String,val icon:String){Home("Início","⌂"),Search("Busca","⌕"),Library("Biblioteca","▣"),Profile("Perfil","♙"),Menu("Menu","☰")}
 
 
