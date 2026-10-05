@@ -98,7 +98,7 @@ private fun encodePartnerImage(context:android.content.Context,uri:android.net.U
   chapters=chapters.sortedByDescending{it.number?:-1.0};saved=withContext(Dispatchers.IO){offlineStore.downloads().filter{it.workId==work.id}.map{it.chapterId}.toSet()};loading=false
  }
  LaunchedEffect(initial.id){WorkManager.getInstance(context).getWorkInfosByTagFlow("work-download-${initial.id}").collect{infos->
-  val active=infos.filter{!it.state.isFinished};downloading=active.isNotEmpty();pending=active.mapNotNull{it.progress.getString(ChapterDownloadWorker.CHAPTER_ID)}.toSet();progress=active.maxOfOrNull{it.progress.getInt(ChapterDownloadWorker.PROGRESS,0)}?:0
+  val active=infos.filter{!it.state.isFinished};downloading=active.isNotEmpty();if(downloading)error="";pending=active.mapNotNull{it.progress.getString(ChapterDownloadWorker.CHAPTER_ID)}.toSet();progress=active.maxOfOrNull{it.progress.getInt(ChapterDownloadWorker.PROGRESS,0)}?:0
   saved=withContext(Dispatchers.IO){offlineStore.downloads().filter{it.workId==work.id}.map{it.chapterId}.toSet()}
   infos.firstOrNull{it.state==androidx.work.WorkInfo.State.FAILED}?.outputData?.getString(ChapterDownloadWorker.ERROR)?.takeIf{it.isNotBlank()}?.let{error=it}
  }}

@@ -37,7 +37,7 @@ class ReaderDeviceTest {
   val file=image(1440,28000);val asset=PageFiles.inspect(file);val tiles=PageTiles.plan(asset.width,asset.height)
   runBlocking{tiles.forEach{tile->val bitmap=PageFiles.bitmap(asset,tile,1080);assertTrue(bitmap.width<=3072);assertTrue(bitmap.allocationByteCount<=8_000_000);bitmap.recycle()}}
   compose.setContent{MpScanTheme{ReaderImages(listOf(file.toURI().toString()),rememberLazyListState(),1f,1f,false,Modifier.testTag("reader-list")){null}}}
-  compose.waitUntil(20000){compose.onAllNodesWithTag("reader-tile-0").fetchSemanticsNodes().isNotEmpty()}
+  try{compose.waitUntil(20000){compose.onAllNodesWithTag("reader-tile-0").fetchSemanticsNodes().isNotEmpty()}}catch(error:Exception){throw AssertionError("Opening page did not render: "+compose.onRoot(useUnmergedTree=true).printToString(),error)}
   compose.onNodeWithTag("reader-list").performScrollToIndex(tiles.lastIndex)
   val tag="reader-tile-${tiles.last().top}"
   compose.waitUntil(20000){compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()}

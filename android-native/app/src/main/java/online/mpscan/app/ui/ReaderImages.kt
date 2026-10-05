@@ -37,6 +37,8 @@ import online.mpscan.app.ui.theme.*
   }
  }
  DisposableEffect(sources){onDispose{jobs.values.forEach{it.cancel()}}}
+ // Start the opening page independently of the first lazy-layout observation.
+ LaunchedEffect(sources){if(sources.isNotEmpty())load(0)}
  LaunchedEffect(sources,state){snapshotFlow{state.layoutInfo.visibleItemsInfo.mapNotNull{PageTiles.sourceIndex(it.key)}}.distinctUntilChanged().collect{visible->
   val first=visible.minOrNull()?:0;val last=visible.maxOrNull()?:first
   (first..minOf(sources.lastIndex,last+2)).forEach{load(it)}
