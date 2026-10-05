@@ -38,7 +38,7 @@ import org.json.JSONObject
  }
 }
 @Composable private fun MenuTile(icon:String,title:String,subtitle:String,open:()->Unit){Surface(Modifier.fillMaxWidth().clickable(onClick=open),shape=RoundedCornerShape(22.dp),color=MpSurface,border=BorderStroke(1.dp,MpLine)){Row(Modifier.padding(18.dp),verticalAlignment=Alignment.CenterVertically){Text(icon,color=MpAccent2,style=MaterialTheme.typography.headlineSmall);Column(Modifier.weight(1f).padding(horizontal=14.dp)){Text(title,fontWeight=FontWeight.Bold);Text(subtitle,color=MpMuted,style=MaterialTheme.typography.bodySmall)};Text("›",color=MpMuted)}}}
-internal suspend fun publicJson(path:String,token:String=""):JSONObject=withContext(Dispatchers.IO){val auth=if(token.isBlank())""else "?auth="+java.net.URLEncoder.encode(token,"UTF-8");AccountRepository().request("https://nnnsss-23f2f-default-rtdb.firebaseio.com/$path.json$auth")}
+internal suspend fun publicJson(path:String,token:String=""):JSONObject=withContext(Dispatchers.IO){val auth=if(token.isBlank())""else "?auth="+java.net.URLEncoder.encode(token,"UTF-8");AccountRepository().request(if(token.isBlank())SiteAccess.authenticated("https://nnnsss-23f2f-default-rtdb.firebaseio.com/$path.json")else "https://nnnsss-23f2f-default-rtdb.firebaseio.com/$path.json$auth")}
 @Composable private fun PartnerList(path:String,title:String,works:List<Work>,openWork:(Work)->Unit){
  var entries by remember{mutableStateOf<List<Pair<String,JSONObject>>>(emptyList())};var error by remember{mutableStateOf("")};var loading by remember{mutableStateOf(true)};var query by remember{mutableStateOf("")};var retry by remember{mutableIntStateOf(0)}
  var selected by remember{mutableStateOf<Pair<String,JSONObject>?>(null)}
