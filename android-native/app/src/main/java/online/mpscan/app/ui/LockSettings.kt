@@ -21,9 +21,14 @@ import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
 import online.mpscan.app.ui.theme.*
 import java.io.File
-import java.security.MessageDigest
+import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import online.mpscan.app.data.LocalPhotos
 import online.mpscan.app.ui.MpImage
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
 
 private class LockStore(val context:Context){
  val prefs=context.getSharedPreferences("mp_lock",Context.MODE_PRIVATE)
@@ -35,23 +40,49 @@ private class LockStore(val context:Context){
  fun matches(value:String)=hash(value,prefs.getString("salt","").orEmpty())==prefs.getString("hash","")
 }
 @Composable fun LockSettings(back:()->Unit){
- val context=LocalContext.current;val store=remember{LockStore(context)}
- var mode by remember{mutableStateOf(store.mode.ifBlank{"PIN"})};var secret by remember{mutableStateOf("")};var confirm by remember{mutableStateOf("")};var message by remember{mutableStateOf("")};var visible by remember{mutableStateOf(false)}
- val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->if(uri!=null)runCatching{val file=File(context.filesDir,"lock-wallpaper");context.contentResolver.openInputStream(uri)!!.use{input->file.outputStream().use{input.copyTo(it)}};store.wallpaper=file.absolutePath}.onSuccess{message="Foto da tela de bloqueio salva."}.onFailure{message="Não foi possível salvar a foto."}}
- Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
-  TextButton(back){Text("← Menu")};Text("Personalizar",style=MaterialTheme.typography.headlineMedium);Text("Tela de bloqueio",color=MpAccent2);Text("Escolha como proteger o aplicativo. Guarde sua senha: ela será solicitada ao abrir e ao voltar ao app.",color=MpMuted)
-  listOf("PIN","Senha","Padrão","Biometria").forEach{item->FilterChip(mode==item,{mode=item;secret="";confirm=""},{Text(when(item){"PIN"->"Código numérico";"Senha"->"Letras e números";"Padrão"->"Ligar os pontos";else->"Biometria / bloqueio do aparelho"})})}
-  if(mode=="Padrão"){Text("Escolha pelo menos 4 pontos diferentes, na ordem desejada.");PatternPad(secret){secret=it};TextButton({secret=""}){Text("Limpar padrão")}}
-  else if(mode!="Biometria")OutlinedTextField(secret,{secret=if(mode=="PIN")it.filter(Char::isDigit).take(12)else it.take(64)},Modifier.fillMaxWidth(),label={Text("Nova senha")},visualTransformation=if(visible)VisualTransformation.None else PasswordVisualTransformation(),keyboardOptions=KeyboardOptions(keyboardType=if(mode=="PIN")KeyboardType.NumberPassword else KeyboardType.Password),trailingIcon={TextButton({visible=!visible}){Text(if(visible)"Ocultar"else"Ver")}})
-  if(mode!="Biometria"){
-   if(mode=="Padrão"){Text("Repita o padrão");PatternPad(confirm){confirm=it};TextButton({confirm=""}){Text("Limpar confirmação")}}
-   else OutlinedTextField(confirm,{confirm=if(mode=="PIN")it.filter(Char::isDigit).take(12)else it.take(64)},Modifier.fillMaxWidth(),label={Text("Confirmar senha")},visualTransformation=PasswordVisualTransformation())
+ val context=LocalContext.current;val store=remember{LockStore(context)};val scope=rememberCoroutineScope()
+ var active by remember{mutableStateOf(store.mode)};var editing by remember{mutableStateOf(store.mode.isBlank())};var mode by remember{mutableStateOf(store.mode.ifBlank{"PIN"})}
+ var secret by remember{mutableStateOf("")};var confirm by remember{mutableStateOf("")};var message by remember{mutableStateOf("")};var visible by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var photo by remember{mutableStateOf(store.wallpaper)};var disable by remember{mutableStateOf(false)}
+ val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->if(uri!=null)scope.launch{busy=true;runCatching{LocalPhotos.wallpaper(context,uri)}.onSuccess{photo=it;store.wallpaper=it;message="Foto cadastrada."}.onFailure{message="Não foi possível cadastrar esta foto. Escolha outra imagem."};busy=false}}
+ if(disable)AlertDialog(onDismissRequest={disable=false},title={Text("Desativar o bloqueio?")},text={Text("O aplicativo deixará de pedir a sua senha ao abrir.")},confirmButton={TextButton({store.mode="";active="";editing=true;secret="";confirm="";disable=false;message="Bloqueio desativado."}){Text("Desativar")}},dismissButton={TextButton({disable=false}){Text("Cancelar")}})
+ Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(20.dp)){
+  TextButton(back){Text("← Menu")}
+  Column{Text("Seu espaço, protegido",style=MaterialTheme.typography.headlineLarge,fontWeight=FontWeight.Bold);Text("Personalize sua tela de bloqueio com cuidado e conforto.",color=MpMuted,modifier=Modifier.padding(top=8.dp))}
+  Surface(color=MpSurface,shape=RoundedCornerShape(28.dp),border=BorderStroke(1.dp,MpLine)){
+   Column(Modifier.padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+    Text(if(active.isBlank())"Proteja suas leituras"else if(active=="Biometria")"Bloqueio do aparelho ativado"else"Senha cadastrada",fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge)
+    Text(if(active.isBlank())"Escolha uma forma de desbloquear o aplicativo."else if(active=="Biometria")"Você já usa o bloqueio do aparelho. Deseja trocar?"else"Você já tem uma senha. Deseja trocar?",color=MpMuted)
+    if(active.isNotBlank()&&!editing)Button({editing=true;secret="";confirm="";message=""},shape=RoundedCornerShape(16.dp)){Text(if(active=="Biometria")"Trocar bloqueio"else"Trocar senha")}
+    if(editing){
+     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("PIN","Senha","Padrão","Biometria").forEach{item->FilterChip(mode==item,{mode=item;secret="";confirm=""},label={Text(item)})}}
+     Text(when(mode){"PIN"->"Um código com pelo menos 4 números.";"Senha"->"Use pelo menos 6 caracteres, com letras e números.";"Padrão"->"Ligue pelo menos 4 pontos diferentes e repita a mesma sequência.";else->"Use a biometria ou a senha já configurada no celular."},color=MpMuted,style=MaterialTheme.typography.bodySmall)
+     if(mode=="Padrão"){
+      Text("Novo padrão",fontWeight=FontWeight.Bold);Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){PatternPad(secret){secret=it}};TextButton({secret=""}){Text("Limpar padrão")}
+      Text("Repita o padrão",fontWeight=FontWeight.Bold);Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){PatternPad(confirm){confirm=it}};TextButton({confirm=""}){Text("Limpar confirmação")}
+     }else if(mode!="Biometria"){
+      OutlinedTextField(secret,{secret=if(mode=="PIN")it.filter(Char::isDigit).take(12)else it.take(64)},Modifier.fillMaxWidth(),singleLine=true,enabled=!busy,label={Text(if(mode=="PIN")"Novo código"else"Nova senha")},shape=RoundedCornerShape(18.dp),visualTransformation=if(visible)VisualTransformation.None else PasswordVisualTransformation(),keyboardOptions=KeyboardOptions(keyboardType=if(mode=="PIN")KeyboardType.NumberPassword else KeyboardType.Password),trailingIcon={TextButton({visible=!visible}){Text(if(visible)"Ocultar"else"Ver")}})
+      OutlinedTextField(confirm,{confirm=if(mode=="PIN")it.filter(Char::isDigit).take(12)else it.take(64)},Modifier.fillMaxWidth(),singleLine=true,enabled=!busy,label={Text("Confirme para cadastrar")},shape=RoundedCornerShape(18.dp),visualTransformation=PasswordVisualTransformation(),keyboardOptions=KeyboardOptions(keyboardType=if(mode=="PIN")KeyboardType.NumberPassword else KeyboardType.Password))
+     }
+     Button({val valid=when(mode){"Biometria"->(context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).isDeviceSecure;"PIN"->secret.length>=4&&secret.all(Char::isDigit)&&secret==confirm;"Padrão"->secret.length>=4&&secret==confirm;else->secret.length>=6&&secret.any(Char::isLetter)&&secret.any(Char::isDigit)&&secret==confirm};if(valid){scope.launch{busy=true;runCatching{if(mode!="Biometria")withContext(Dispatchers.Default){store.save(secret)};store.mode=mode}.onSuccess{active=mode;editing=false;secret="";confirm="";message=if(mode=="Biometria")"Bloqueio do aparelho ativado."else"Senha cadastrada."}.onFailure{message="Não foi possível cadastrar o bloqueio. Tente novamente."};busy=false}}else message=if(mode=="Biometria")"Configure primeiro o bloqueio nos ajustes do celular."else"Confira os campos: a senha e a confirmação precisam ser iguais e ter o tamanho indicado."},Modifier.fillMaxWidth(),enabled=!busy,shape=RoundedCornerShape(16.dp)){Text(if(busy)"Cadastrando…"else if(active.isBlank())"Cadastrar bloqueio"else"Salvar novo bloqueio")}
+     if(active.isNotBlank())TextButton({editing=false;secret="";confirm=""},enabled=!busy){Text("Manter minha senha atual")}
+    }
+    if(active.isNotBlank())TextButton({disable=true},enabled=!busy){Text("Desativar bloqueio")}
+   }
   }
-  Button({val valid=when(mode){"Biometria"->(context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).isDeviceSecure;"PIN"->secret.length>=4&&secret.all(Char::isDigit)&&secret==confirm;"Padrão"->secret.length>=4&&secret==confirm;else->secret.length>=6&&secret.any(Char::isLetter)&&secret.any(Char::isDigit)&&secret==confirm};if(valid){if(mode!="Biometria")store.save(secret);store.mode=mode;message="Bloqueio ativado."}else message=if(mode=="Biometria")"Configure primeiro o bloqueio e a biometria nos ajustes do celular."else"Confira a senha e a confirmação. PIN e padrão: mínimo de 4; senha: 6 caracteres com letras e números."},Modifier.fillMaxWidth()){Text("Ativar bloqueio")}
-  OutlinedButton({picker.launch("image/*")},Modifier.fillMaxWidth()){Text("Escolher foto da tela")}
-  TextButton({store.wallpaper="";message="Foto removida."}){Text("Remover foto")}
-  TextButton({store.mode="";message="Bloqueio desativado."}){Text("Desativar bloqueio")}
-  if(message.isNotBlank())Text(message,color=MpAccent2)
+  Surface(color=MpSurface,shape=RoundedCornerShape(28.dp),border=BorderStroke(1.dp,MpLine)){
+   Column(Modifier.padding(22.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+    Text("Sua tela de boas-vindas",fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge);Text(if(photo.isBlank())"Escolha uma foto para aparecer na tela de bloqueio."else"Foto cadastrada",color=MpMuted)
+    Box(Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(22.dp)).background(MpSurface2),contentAlignment=Alignment.Center){
+     if(photo.isNotBlank())MpImage(File(photo),null,Modifier.matchParentSize(),contentScale=ContentScale.Crop)
+     Box(Modifier.matchParentSize().background(Color.Black.copy(.25f)))
+     Surface(Modifier.padding(20.dp),color=MpSurface.copy(.96f),shape=RoundedCornerShape(22.dp)){Column(Modifier.padding(20.dp),horizontalAlignment=Alignment.CenterHorizontally){Text("MP SCAN",fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge);Text("Seu próximo capítulo espera por você.",color=MpMuted,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(top=8.dp));Text("● ● ● ●",color=MpAccent,modifier=Modifier.padding(top=14.dp))}}
+    }
+    OutlinedButton({picker.launch("image/*")},Modifier.fillMaxWidth(),enabled=!busy,shape=RoundedCornerShape(16.dp)){Text(if(photo.isBlank())"Escolher foto"else"Trocar foto")}
+    if(photo.isNotBlank())TextButton({store.wallpaper="";photo="";message="Foto removida."},enabled=!busy){Text("Remover foto")}
+   }
+  }
+  if(message.isNotBlank())Surface(color=MpSurface2,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,MpLine)){Text(message,Modifier.fillMaxWidth().padding(16.dp),color=MpText)}
+  Text("Este bloqueio protege o acesso neste aparelho. Guarde sua senha em um lugar seguro.",color=MpMuted,style=MaterialTheme.typography.bodySmall)
  }
 }
 @Composable private fun PatternPad(value:String,change:(String)->Unit){
@@ -71,15 +102,18 @@ private class LockStore(val context:Context){
 
 @Composable fun AppLock(content:@Composable ()->Unit){
  val context=LocalContext.current;val store=remember{LockStore(context)};val owner=androidx.lifecycle.compose.LocalLifecycleOwner.current
- var locked by remember{mutableStateOf(store.mode.isNotBlank())};var value by remember{mutableStateOf("")};var error by remember{mutableStateOf("")}
+ var locked by remember{mutableStateOf(store.mode.isNotBlank())};var value by remember{mutableStateOf("")};var error by remember{mutableStateOf("")};var checking by remember{mutableStateOf(false)};val scope=rememberCoroutineScope()
  val device=rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()){result->if(result.resultCode==Activity.RESULT_OK){locked=false;value=""}else error="Desbloqueio cancelado. Tente novamente."}
  DisposableEffect(owner){val observer=androidx.lifecycle.LifecycleEventObserver{_,event->if(event==androidx.lifecycle.Lifecycle.Event.ON_STOP&&store.mode.isNotBlank()){locked=true;value=""}};owner.lifecycle.addObserver(observer);onDispose{owner.lifecycle.removeObserver(observer)}}
- if(!locked){content();return}
- Box(Modifier.fillMaxSize().background(MpBackground)){
+ Box(Modifier.fillMaxSize()){content()}
+ if(!locked)return
+ androidx.compose.ui.window.Dialog(onDismissRequest={},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false,dismissOnBackPress=false,dismissOnClickOutside=false,decorFitsSystemWindows=false)){
+ Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)){
   if(store.wallpaper.isNotBlank())MpImage(File(store.wallpaper),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-  Surface(Modifier.align(Alignment.Center).padding(24.dp),color=MpSurface.copy(alpha=.96f),shape=RoundedCornerShape(26.dp)){
-   Column(Modifier.padding(24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
-    Text("MP SCAN",style=MaterialTheme.typography.headlineMedium);Text("Desbloqueie para continuar",color=MpMuted)
+  Box(Modifier.matchParentSize().background(Color.Black.copy(.25f)))
+  Surface(Modifier.align(Alignment.Center).safeDrawingPadding().imePadding().padding(24.dp).widthIn(max=460.dp),color=MpSurface.copy(alpha=.97f),shape=RoundedCornerShape(30.dp),border=BorderStroke(1.dp,MpLine)){
+   Column(Modifier.verticalScroll(rememberScrollState()).padding(26.dp),verticalArrangement=Arrangement.spacedBy(16.dp),horizontalAlignment=Alignment.CenterHorizontally){
+    Text("BEM-VINDA À SUA ESTANTE",color=MpAccent,style=MaterialTheme.typography.labelSmall,fontWeight=FontWeight.Bold);Text("MP SCAN",style=MaterialTheme.typography.headlineLarge,fontWeight=FontWeight.Bold);Text("Seu próximo capítulo espera por você.",color=MpMuted)
     if(store.mode=="Biometria")Button({@Suppress("DEPRECATION") val intent=(context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).createConfirmDeviceCredentialIntent("MP SCAN","Desbloqueie para continuar");val fallback={if(intent!=null)device.launch(intent)else error="Bloqueio do aparelho indisponível."}
       if(android.os.Build.VERSION.SDK_INT>=28){
        val executor=androidx.core.content.ContextCompat.getMainExecutor(context)
@@ -92,10 +126,11 @@ private class LockStore(val context:Context){
        })
       }else fallback()}){Text("Desbloquear com o aparelho")}
     else{
-     if(store.mode=="Padrão")PatternPad(value){value=it}else OutlinedTextField(value,{value=if(store.mode=="PIN")it.filter(Char::isDigit)else it},label={Text("Senha")},visualTransformation=PasswordVisualTransformation(),keyboardOptions=KeyboardOptions(keyboardType=if(store.mode=="PIN")KeyboardType.NumberPassword else KeyboardType.Password))
-     Button({if(store.matches(value)){locked=false;value=""}else{error="Senha incorreta.";value=""}}){Text("Desbloquear")};if(store.mode=="Padrão")TextButton({value=""}){Text("Limpar")}
+     if(store.mode=="Padrão")PatternPad(value){value=it}else OutlinedTextField(value,{value=if(store.mode=="PIN")it.filter(Char::isDigit)else it},Modifier.fillMaxWidth(),singleLine=true,shape=RoundedCornerShape(18.dp),label={Text(if(store.mode=="PIN")"Seu código"else"Sua senha")},visualTransformation=PasswordVisualTransformation(),keyboardOptions=KeyboardOptions(keyboardType=if(store.mode=="PIN")KeyboardType.NumberPassword else KeyboardType.Password))
+     Button({scope.launch{checking=true;error="";val candidate=value;val matches=runCatching{withContext(Dispatchers.Default){store.matches(candidate)}}.getOrDefault(false);if(matches&&owner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)){locked=false;value=""}else{error="Senha incorreta. Tente novamente.";value=""};checking=false}},Modifier.fillMaxWidth(),enabled=!checking,shape=RoundedCornerShape(16.dp)){Text(if(checking)"Verificando…"else"Entrar na minha estante")};if(store.mode=="Padrão")TextButton({value=""}){Text("Limpar")}
     };if(error.isNotBlank())Text(error,color=MaterialTheme.colorScheme.error)
    }
   }
  }
+}
 }
