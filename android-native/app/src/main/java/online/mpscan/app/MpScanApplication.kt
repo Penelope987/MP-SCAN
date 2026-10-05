@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 import online.mpscan.app.data.SiteAccess
 
 class MpScanApplication:Application(),SingletonImageLoader.Factory {
- override fun onCreate(){super.onCreate();SiteAccess.init(this)}
+ override fun onCreate(){super.onCreate();SiteAccess.init(this);online.mpscan.app.data.ExternalCatalog.init(this)}
  override fun newImageLoader(context:Context):ImageLoader {
   val client=OkHttpClient.Builder().connectTimeout(20,TimeUnit.SECONDS).readTimeout(90,TimeUnit.SECONDS).callTimeout(120,TimeUnit.SECONDS).retryOnConnectionFailure(true)
    .addInterceptor{chain->chain.proceed(chain.request().newBuilder().header("User-Agent","Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36").header("Referer","https://www.mpscan.online/").build())}.build()

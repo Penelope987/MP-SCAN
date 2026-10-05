@@ -22,10 +22,12 @@ import org.json.JSONObject
 @Composable fun MenuScreen(works:List<Work>,openWork:(Work)->Unit,settings:()->Unit){
  var page by remember{mutableStateOf("Menu")}
  val uri=LocalUriHandler.current
+ if(page=="Parcerias scan"){ScanPartnerships(openWork){page="Menu"};return}
  if(page=="Personalizar"){LockSettings{page="Menu"};return}
  LazyColumn(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp),contentPadding=PaddingValues(bottom=28.dp)){
   item{if(page!="Menu")TextButton({page="Menu"}){Text("← Menu")};Text(page,fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineMedium);Text("Tudo para a sua experiência na MP SCAN",color=MpMuted,modifier=Modifier.padding(top=8.dp,bottom=12.dp))}
   if(page=="Menu"){
+   item{MenuTile("◇","Parcerias scan","Catálogos externos e leitura offline"){page="Parcerias scan"}}
    item{MenuTile("♡","Parceiros","Hospedagem, obras doadas e como hospedar"){page="Parceiros"}}
    item{MenuTile("◈","Personalizar","Sua tela de bloqueio, senha e foto"){page="Personalizar"}}
    item{MenuTile("⚙","Ajustes","Conta, notificações e leitura",settings)}

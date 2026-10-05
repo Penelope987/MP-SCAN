@@ -38,11 +38,13 @@ class CatalogRepository(private val base:String="https://nnnsss-23f2f-default-rt
 
     }
     suspend fun chapters(workId:String):List<Chapter> = withContext(Dispatchers.IO){
+        if(ExternalCatalog.isExternal(workId))return@withContext ExternalCatalog.chapters(workId)
         val c=URL(SiteAccess.authenticated("$base/capitulos/$workId.json")).openConnection() as HttpURLConnection;c.connectTimeout=15000;c.readTimeout=25000
         val text=c.inputStream.bufferedReader().use{it.readText()};c.disconnect();val root=if(text.trim()=="null"||text.isBlank())JSONObject()else JSONObject(text)
         root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.let{ChapterMetadata.parse(id,it)}}.filter{it.published&&it.publicationMode!="draft"}.sortedByDescending{it.number?:-1.0}.toList()
     }
     suspend fun pages(workId:String,chapterId:String):List<String> = withContext(Dispatchers.IO){
+        if(ExternalCatalog.isExternal(workId))return@withContext ExternalCatalog.pages(workId,chapterId)
         val raw=read("capitulos/$workId/$chapterId")
         val chapter=ChapterMetadata.parse(chapterId,JSONObject(raw))
         check(chapter.published&&chapter.publicationMode!="draft"){"Este capítulo ainda não foi publicado."}

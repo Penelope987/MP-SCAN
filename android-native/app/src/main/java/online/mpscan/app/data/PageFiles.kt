@@ -53,6 +53,7 @@ object PageFiles {
   throw IOException("Não foi possível carregar uma das páginas. Confira a conexão.",last)
  }
  private fun writeSource(source:String,target:File){
+  if(source.startsWith("mpscan-image:")){val value=JSONObject(source.removePrefix("mpscan-image:"));PageTransport().download(ExternalSourceParser.url(value.getString("url")),target,ExternalSourceParser.url(value.getString("referer")));return}
   if(source.startsWith("mpscan-page:")){
    val path=source.removePrefix("mpscan-page:").substringBefore('?')
    require(Regex("capitulosPaginas/[^/#?]+/[^/#?]+/[^/#?]+").matches(path))

@@ -4,7 +4,7 @@ if (!project.hasProperty("downloadTest")) { apply(plugin = "com.google.gms.googl
 android {
     namespace = "online.mpscan.app"
     compileSdk = 35
-    defaultConfig { applicationId = "online.mpscan.app"; minSdk = 24; targetSdk = 35; versionCode = 35; versionName = "5.0.0"; manifestPlaceholders["appLabel"] = "MP SCAN"
+    defaultConfig { applicationId = "online.mpscan.app"; minSdk = 24; targetSdk = 35; versionCode = 36; versionName = "5.0.1"; manifestPlaceholders["appLabel"] = "MP SCAN"
         if (project.hasProperty("downloadTest")) { applicationIdSuffix = ".downloadtest"; manifestPlaceholders["appLabel"] = "MP SCAN Teste" } }
     defaultConfig { testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
     buildTypes { getByName("release") { isDebuggable = false; isMinifyEnabled = false } }
@@ -13,6 +13,7 @@ android {
     kotlinOptions { jvmTarget = "17" }
 }
 dependencies {
+    implementation("org.jsoup:jsoup:1.18.3")
     implementation("androidx.compose.material:material-icons-core")
     if (!project.hasProperty("downloadTest")) {
         implementation(platform("com.google.firebase:firebase-bom:34.0.0"))

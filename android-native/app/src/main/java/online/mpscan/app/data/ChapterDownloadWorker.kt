@@ -61,7 +61,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            if (error is IOException && runAttemptCount < 3) return Result.retry()
+            if (error is IOException && error !is ExternalSourceException && runAttemptCount < 3) return Result.retry()
             return Result.failure(Data.Builder().putString(ERROR,
                 PublicErrors.message(error,"Não foi possível concluir o download. Tente novamente.")).build())
         }
