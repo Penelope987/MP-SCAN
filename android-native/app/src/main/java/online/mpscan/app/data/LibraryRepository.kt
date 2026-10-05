@@ -35,7 +35,7 @@ class LibraryRepository(private val base: String = "https://nnnsss-23f2f-default
             val works = value.optJSONObject("obras") ?: value.optJSONObject("items") ?: JSONObject()
             UserCollection(id, value.optString("nome", value.optString("name", "Coleção")),
                 value.optString("descricao"), value.optBoolean("publico", false), value.optString("capa"),
-                works.keys().asSequence().toSet())
+                works.keys().asSequence().filter{works.opt(it)!=false&&works.opt(it)!=JSONObject.NULL}.toSet())
         }}.sortedBy { it.name.lowercase() }.toList()
     }
 
@@ -56,16 +56,21 @@ class LibraryRepository(private val base: String = "https://nnnsss-23f2f-default
         }
     }
 
-    suspend fun createCollection(session: AccountSession, name: String, isPublic: Boolean): UserCollection = withContext(Dispatchers.IO) {
-        val clean = name.trim(); require(clean.isNotBlank()) { "Dê um nome para a coleção." }
-        val id = "app_${UUID.randomUUID().toString().replace("-", "")}"
-        val payload = JSONObject().put("nome", clean).put("descricao", "").put("publico", isPublic)
-            .put("capa", "").put("obras", JSONObject()).put("data", System.currentTimeMillis()).put("atualizadoEm", System.currentTimeMillis())
-        request(url("colecoes/${e(session.uid)}/$id", session), "PUT", payload.toString())
-        if (isPublic) request(url("colecoesPublicas/${e(session.uid)}/$id", session), "PUT", payload.toString())
-        UserCollection(id, clean, "", isPublic, "", emptySet())
+    suspend fun createCollection(session:AccountSession,name:String,isPublic:Boolean,description:String="",cover:String=""):UserCollection = saveCollection(session,null,name,description,isPublic,cover)
+
+    suspend fun saveCollection(session:AccountSession,id:String?,name:String,description:String,isPublic:Boolean,cover:String):UserCollection = withContext(Dispatchers.IO) {
+        val key=id?:"app_${UUID.randomUUID().toString().replace("-", "") }"
+        val previous=if(id==null)JSONObject()else request(url("colecoes/${e(session.uid)}/${e(key)}",session))
+        check(id==null||previous.length()>0){"Esta coleção não está mais disponível."}
+        val payload=CollectionWrites.payload(name,description,isPublic,cover,previous)
+        request(url("",session),"PATCH",CollectionWrites.updates(session.uid,key,payload).toString())
+        val items=payload.getJSONObject("obras")
+        UserCollection(key,payload.getString("nome"),payload.getString("descricao"),isPublic,cover,items.keys().asSequence().filter{items.opt(it)!=false&&items.opt(it)!=JSONObject.NULL}.toSet())
     }
 
+    suspend fun deleteCollection(session:AccountSession,id:String)=withContext(Dispatchers.IO){
+        request(url("",session),"PATCH",CollectionWrites.updates(session.uid,id,null).toString())
+    }
 
     suspend fun setWork(session: AccountSession, collection: UserCollection, workId: String, selected: Boolean) = withContext(Dispatchers.IO) {
         val privatePath = "colecoes/${e(session.uid)}/${e(collection.id)}/obras/${e(workId)}"
