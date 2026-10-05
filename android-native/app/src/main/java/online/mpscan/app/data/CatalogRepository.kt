@@ -43,20 +43,25 @@ class CatalogRepository(private val base:String="https://nnnsss-23f2f-default-rt
         root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.let{ChapterMetadata.parse(id,it)}}.filter{it.published&&it.publicationMode!="draft"}.sortedByDescending{it.number?:-1.0}.toList()
     }
     suspend fun pages(workId:String,chapterId:String):List<String> = withContext(Dispatchers.IO){
-        val chapter=chapters(workId).firstOrNull{it.id==chapterId}?:error("Este capítulo ainda não foi publicado.")
+        val raw=read("capitulos/$workId/$chapterId")
+        val chapter=ChapterMetadata.parse(chapterId,JSONObject(raw))
+        check(chapter.published&&chapter.publicationMode!="draft"){"Este capítulo ainda não foi publicado."}
         check(chapter.available){"Capítulo agendado. Aguarde a data de liberação."}
-        val c=URL(SiteAccess.authenticated("$base/capitulosPaginas/$workId/$chapterId.json")).openConnection() as HttpURLConnection;c.connectTimeout=15000;c.readTimeout=30000
-        val text=c.inputStream.bufferedReader().use{it.readText()};c.disconnect()
-        if(text.isNotBlank()&&text.trim()!="null"){
-            val decoded=PageManifest.parse(text)
-            if(decoded.isNotEmpty())return@withContext decoded
-        }
-        val legacy=URL(SiteAccess.authenticated("$base/capitulos/$workId/$chapterId.json")).openConnection() as HttpURLConnection
-        legacy.connectTimeout=15000;legacy.readTimeout=30000
-        val raw=try{JSONObject(legacy.inputStream.bufferedReader().use{it.readText()})}finally{legacy.disconnect()}
-        listOf("paginas","pages","imagens","images").firstNotNullOfOrNull{field->raw.opt(field)?.takeIf{it!=JSONObject.NULL}?.let{PageManifest.parse(it.toString()).takeIf(List<String>::isNotEmpty)}}?:emptyList()
+        val path="capitulosPaginas/$workId/$chapterId"
+        // New publisher keys encode their order. Avoid holding every base64 image in memory.
+        val shallow=runCatching{JSONObject(read(path,"?shallow=true"))}.getOrNull()
+        shallow?.let{PageManifest.lazyReferences(it,path,chapter.updatedAt)?.let{return@withContext it}}
+        val text=read(path)
+        if(text.isNotBlank()&&text.trim()!="null")PageManifest.parse(text).takeIf{it.isNotEmpty()}?.let{return@withContext it}
+        PageManifest.parse(raw)
 
 
+
+    }
+    private fun read(path:String,query:String=""):String{
+        val c=URL(SiteAccess.authenticated("$base/$path.json$query")).openConnection() as HttpURLConnection
+        c.connectTimeout=20000;c.readTimeout=90000
+        return try{if(c.responseCode !in 200..299)throw java.io.IOException("Não foi possível carregar o capítulo. Confira a conexão.");c.inputStream.bufferedReader().use{it.readText()}}finally{c.disconnect()}
     }
     private fun JSONObject.toWork(id:String)=Work(id,string("nome","name","titulo"),string("sinopse","synopsis"),string("capa","cover","coverURL"),string("banner","bannerURL"),string("tipo","type"),string("status"),string("autor","author"),strings(opt("generos")?:opt("genres")),long("atualizadoEm","updatedAt"),long("cliques","leituras","reads"),string("subtitulo","nomeAlternativo","tituloAlternativo","alternateTitle","altName"),string("artista","artist"),string("ano","year"),string("scan","scanName"),string("hospedagem","hosting"),string("idioma","language").ifBlank{"Português"},schedule(optJSONObject("agendaAtualizacao")?:optJSONObject("updateSchedule")),string("scanOwnerUid"))
     private fun schedule(value:JSONObject?):String{val s=value?:return "Sem dia fixo";return when(s.string("tipo","type")){"weekly"->{val raw=s.opt("dias");val days=when(raw){is JSONArray->(0 until raw.length()).map{raw.optInt(it)};is JSONObject->raw.keys().asSequence().filter{raw.optBoolean(it)}.mapNotNull{it.toIntOrNull()}.toList();else->emptyList()}.distinct().sorted();val names=listOf("domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado");when(days.size){0->"Sem dia fixo";1->if(days[0] in 0..6)"Toda ${names[days[0]]}" else "Sem dia fixo";else->"Atualiza "+days.mapNotNull{names.getOrNull(it)}.joinToString(" e ")}};"monthly"->"Todo dia ${s.optInt("diaMes",s.optInt("dayOfMonth",1))} de cada mês";else->"Sem dia fixo"}}

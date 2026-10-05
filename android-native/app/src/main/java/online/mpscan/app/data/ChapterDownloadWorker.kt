@@ -49,7 +49,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
                 SiteAccess.requireAllowed(applicationContext)
                 val sources=repository.pages(workId,chapter.id)
                 val saved=withContext(Dispatchers.IO){store.localPages(workId,chapter.id)}
-                if (saved.size != sources.size || saved.isEmpty()) {
+                if (!withContext(Dispatchers.IO){store.matches(workId,chapter,sources)}) {
                     store.download(work, chapter, sources, onProgress = { value ->
                         setProgressAsync(Data.Builder().putInt(PROGRESS, (index * 100 + value) / chapters.size)
                             .putString(CHAPTER_ID, chapter.id).putInt(CHAPTER_PROGRESS, value).build())
@@ -141,7 +141,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
 
         private suspend fun submit(context: Context, workId: String, name: String, data: Data) = withContext(Dispatchers.IO) {
             val request = OneTimeWorkRequestBuilder<ChapterDownloadWorker>()
-                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(if(SettingsStore(context).wifiOnly)NetworkType.UNMETERED else NetworkType.CONNECTED).build())
                 .setInputData(data).addTag("work-download-$workId").addTag(name).build()
             WorkManager.getInstance(context).enqueueUniqueWork(name, ExistingWorkPolicy.KEEP, request).result.get()
             Unit
