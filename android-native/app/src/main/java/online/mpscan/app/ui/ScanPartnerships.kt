@@ -31,17 +31,17 @@ import online.mpscan.app.ui.theme.*
  LaunchedEffect(online,retry){loading=true;partners=ExternalCatalog.partners();loading=false;administrator=false
   if(online)try{AccountStore(context).session()?.let{old->val fresh=AccountRepository().refresh(old);AccountStore(context).save(fresh);val profile=AccountRepository().profile(fresh);administrator=profile.role.lowercase() in listOf("adm","admin","administrador")}}catch(e:CancellationException){throw e}catch(e:Exception){}
  }
- editing?.let{partner->PartnershipEditor(partner,saving,{if(!saving)editing=null}){updated->scope.launch{saving=true;try{ExternalCatalog.save(context,updated);message="Parceria salva. O endereço completo será usado como filtro.";editing=null;if(selected?.id==updated.id)selected=updated.takeIf{it.enabled};retry++}catch(e:CancellationException){throw e}catch(e:Exception){message=PublicErrors.message(e,"Não foi possível salvar a parceria.")}finally{saving=false}}}}
+ editing?.let{partner->PartnershipEditor(partner,saving,message,{if(!saving)editing=null}){updated->scope.launch{saving=true;try{ExternalCatalog.save(context,updated);message="Parceria salva. O endereço completo será usado como filtro.";editing=null;if(selected?.id==updated.id)selected=updated.takeIf{it.enabled};retry++}catch(e:CancellationException){throw e}catch(e:Exception){message=PublicErrors.message(e,"Não foi possível salvar a parceria.")}finally{saving=false}}}}
  selected?.let{partner->
   BackHandler{selected=null}
-  PartnerCatalog(partner,administrator,{selected=null},{editing=partner},openWork)
+  PartnerCatalog(partner,administrator,{selected=null},{message="";editing=partner},openWork)
   return
  }
  BackHandler(onBack=back)
  LazyColumn(Modifier.fillMaxSize().padding(horizontal=18.dp),verticalArrangement=Arrangement.spacedBy(16.dp),contentPadding=PaddingValues(top=18.dp,bottom=32.dp)){
   item{TextButton(back){Text("← Menu")};Text("Parcerias scan",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineMedium);Text("Outras scans, com suas próprias obras e atualizações.",color=MpMuted,modifier=Modifier.padding(top=8.dp))}
   item{Surface(color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(1.dp,MpLine)){Column(Modifier.padding(18.dp)){Text("Sua próxima leitura também pode vir de uma parceira",fontWeight=FontWeight.Bold);Text("Cada página tem seu catálogo separado. Downloads completos ficam disponíveis na Biblioteca, mesmo sem internet.",color=MpMuted,modifier=Modifier.padding(top=8.dp))}}}
-  if(administrator)item{Button({editing=ScanPartnership(java.util.UUID.randomUUID().toString(),"","")},Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp)){Text("＋ Cadastrar parceria")}}
+  if(administrator)item{Button({message="";editing=ScanPartnership(java.util.UUID.randomUUID().toString(),"","")},Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp)){Text("＋ Cadastrar parceria")}}
   if(loading)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
   if(message.isNotBlank())item{Text(message,color=MpAccent2)}
   items(partners,key={it.id}){partner->Surface(Modifier.fillMaxWidth().clickable{selected=partner},color=MpSurface,shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,MpLine)){Column{
@@ -66,11 +66,11 @@ import online.mpscan.app.ui.theme.*
   items(filtered.chunked(2)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){row.forEach{work->Surface(Modifier.weight(1f).clickable{openWork(work)},color=MpSurface,shape=RoundedCornerShape(20.dp),border=BorderStroke(1.dp,MpLine)){Column{MpImage(work.cover,work.title,Modifier.fillMaxWidth().aspectRatio(.72f),contentScale=ContentScale.Crop);Text(work.title,fontWeight=FontWeight.Bold,modifier=Modifier.padding(12.dp),maxLines=3)}}};if(row.size==1)Spacer(Modifier.weight(1f))}}
  }
 }
-@Composable private fun PartnershipEditor(initial:ScanPartnership,saving:Boolean,close:()->Unit,save:(ScanPartnership)->Unit){
+@Composable private fun PartnershipEditor(initial:ScanPartnership,saving:Boolean,serverError:String,close:()->Unit,save:(ScanPartnership)->Unit){
  val context=LocalContext.current;val scope=rememberCoroutineScope()
  var name by remember(initial){mutableStateOf(initial.name)};var url by remember(initial){mutableStateOf(initial.url)};var cover by remember(initial){mutableStateOf(initial.cover)};var photo by remember(initial){mutableStateOf(initial.photo)};var handle by remember(initial){mutableStateOf(initial.handle)};var description by remember(initial){mutableStateOf(initial.description)};var enabled by remember(initial){mutableStateOf(initial.enabled)};var photoTarget by remember{mutableStateOf(false)};var localError by remember{mutableStateOf("")};var preparing by remember{mutableStateOf(false)}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){value->if(value!=null)scope.launch{preparing=true;try{val encoded=withContext(Dispatchers.IO){encodePartnerImage(context,value)};if(photoTarget)photo=encoded else cover=encoded}catch(e:Exception){localError="Não foi possível preparar esta imagem. Escolha outra foto."};preparing=false}}
- AlertDialog(onDismissRequest=close,title={Text(if(initial.name.isBlank())"Nova parceria"else"Editar parceria")},text={LazyColumn(verticalArrangement=Arrangement.spacedBy(12.dp)){
+ AlertDialog(onDismissRequest=close,title={Text(if(initial.name.isBlank())"Nova parceria"else"Editar parceria")},text={LazyColumn(Modifier.heightIn(max=460.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   item{Text("O endereço completo define quais obras entram. Uma categoria importa apenas aquela categoria.",color=MpMuted)}
   item{OutlinedTextField(name,{name=it.take(100)},label={Text("Nome da scan")},singleLine=true)}
   item{OutlinedTextField(url,{url=it.take(2048)},label={Text("Página do catálogo")},placeholder={Text("https://site.com/categoria/scan/")},singleLine=true)}
@@ -80,6 +80,7 @@ import online.mpscan.app.ui.theme.*
   item{OutlinedTextField(description,{description=it.take(1000)},label={Text("Apresentação da scan")},minLines=3)}
   item{Row(verticalAlignment=Alignment.CenterVertically){Text("Parceria ativa",Modifier.weight(1f));Switch(enabled,{enabled=it})}}
   if(localError.isNotBlank())item{Text(localError,color=MaterialTheme.colorScheme.error)}
+  if(serverError.isNotBlank())item{Text(serverError,color=MaterialTheme.colorScheme.error)}
  }},confirmButton={TextButton({try{ExternalSourceParser.url(url);require(name.isNotBlank());localError="";save(initial.copy(name=name.trim(),url=url.trim(),cover=cover,photo=photo,handle=handle.trim(),description=description.trim(),enabled=enabled))}catch(e:Exception){localError=PublicErrors.message(e,"Informe o nome e o endereço da parceria.")}},enabled=!preparing&&!saving){Text(if(saving)"Salvando…"else"Salvar parceria")}},dismissButton={TextButton(close){Text("Cancelar")}})
 }
 private fun encodePartnerImage(context:android.content.Context,uri:android.net.Uri):String {
