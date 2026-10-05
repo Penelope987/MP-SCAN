@@ -63,8 +63,8 @@ import androidx.compose.ui.window.DialogProperties
   item(span={GridItemSpan(maxLineSpan)}){OutlinedButton({retry++},Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp)){Text("Atualizar parcerias")}}
  }
 }
-@Composable internal fun PartnerVitrine(partner:ScanPartnership,open:()->Unit){
- Surface(Modifier.fillMaxWidth().clickable(onClick=open),color=MpSurface,shape=RoundedCornerShape(28.dp),border=BorderStroke(1.dp,MpLine)){
+@Composable internal fun PartnerVitrine(partner:ScanPartnership,open:(()->Unit)?=null){
+ Surface(Modifier.fillMaxWidth().then(if(open==null)Modifier else Modifier.clickable(onClick=open)),color=MpSurface,shape=RoundedCornerShape(28.dp),border=BorderStroke(1.dp,MpLine)){
   Column{Box(Modifier.fillMaxWidth().height(180.dp).background(Brush.linearGradient(listOf(MpAccent.copy(.30f),MpSurface2)))){
    if(partner.cover.isNotBlank())MpImage(partner.cover,partner.name,Modifier.matchParentSize(),contentScale=ContentScale.Crop)
    Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent,Color.Black.copy(.72f)))))
@@ -83,7 +83,7 @@ import androidx.compose.ui.window.DialogProperties
  LaunchedEffect(partner,online,retry){loading=true;error="";if(online){try{works=ExternalCatalog.catalog(partner)}catch(e:CancellationException){throw e}catch(e:Exception){error=PublicErrors.message(e,"Não foi possível carregar esta página parceira.")};if(partner.responsibleUid.isNotBlank())try{owner=ProfileIdentity.person(partner.responsibleUid,UserDirectory.profile(partner.responsibleUid))}catch(e:CancellationException){throw e}catch(e:Exception){}}else error="Você está offline. Capítulos baixados continuam na Biblioteca.";loading=false}
  if(profile&&partner.responsibleUid.isNotBlank())NativeProfileDialog(partner.responsibleUid){profile=false}
  LazyVerticalGrid(GridCells.Adaptive(145.dp),Modifier.fillMaxSize().padding(horizontal=18.dp),horizontalArrangement=Arrangement.spacedBy(14.dp),verticalArrangement=Arrangement.spacedBy(16.dp),contentPadding=PaddingValues(top=18.dp,bottom=32.dp)){
-  item(span={GridItemSpan(maxLineSpan)}){Column(verticalArrangement=Arrangement.spacedBy(12.dp)){TextButton(back){Text("← Parcerias scan")};PartnerVitrine(partner){};owner?.let{person->Text("Responsável pela scan",color=MpMuted,style=MaterialTheme.typography.labelMedium);UserIdentityCard(person){profile=true}};if(admin)OutlinedButton(edit,Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp)){Icon(Icons.Default.Edit,null,Modifier.size(18.dp));Spacer(Modifier.width(8.dp));Text("Gerenciar vitrine")};OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),label={Text("Buscar obras desta scan")},leadingIcon={Icon(Icons.Default.Search,null)},singleLine=true,shape=RoundedCornerShape(20.dp));Text("${works.size} obras nesta vitrine",color=MpMuted);if(loading)LinearProgressIndicator(Modifier.fillMaxWidth())}}
+  item(span={GridItemSpan(maxLineSpan)}){Column(verticalArrangement=Arrangement.spacedBy(12.dp)){TextButton(back){Text("← Parcerias scan")};PartnerVitrine(partner);owner?.let{person->Text("Responsável pela scan",color=MpMuted,style=MaterialTheme.typography.labelMedium);UserIdentityCard(person){profile=true}};if(admin)OutlinedButton(edit,Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp)){Icon(Icons.Default.Edit,null,Modifier.size(18.dp));Spacer(Modifier.width(8.dp));Text("Gerenciar vitrine")};OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),label={Text("Buscar obras desta scan")},leadingIcon={Icon(Icons.Default.Search,null)},singleLine=true,shape=RoundedCornerShape(20.dp));Text("${works.size} obras nesta vitrine",color=MpMuted);if(loading)LinearProgressIndicator(Modifier.fillMaxWidth())}}
   if(error.isNotBlank())item(span={GridItemSpan(maxLineSpan)}){Surface(color=MpSurface,shape=RoundedCornerShape(20.dp),border=BorderStroke(1.dp,MpLine)){Column(Modifier.padding(18.dp)){Text(error,color=MpMuted);if(works.isNotEmpty())Text("Mostrando o último catálogo carregado.",color=MpAccent,modifier=Modifier.padding(top=8.dp));TextButton({retry++}){Text("Tentar novamente")};TextButton({uri.openUri(partner.url)}){Text("Abrir página original")}}}}
   val filtered=works.filter{query.isBlank()||Discovery.matches(it,query)}
   if(!loading&&error.isBlank()&&filtered.isEmpty())item(span={GridItemSpan(maxLineSpan)}){Text(if(query.isBlank())"Esta página ainda não apresenta obras."else"Nenhuma obra corresponde à busca.",color=MpMuted)}
@@ -92,7 +92,8 @@ import androidx.compose.ui.window.DialogProperties
 }
 @Composable private fun PartnershipEditor(initial:ScanPartnership,saving:Boolean,serverError:String,close:()->Unit,delete:()->Unit,save:(ScanPartnership)->Unit){
  val context=LocalContext.current;val scope=rememberCoroutineScope()
- var name by remember(initial){mutableStateOf(initial.name)};var url by remember(initial){mutableStateOf(initial.url)};var cover by remember(initial){mutableStateOf(initial.cover)};var photo by remember(initial){mutableStateOf(initial.photo)};var handle by remember(initial){mutableStateOf(initial.handle)};var responsibleUid by remember(initial){mutableStateOf(initial.responsibleUid)};var responsible by remember(initial){mutableStateOf<ProfilePerson?>(null)};var description by remember(initial){mutableStateOf(initial.description)};var draft by remember(initial){mutableStateOf(initial.draft)};var photoTarget by remember{mutableStateOf(false)};var localError by remember{mutableStateOf("")};var preparing by remember{mutableStateOf(false)}
+ var name by remember(initial){mutableStateOf(initial.name)};var url by remember(initial){mutableStateOf(initial.url)};var cover by remember(initial){mutableStateOf(initial.cover)};var photo by remember(initial){mutableStateOf(initial.photo)};var handle by remember(initial){mutableStateOf(initial.handle)};var responsibleUid by remember(initial){mutableStateOf(initial.responsibleUid)};var responsible by remember(initial){mutableStateOf<ProfilePerson?>(null)};var description by remember(initial){mutableStateOf(initial.description)};var draft by remember(initial){mutableStateOf(initial.draft)};var photoTarget by remember{mutableStateOf(false)};var localError by remember{mutableStateOf("")};var preparing by remember{mutableStateOf(false)};var showResponsible by remember{mutableStateOf(false)}
+ if(showResponsible&&responsibleUid.isNotBlank())NativeProfileDialog(responsibleUid){showResponsible=false}
  LaunchedEffect(initial.responsibleUid){if(initial.responsibleUid.isNotBlank())try{responsible=ProfileIdentity.person(initial.responsibleUid,UserDirectory.profile(initial.responsibleUid))}catch(e:CancellationException){throw e}catch(e:Exception){}}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){value->if(value!=null)scope.launch{preparing=true;try{val encoded=withContext(Dispatchers.IO){encodePartnerImage(context,value)};if(photoTarget)photo=encoded else cover=encoded}catch(e:CancellationException){throw e}catch(e:Exception){localError="Não foi possível preparar esta imagem. Escolha outra foto."}finally{preparing=false}}}
  Dialog(onDismissRequest={if(!saving)close()},properties=DialogProperties(usePlatformDefaultWidth=false)){
@@ -109,7 +110,7 @@ import androidx.compose.ui.window.DialogProperties
      if(responsible==null)UserSearchResults(handle){person->responsible=person;responsibleUid=person.uid;handle=person.username}
      responsible?.let{person->
       Column(Modifier.padding(top=10.dp)){
-       UserIdentityCard(person){}
+       UserIdentityCard(person){showResponsible=true}
        TextButton({responsible=null;responsibleUid="";handle=""}){Text("Trocar responsável")}
       }
      }
@@ -140,7 +141,7 @@ private fun encodePartnerImage(context:android.content.Context,uri:android.net.U
   chapters=chapters.sortedByDescending{it.number?:-1.0};saved=withContext(Dispatchers.IO){offlineStore.downloads().filter{it.workId==work.id}.map{it.chapterId}.toSet()};loading=false
  }
  LaunchedEffect(initial.id){WorkManager.getInstance(context).getWorkInfosByTagFlow("work-download-${initial.id}").collect{infos->
-  val active=infos.filter{!it.state.isFinished};downloading=active.isNotEmpty();if(downloading)error="";pending=chapters.filter{chapter->active.any{ChapterDownloadWorker.uniqueName(initial.id,chapter.id) in it.tags||it.progress.getString(ChapterDownloadWorker.CHAPTER_ID)==chapter.id}}.map{it.id}.toSet();progress=active.maxOfOrNull{it.progress.getInt(ChapterDownloadWorker.PROGRESS,0)}?:0
+  val active=infos.filter{!it.state.isFinished};downloading=active.isNotEmpty();if(downloading)error="";pending=chapters.filter{chapter->chapter.id !in saved&&active.any{"work-download-all-${initial.id}" in it.tags||ChapterDownloadWorker.uniqueName(initial.id,chapter.id) in it.tags||it.progress.getString(ChapterDownloadWorker.CHAPTER_ID)==chapter.id}}.map{it.id}.toSet();progress=active.maxOfOrNull{it.progress.getInt(ChapterDownloadWorker.PROGRESS,0)}?:0
   saved=withContext(Dispatchers.IO){offlineStore.downloads().filter{it.workId==work.id}.map{it.chapterId}.toSet()}
   if(!downloading)infos.filter{it.state==androidx.work.WorkInfo.State.FAILED&&chapters.any{chapter->chapter.id !in saved&&(ChapterDownloadWorker.uniqueName(initial.id,chapter.id) in it.tags||"work-download-all-${initial.id}" in it.tags)}}.maxByOrNull{it.id.toString()}?.outputData?.getString(ChapterDownloadWorker.ERROR)?.takeIf{it.isNotBlank()}?.let{error=it}
  }}
