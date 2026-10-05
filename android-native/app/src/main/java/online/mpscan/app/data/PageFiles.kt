@@ -19,29 +19,34 @@ data class PageAsset(val file:File,val width:Int,val height:Int,val regions:Bool
 object PageFiles {
  private val locks=ConcurrentHashMap<String,Mutex>()
  private val decoding=Semaphore(2)
+ private val transfers=Semaphore(2)
+ private val validation=Semaphore(2)
+ private suspend fun checked(file:File)=validation.withPermit{inspect(file)}
  private fun hash(source:String)=MessageDigest.getInstance("SHA-256").digest(source.toByteArray()).joinToString(""){"%02x".format(it)}
  suspend fun fetch(context:Context,source:String):PageAsset=withContext(Dispatchers.IO){
-  if(source.startsWith("file:"))return@withContext inspect(File(URI(source)))
+  if(source.startsWith("file:"))return@withContext checked(File(URI(source)))
   val key=hash(source)
   locks.getOrPut(key){Mutex()}.withLock{
    val folder=File(context.cacheDir,"reader-pages").apply{mkdirs()};val file=File(folder,"$key.img")
-   if(file.isFile)runCatching{inspect(file)}.getOrNull()?.let{file.setLastModified(System.currentTimeMillis());return@withLock it}
+   if(file.isFile)runCatching{checked(file)}.getOrNull()?.let{file.setLastModified(System.currentTimeMillis());return@withLock it}
    writeVerified(source,file)
-   val asset=inspect(file)
+   val asset=checked(file)
    prune(folder,file)
    asset
   }
  }
- suspend fun writeVerified(source:String,target:File)=withContext(Dispatchers.IO){
+ suspend fun writeVerified(source:String,target:File)=withContext(Dispatchers.IO){transfers.withPermit{transferVerified(source,target)}}
+ private suspend fun transferVerified(source:String,target:File){
   var last:Exception?=null
   repeat(3){attempt->
    currentCoroutineContext().ensureActive()
    val temporary=File(target.parentFile,"${target.name}.${java.util.UUID.randomUUID()}.pending")
    try{
     writeSource(source,temporary)
-    inspect(temporary)
+    checked(temporary)
+    currentCoroutineContext().ensureActive()
     check(temporary.renameTo(target)){"Não foi possível salvar a página."}
-    return@withContext
+    return
    }catch(e:CancellationException){throw e}catch(e:Exception){last=e}finally{temporary.delete()}
    if(attempt<2)delay(400L*(attempt+1))
   }
