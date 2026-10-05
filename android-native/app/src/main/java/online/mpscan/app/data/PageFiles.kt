@@ -15,7 +15,7 @@ import java.net.*
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 
-data class PageAsset(val file:File,val width:Int,val height:Int,val regions:Boolean)
+data class PageAsset(val file:File,val width:Int,val height:Int,val regions:Boolean,val text:String?=null)
 object PageFiles {
  private val locks=ConcurrentHashMap<String,Mutex>()
  private val decoding=Semaphore(2)
@@ -53,6 +53,7 @@ object PageFiles {
   throw IOException("Não foi possível carregar uma das páginas. Confira a conexão.",last)
  }
  private fun writeSource(source:String,target:File){
+  if(source.startsWith(ChapterText.PREFIX)){target.writeText(ChapterText.HEADER+ChapterText.decode(source));return}
   if(source.startsWith("mpscan-image:")){val value=JSONObject(source.removePrefix("mpscan-image:"));PageTransport().download(ExternalSourceParser.url(value.getString("url")),target,ExternalSourceParser.url(value.getString("referer")));return}
   if(source.startsWith("mpscan-page:")){
    val path=source.removePrefix("mpscan-page:").substringBefore('?')
@@ -76,6 +77,8 @@ object PageFiles {
   if(!file.isFile||file.length()==0L)throw IOException("O arquivo da página está incompleto.")
   val metadata=File(file.parentFile,"chapter.json")
   if(metadata.isFile){val value=JSONObject(metadata.readText());val names=value.optJSONArray("files");val index=names?.let{(0 until it.length()).firstOrNull{index->it.optString(index)==file.name}};val expected=index?.let{value.optJSONArray("hashes")?.optString(it)}.orEmpty();if(expected.isNotBlank()&&digest(file)!=expected)throw IOException("O arquivo da página ficou incompleto.")}
+  val header=file.inputStream().use{input->val bytes=ByteArray(ChapterText.HEADER.length);val n=input.read(bytes);if(n==bytes.size)String(bytes,Charsets.UTF_8)else ""}
+  if(header==ChapterText.HEADER){require(file.length()<=1000000);val text=file.readText().removePrefix(ChapterText.HEADER);require(text.isNotBlank());return PageAsset(file,1,1,false,text)}
   val bounds=BitmapFactory.Options().apply{inJustDecodeBounds=true};BitmapFactory.decodeFile(file.absolutePath,bounds)
   if(bounds.outWidth<=0||bounds.outHeight<=0)throw IOException("O arquivo da página não contém uma imagem válida.")
   val regions=runCatching{@Suppress("DEPRECATION") val decoder=BitmapRegionDecoder.newInstance(file.absolutePath,false);try{decoder!=null}finally{decoder?.recycle()}}.getOrDefault(false)

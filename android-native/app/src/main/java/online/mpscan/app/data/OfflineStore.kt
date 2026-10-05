@@ -129,9 +129,7 @@ class OfflineStore(context: Context) {
                             val extension = extensionFor(source)
                             val name = "%04d.%s".format(index + 1, extension)
                             writePage(source, File(temporary, name))
-                            val bounds=android.graphics.BitmapFactory.Options().apply{inJustDecodeBounds=true}
-                            android.graphics.BitmapFactory.decodeFile(File(temporary,name).absolutePath,bounds)
-                            check(bounds.outWidth>0&&bounds.outHeight>0){"A página ${index+1} não contém uma imagem válida."}
+                            PageFiles.inspect(File(temporary,name))
                             onProgress((completed.incrementAndGet() * 100) / pageUrls.size)
                             name
                         }
@@ -206,6 +204,7 @@ class OfflineStore(context: Context) {
     private fun fingerprint(sources:List<String>):String{val digest=java.security.MessageDigest.getInstance("SHA-256");sources.forEach{digest.update(it.toByteArray());digest.update(0.toByte())};return digest.digest().joinToString(""){"%02x".format(it)}}
 
     private fun extensionFor(source: String): String {
+        if(source.startsWith(ChapterText.PREFIX))return "txt"
         val value = source.substringBefore(';').substringBefore('?').lowercase()
         return when {
             "png" in value -> "png"

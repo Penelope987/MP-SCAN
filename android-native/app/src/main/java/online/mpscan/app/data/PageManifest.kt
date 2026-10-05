@@ -29,7 +29,7 @@ object PageManifest {
         val raw = JSONTokener(text).nextValue()
         fun source(value: Any?): String? = when (value) {
             is String -> normalize(value)
-            is JSONObject -> listOf("dataUrl", "url", "imagemUrl", "imagem", "src", "page", "base64", "data", "imageUrl", "imageURL").firstNotNullOfOrNull { source(value.opt(it)) }
+            is JSONObject -> if(value.optString("tipo",value.optString("type")) in listOf("text","texto","novel"))ChapterText.native(value).singleOrNull() else listOf("dataUrl", "url", "imagemUrl", "imagem", "src", "page", "base64", "data", "imageUrl", "imageURL").firstNotNullOfOrNull { source(value.opt(it)) }
             else -> null
         }
         if(raw is String)return listOfNotNull(source(raw))

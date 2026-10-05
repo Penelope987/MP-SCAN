@@ -49,6 +49,8 @@ class CatalogRepository(private val base:String="https://nnnsss-23f2f-default-rt
         val chapter=ChapterMetadata.parse(chapterId,JSONObject(raw))
         check(chapter.published&&chapter.publicationMode!="draft"){"Este capítulo ainda não foi publicado."}
         check(chapter.available){"Capítulo agendado. Aguarde a data de liberação."}
+        val written=ChapterText.native(JSONObject(raw))
+        if(written.isNotEmpty())return@withContext written
         val path="capitulosPaginas/$workId/$chapterId"
         // New publisher keys encode their order. Avoid holding every base64 image in memory.
         val shallow=runCatching{JSONObject(read(path,"?shallow=true"))}.getOrNull()

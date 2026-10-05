@@ -70,9 +70,9 @@ object ExternalSourceParser {
  }
  fun pages(html:String,address:String):List<String> {
   val doc=document(html,address)
-  if(doc.select(".reading-content").isEmpty())throw ExternalSourceException("O leitor desta origem ainda não é compatível com imagens offline.")
-  val pages=doc.select(".reading-content .page-break img, .reading-content img.wp-manga-chapter-img").map{image(it)}
-  if(pages.isEmpty()||pages.any{it.isBlank()})throw ExternalSourceException("Não foi possível obter todas as imagens do capítulo na origem.")
-  return pages.distinct()
+  val reading=doc.selectFirst(".reading-content")?:throw ExternalSourceException("O conteúdo deste leitor ainda não é compatível com o aplicativo.")
+  val pages=ChapterText.blocks(reading.html(),address)
+  if(pages.isEmpty())throw ExternalSourceException("O capítulo não forneceu texto ou imagens para leitura.")
+  return pages
  }
 }

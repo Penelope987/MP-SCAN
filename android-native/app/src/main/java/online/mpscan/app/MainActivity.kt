@@ -360,12 +360,16 @@ private fun formatUpdateDate(value:Long):String{if(value<=0)return "Atualizaçã
  if(filtersOpen)SearchFilters(status,genre,genres,{filtersOpen=false}){newStatus,newGenre->status=newStatus;genre=newGenre}
  Column(Modifier.fillMaxSize().padding(horizontal=18.dp,vertical=24.dp)){
   Text("DESCUBRA NOVAS HISTÓRIAS",color=MpAccent,fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelSmall)
-  Text("Buscar obras",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge,modifier=Modifier.padding(top=6.dp))
+  Text("Buscar obras e pessoas",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge,modifier=Modifier.padding(top=6.dp))
   Text("Explore mundos, personagens e histórias que ficam.",color=MpMuted,modifier=Modifier.padding(top=8.dp,bottom=18.dp))
-  OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),singleLine=true,shape=RoundedCornerShape(22.dp),leadingIcon={Icon(Icons.Default.Search,"Pesquisar")},trailingIcon={if(query.isNotBlank())IconButton({query=""}){Icon(Icons.Default.Close,"Limpar pesquisa")}},label={Text("Título, sinopse, autor ou gênero")})
+  OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),singleLine=true,shape=RoundedCornerShape(22.dp),leadingIcon={Icon(Icons.Default.Search,"Pesquisar")},trailingIcon={if(query.isNotBlank())IconButton({query=""}){Icon(Icons.Default.Close,"Limpar pesquisa")}},label={Text("Obra, autor, nome ou @arroba")})
   Row(Modifier.fillMaxWidth().padding(vertical=16.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("${filtered.size} obras encontradas",fontWeight=FontWeight.Bold);Text((listOf(status)+genre).filter{it.isNotBlank()}.joinToString(" • ").ifBlank{"Todo o universo MP SCAN"},color=MpMuted,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(top=4.dp))};OutlinedButton({filtersOpen=true},shape=RoundedCornerShape(16.dp)){Text(if(status.isBlank()&&genre.isEmpty())"Refinar busca"else"Filtros ativos")}}
-  if(filtered.isEmpty())LibraryEmpty("Nenhuma história encontrada","Tente outro termo ou remova os filtros.")
-  else LazyVerticalGrid(GridCells.Adaptive(145.dp),horizontalArrangement=Arrangement.spacedBy(16.dp),verticalArrangement=Arrangement.spacedBy(22.dp),contentPadding=PaddingValues(bottom=28.dp)){gridItems(filtered,key={it.id}){Card(it,open,Modifier.fillMaxWidth())}}
+  androidx.compose.foundation.lazy.grid.LazyVerticalGrid(GridCells.Adaptive(145.dp),horizontalArrangement=Arrangement.spacedBy(16.dp),verticalArrangement=Arrangement.spacedBy(16.dp),contentPadding=PaddingValues(bottom=28.dp)){
+   item(span={androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan)}){online.mpscan.app.ui.UserSearchResults(query)}
+   item(span={androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan)}){Text("Obras",fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge)}
+   if(filtered.isEmpty())item(span={androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan)}){LibraryEmpty("Nenhuma história encontrada","Tente outro termo ou remova os filtros.")}
+   gridItems(filtered,key={it.id}){Card(it,open,Modifier.fillMaxWidth())}
+  }
  }
 }
 @Composable private fun WorkDetails(work:Work,newBadge:NewBadgeStyle,back:()->Unit,openWork:(Work)->Unit){

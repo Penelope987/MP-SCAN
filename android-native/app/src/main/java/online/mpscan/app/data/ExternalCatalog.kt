@@ -13,9 +13,9 @@ import java.net.URL
 import java.net.HttpURLConnection
 import java.io.IOException
 
- data class ScanPartnership(val id:String,val name:String,val url:String,val cover:String="",val photo:String="",val handle:String="",val description:String="",val enabled:Boolean=true){
- fun json()=JSONObject().put("name",name).put("url",url).put("cover",cover).put("photo",photo).put("handle",handle).put("description",description).put("enabled",enabled)
- companion object {fun parse(id:String,x:JSONObject)=ScanPartnership(id,x.optString("name"),x.optString("url"),x.optString("cover"),x.optString("photo"),x.optString("handle"),x.optString("description"),x.optBoolean("enabled",true))}
+ data class ScanPartnership(val id:String,val name:String,val url:String,val cover:String="",val photo:String="",val handle:String="",val description:String="",val enabled:Boolean=true,val ownerUid:String="",val responsibleUid:String="",val draft:Boolean=false){
+ fun json()=JSONObject().put("name",name).put("url",url).put("cover",cover).put("photo",photo).put("handle",handle).put("description",description).put("enabled",enabled).put("ownerUid",ownerUid).put("responsibleUid",responsibleUid).put("publicationMode",if(draft)"draft"else"published")
+ companion object {fun parse(id:String,x:JSONObject)=ScanPartnership(id,x.optString("name"),x.optString("url"),x.optString("cover"),x.optString("photo"),x.optString("handle"),x.optString("description"),x.optBoolean("enabled",true),x.optString("ownerUid"),x.optString("responsibleUid"),x.optString("publicationMode")=="draft")}
  }
 object ExternalCatalog {
  const val CONFIG="config/externalScanPartners"
@@ -25,22 +25,40 @@ object ExternalCatalog {
  fun isExternal(id:String)=id.startsWith("ext_")
  private fun read(key:String)=runCatching{JSONObject(prefs.getString(key,"{}")?:"{}")}.getOrDefault(JSONObject())
  private fun put(key:String,value:JSONObject){prefs.edit().putString(key,value.toString()).apply()}
- suspend fun partners():List<ScanPartnership> {
+ suspend fun partners(context:Context):List<ScanPartnership> {
+  val uid=AccountStore(context).session()?.uid.orEmpty()
   val root=try{SiteAccess.json(CONFIG).also{put("partners",it)}}catch(e:CancellationException){throw e}catch(e:Exception){read("partners")}
-  if(!root.has(example.id))root.put(example.id,example.json())
-  return root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.let{ScanPartnership.parse(id,it)}}.filter{it.enabled}.sortedBy{it.name}.toList()
+  val published=root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.let{ScanPartnership.parse(id,it)}}.filter{it.enabled&&!it.draft}.toList()
+  if(uid.isBlank())return published.sortedBy{it.name}
+  val drafts=try{SiteAccess.json("config/externalScanDrafts/$uid").also{put("drafts_$uid",it)}}catch(e:CancellationException){throw e}catch(e:Exception){read("drafts_$uid")}
+  val private=drafts.keys().asSequence().mapNotNull{id->drafts.optJSONObject(id)?.let{ScanPartnership.parse(id,it)}}.filter{it.ownerUid==uid&&it.draft}.toList()
+  return (published+private).distinctBy{it.id}.sortedBy{it.name}
  }
- suspend fun save(context:Context,partner:ScanPartnership){
-  require(partner.name.trim().isNotBlank()){ "Informe o nome da scan." };ExternalSourceParser.url(partner.url)
-  val store=AccountStore(context);val old=store.session()?:throw ExternalSourceException("Entre com uma conta ADM para cadastrar parcerias.")
+ private suspend fun admin(context:Context):AccountSession {
+  val store=AccountStore(context);val old=store.session()?:throw ExternalSourceException("Entre com uma conta ADM para gerenciar parcerias.")
   val fresh=AccountRepository().refresh(old);store.save(fresh)
   val profile=AccountRepository().profile(fresh)
   check(profile.role.lowercase() in listOf("adm","administrador","admin")){"Sua conta não tem permissão para gerenciar parcerias."}
-  SiteAccess.requireAllowed(context)
-  withContext(Dispatchers.IO){
-   try{AccountRepository().request(SiteAccess.authenticated("https://nnnsss-23f2f-default-rtdb.firebaseio.com/$CONFIG/${partner.id}.json"),"PUT",partner.json().toString())}catch(e:Exception){throw ExternalSourceException("Não foi possível salvar a parceria. Ative as regras de parcerias entregues com esta versão e tente novamente.")}
-   val root=read("partners");root.put(partner.id,partner.json());put("partners",root)
-  }
+  SiteAccess.requireAllowed(context);return fresh
+ }
+ suspend fun save(context:Context,partner:ScanPartnership){
+  require(partner.name.trim().isNotBlank()){ "Informe o nome da scan." };ExternalSourceParser.url(partner.url)
+  val fresh=admin(context);val value=partner.copy(ownerUid=fresh.uid,enabled=true)
+  val patch=JSONObject().put("$CONFIG/${value.id}",if(value.draft)JSONObject.NULL else value.json())
+   .put("config/externalScanDrafts/${fresh.uid}/${value.id}",if(value.draft)value.json()else JSONObject.NULL)
+  mutate(patch)
+  val public=read("partners");if(value.draft)public.remove(value.id)else public.put(value.id,value.json());put("partners",public)
+  val drafts=read("drafts_${fresh.uid}");if(value.draft)drafts.put(value.id,value.json())else drafts.remove(value.id);put("drafts_${fresh.uid}",drafts)
+ }
+ suspend fun delete(context:Context,partner:ScanPartnership){
+  val fresh=admin(context)
+  mutate(JSONObject().put("$CONFIG/${partner.id}",JSONObject.NULL).put("config/externalScanDrafts/${fresh.uid}/${partner.id}",JSONObject.NULL))
+  val public=read("partners");public.remove(partner.id);put("partners",public)
+  val drafts=read("drafts_${fresh.uid}");drafts.remove(partner.id);put("drafts_${fresh.uid}",drafts)
+ }
+ private suspend fun mutate(patch:JSONObject)=withContext(Dispatchers.IO){
+  try{AccountRepository().request(SiteAccess.authenticated("https://nnnsss-23f2f-default-rtdb.firebaseio.com/.json"),"PATCH",patch.toString())}
+  catch(e:CancellationException){throw e}catch(e:Exception){throw ExternalSourceException("Não foi possível salvar a alteração. Confira a conexão e publique as regras de parcerias desta versão.")}
  }
  suspend fun catalog(partner:ScanPartnership):List<Work> = withContext(Dispatchers.IO){
   val scope=ExternalSourceParser.url(partner.url);var next:String?=scope;val visited=mutableSetOf<String>();val result=linkedMapOf<String,Work>()
@@ -73,7 +91,7 @@ object ExternalCatalog {
   val address=value.optJSONObject("chapters")?.optJSONObject(chapterId)?.optString("url").orEmpty()
   if(address.isBlank()||!ExternalSourceParser.sameOrigin(value.getString("scope"),address))throw ExternalSourceException("Este capítulo não pertence à origem da parceria.")
   val listUrl=address+(if('?' in address)"&"else"?")+"style=list"
-  ExternalSourceParser.pages(fetch(listUrl,address),listUrl).map{image->"mpscan-image:"+JSONObject().put("url",image).put("referer",address).toString()}
+  ExternalSourceParser.pages(fetch(listUrl,address),listUrl).map{image->if(image.startsWith(ChapterText.PREFIX))image else "mpscan-image:"+JSONObject().put("url",image).put("referer",address).toString()}
  }
  private fun fetch(address:String,referer:String,method:String="GET"):String {
   ExternalSourceParser.url(address)
