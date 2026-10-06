@@ -22,6 +22,14 @@ object PartnerPresentation {
  }
  fun visible(scan:JSONObject,donation:Boolean)=scan.optString("status")=="approved"&&(donation||(!scan.optBoolean("hostingPaused")&&scan.optBoolean("configured",false)))
  fun enrich(work:Work,entries:List<PartnerEntry>):Work=origin(work,entries)?.let{work.copy(originKind=it.kind,originId=it.id,originName=it.name,originPhoto=it.photo,originUid=it.uid)}?:work
+ fun accessibleAccent(value:String,background:String):String{
+  val bg=AppearanceColors.luminance(background)
+  fun contrast(color:String):Double{val light=AppearanceColors.luminance(color);return (maxOf(light,bg)+.05)/(minOf(light,bg)+.05)}
+  if(contrast(value)>=4.5)return value
+  val target=if(AppearanceColors.darkText(background))0 else 255
+  for(step in 1..20){val fraction=step/20.0;val rgb=listOf(1,3,5).map{start->val channel=value.substring(start,start+2).toInt(16);(channel+(target-channel)*fraction).toInt().coerceIn(0,255)};val candidate="#%02x%02x%02x".format(rgb[0],rgb[1],rgb[2]);if(contrast(candidate)>=4.5)return candidate}
+  return if(target==0)"#000000"else"#ffffff"
+ }
  fun roster(scan:JSONObject,donation:Boolean,id:String):List<ProfilePerson>{
   val people=linkedMapOf<String,ProfilePerson>();val owner=scan.optString(if(donation)"donorUid"else"ownerUid",if(donation)""else id)
   if(owner.isNotBlank())people[owner]=ProfilePerson(owner,scan.optString(if(donation)"donorName"else"scanName","Perfil"),scan.optString("donorHandle"),scan.optString("donorPhoto"))

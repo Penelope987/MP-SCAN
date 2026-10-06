@@ -32,10 +32,10 @@ import org.json.JSONObject
  fun color(s:String)=Color(android.graphics.Color.parseColor(s))
  val base=if(light)lightColorScheme()else darkColorScheme()
  val ink=if(light)Color(0xff251c2d)else Color(0xfff6f1fa)
- val accent=color(a);val accent2=color(b)
- val readableAccent=if(AppearanceColors.darkText(a)==light)accent else lerp(accent,ink,.28f)
+ val readableA=PartnerPresentation.accessibleAccent(a,bg);val readableB=PartnerPresentation.accessibleAccent(b,bg)
+ val readableAccent=color(readableA);val accent2=color(readableB)
  val type=MaterialTheme.typography;val editorial=scan.optString("themePreset") in listOf("editorial","velvet","paper");val titles=if(editorial)type.copy(headlineMedium=type.headlineMedium.copy(fontFamily=FontFamily.Serif),titleLarge=type.titleLarge.copy(fontFamily=FontFamily.Serif))else type
- MaterialTheme(typography=titles,colorScheme=base.copy(background=color(bg),onBackground=ink,surface=lerp(color(bg),ink,.045f),surfaceVariant=lerp(color(bg),ink,.09f),onSurface=ink,onSurfaceVariant=ink.copy(.72f),primary=readableAccent,onPrimary=if(AppearanceColors.darkText(a))Color.Black else Color.White,secondary=accent2,outline=ink.copy(.15f)),content=content)
+ MaterialTheme(typography=titles,colorScheme=base.copy(background=color(bg),onBackground=ink,surface=lerp(color(bg),ink,.045f),surfaceVariant=lerp(color(bg),ink,.09f),onSurface=ink,onSurfaceVariant=ink.copy(.72f),primary=readableAccent,onPrimary=if(AppearanceColors.darkText(readableA))Color.Black else Color.White,secondary=accent2,onSecondary=if(AppearanceColors.darkText(readableB))Color.Black else Color.White,outline=ink.copy(.15f)),content=content)
 }
 @Composable internal fun PartnerShowcase(scan:JSONObject,donation:Boolean,works:List<Work>,open:()->Unit){
  val members=PartnerPresentation.members(scan,donation,works)
