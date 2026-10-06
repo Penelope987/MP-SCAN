@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.*
@@ -33,7 +34,8 @@ import org.json.JSONObject
  val ink=if(light)Color(0xff251c2d)else Color(0xfff6f1fa)
  val accent=color(a);val accent2=color(b)
  val readableAccent=if(AppearanceColors.darkText(a)==light)accent else lerp(accent,ink,.28f)
- MaterialTheme(colorScheme=base.copy(background=color(bg),onBackground=ink,surface=lerp(color(bg),ink,.045f),surfaceVariant=lerp(color(bg),ink,.09f),onSurface=ink,onSurfaceVariant=ink.copy(.72f),primary=readableAccent,onPrimary=if(AppearanceColors.darkText(a))Color.Black else Color.White,secondary=accent2,outline=ink.copy(.15f)),content=content)
+ val type=MaterialTheme.typography;val editorial=scan.optString("themePreset") in listOf("editorial","velvet","paper");val titles=if(editorial)type.copy(headlineMedium=type.headlineMedium.copy(fontFamily=FontFamily.Serif),titleLarge=type.titleLarge.copy(fontFamily=FontFamily.Serif))else type
+ MaterialTheme(typography=titles,colorScheme=base.copy(background=color(bg),onBackground=ink,surface=lerp(color(bg),ink,.045f),surfaceVariant=lerp(color(bg),ink,.09f),onSurface=ink,onSurfaceVariant=ink.copy(.72f),primary=readableAccent,onPrimary=if(AppearanceColors.darkText(a))Color.Black else Color.White,secondary=accent2,outline=ink.copy(.15f)),content=content)
 }
 @Composable internal fun PartnerShowcase(scan:JSONObject,donation:Boolean,works:List<Work>,open:()->Unit){
  val members=PartnerPresentation.members(scan,donation,works)
@@ -70,7 +72,7 @@ import org.json.JSONObject
  val context=LocalContext.current;val online=networkAvailable();val uri=LocalUriHandler.current
  var current by remember(id,donation){mutableStateOf(scan)};var available by remember(id,donation){mutableStateOf(true)}
  var works by remember(id){mutableStateOf(initialWorks)};var query by remember(id){mutableStateOf("")};var searchOpen by remember(id){mutableStateOf(false)}
- var team by remember(id){mutableStateOf<List<ProfilePerson>>(emptyList())};var profile by remember(id){mutableStateOf<String?>(null)}
+ var team by remember(id){mutableStateOf(PartnerPresentation.roster(scan,donation,id))};var profile by remember(id){mutableStateOf<String?>(null)}
  var error by remember(id){mutableStateOf("")};var loading by remember(id){mutableStateOf(initialWorks.isEmpty())};var recent by remember(id){mutableStateOf<List<RecentUpdate>>(emptyList())};var ratings by remember(id){mutableStateOf<Map<String,WorkRating>>(emptyMap())}
  val members=PartnerPresentation.members(current,donation,works)
  profile?.let{NativeProfileDialog(it){profile=null}}
@@ -80,13 +82,8 @@ import org.json.JSONObject
  }
  LaunchedEffect(id,current.toString(),online){
   if(!online)return@LaunchedEffect
-  val root=current.optJSONObject("publicAdmins")?:JSONObject()
-  val roster=linkedMapOf<String,ProfilePerson>()
-  val uid=current.optString(if(donation)"donorUid"else"ownerUid",if(donation)""else id)
-  if(uid.isNotBlank())roster[uid]=ProfilePerson(uid,current.optString(if(donation)"donorName"else"scanName","Perfil"),current.optString("donorHandle"),current.optString("donorPhoto"))
-  root.keys().forEach{key->root.optJSONObject(key)?.let{p->roster[key]=ProfilePerson(key,p.optString("name","Perfil"),p.optString("handle"),p.optString("photo"))}}
-  current.optJSONArray("donationAdmins")?.let{list->(0 until list.length()).forEach{n->list.optJSONObject(n)?.let{p->val key=p.optString("uid");if(key.isNotBlank())roster[key]=ProfilePerson(key,p.optString("name","Perfil"),p.optString("handle"),p.optString("photo"))}}}
-  val gate=Semaphore(6);team=coroutineScope{roster.values.map{person->async{gate.withPermit{try{val p=UserDirectory.profile(person.uid);if(p.length()>0)ProfileIdentity.person(person.uid,p)else person}catch(e:CancellationException){throw e}catch(e:Exception){person}}}}.awaitAll()}
+  val roster=PartnerPresentation.roster(current,donation,id)
+  val gate=Semaphore(6);team=coroutineScope{roster.map{person->async{gate.withPermit{try{val p=UserDirectory.profile(person.uid);if(p.length()>0)ProfileIdentity.person(person.uid,p)else person}catch(e:CancellationException){throw e}catch(e:Exception){person}}}}.awaitAll()}
  }
  LaunchedEffect(id,members.map{it.id to it.updatedAt},online){
   if(!online)return@LaunchedEffect
@@ -99,9 +96,9 @@ import org.json.JSONObject
     item(span={GridItemSpan(maxLineSpan)}){Row(verticalAlignment=Alignment.CenterVertically){Text(if(donation)"OBRAS DOADAS"else"HOSPEDAGEM",Modifier.weight(1f),color=MpAccent,style=MaterialTheme.typography.labelSmall,fontWeight=FontWeight.Bold);TextButton(close){Text("Fechar")}}}
     item(span={GridItemSpan(maxLineSpan)}){PartnerHero(current,donation,members.size)}
     item(span={GridItemSpan(maxLineSpan)}){Row(verticalAlignment=Alignment.CenterVertically){FramedAvatar(current.optString("photo"),current.optString("scanName"),size=48.dp);Text(current.optString("scanName"),Modifier.padding(start=12.dp),style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)}}
-    if(team.isNotEmpty())item(span={GridItemSpan(maxLineSpan)}){Column(verticalArrangement=Arrangement.spacedBy(8.dp)){Text(if(donation)"Doador e equipe"else"ADMs da hospedagem",color=MpMuted,style=MaterialTheme.typography.labelLarge);team.forEach{person->UserIdentityCard(person){profile=person.uid}}}}
+    if(team.isNotEmpty())item(span={GridItemSpan(maxLineSpan)}){Column(verticalArrangement=Arrangement.spacedBy(8.dp)){Text(if(donation)"Doador e equipe"else"ADMs da hospedagem",color=MpMuted,style=MaterialTheme.typography.labelLarge);LazyRow(horizontalArrangement=Arrangement.spacedBy(10.dp)){items(team,key={it.uid}){person->Box(Modifier.width(245.dp)){UserIdentityCard(person){profile=person.uid}}}}}}
     item(span={GridItemSpan(maxLineSpan)}){Column{
-     val social=current.optString("socialUrl");if(social.startsWith("https://"))OutlinedButton({uri.openUri(social)},shape=RoundedCornerShape(if(current.optString("socialStyle")=="circle")50 else 16)){Text("Rede social da scan ↗")}
+     val social=current.optString("socialUrl");if(social.startsWith("https://"))OutlinedButton({uri.openUri(social)},modifier=if(current.optString("socialStyle")=="bar")Modifier.fillMaxWidth()else Modifier,shape=RoundedCornerShape(if(current.optString("socialStyle")=="circle")50 else 16)){Text("Rede social da scan ↗")}
      val separate=current.optString("searchMode")=="separate"
      if(separate)TextButton({searchOpen=!searchOpen}){Text("⌕ Buscar obras desta scan")}
      if(!separate||searchOpen)OutlinedTextField(query,{query=it},Modifier.fillMaxWidth().padding(top=8.dp),label={Text("Encontre sua próxima leitura")},placeholder={Text("Buscar em ${current.optString("scanName")}")},singleLine=true,shape=RoundedCornerShape(if(current.optString("searchStyle")=="line")4 else 18))
@@ -151,7 +148,7 @@ import org.json.JSONObject
 @Composable fun WorkOriginCard(work:Work,openWork:(Work)->Unit){
  val entries by PartnerDirectory.entries.collectAsState();val origin=PartnerPresentation.origin(work,entries)?:return
  var person by remember(work.id){mutableStateOf<ProfilePerson?>(null)}
- LaunchedEffect(origin.uid){if(origin.uid.isNotBlank())try{val value=UserDirectory.profile(origin.uid);if(value.length()>0)person=ProfileIdentity.person(origin.uid,value)}catch(e:CancellationException){throw e}catch(e:Exception){}}
+ LaunchedEffect(origin.uid){person=null;if(origin.uid.isNotBlank())try{val value=UserDirectory.profile(origin.uid);if(value.length()>0)person=ProfileIdentity.person(origin.uid,value)}catch(e:CancellationException){throw e}catch(e:Exception){}}
  var selected by remember(work.id){mutableStateOf<PartnerEntry?>(null)};var profile by remember(work.id){mutableStateOf(false)}
  val uri=LocalUriHandler.current
  selected?.let{PartnerDetails(it.id,it.scan,it.donation,emptyList(),{selected=null},openWork)}

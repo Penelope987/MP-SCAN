@@ -22,6 +22,13 @@ object PartnerPresentation {
  }
  fun visible(scan:JSONObject,donation:Boolean)=scan.optString("status")=="approved"&&(donation||(!scan.optBoolean("hostingPaused")&&scan.optBoolean("configured",false)))
  fun enrich(work:Work,entries:List<PartnerEntry>):Work=origin(work,entries)?.let{work.copy(originKind=it.kind,originId=it.id,originName=it.name,originPhoto=it.photo,originUid=it.uid)}?:work
+ fun roster(scan:JSONObject,donation:Boolean,id:String):List<ProfilePerson>{
+  val people=linkedMapOf<String,ProfilePerson>();val owner=scan.optString(if(donation)"donorUid"else"ownerUid",if(donation)""else id)
+  if(owner.isNotBlank())people[owner]=ProfilePerson(owner,scan.optString(if(donation)"donorName"else"scanName","Perfil"),scan.optString("donorHandle"),scan.optString("donorPhoto"))
+  val root=scan.optJSONObject("publicAdmins")?:JSONObject();root.keys().forEach{uid->root.optJSONObject(uid)?.let{p->people[uid]=ProfilePerson(uid,p.optString("name","Perfil"),p.optString("handle"),p.optString("photo"))}}
+  scan.optJSONArray("donationAdmins")?.let{list->(0 until list.length()).forEach{n->list.optJSONObject(n)?.let{p->val uid=p.optString("uid");if(uid.isNotBlank())people[uid]=ProfilePerson(uid,p.optString("name","Perfil"),p.optString("handle"),p.optString("photo"))}}}
+  return people.values.toList()
+ }
  fun preset(scan:JSONObject):List<String> = when(scan.optString("themePreset")){
   "editorial"->listOf("#9861d9","#62339e","#1b102a");"aurora"->listOf("#9d72ec","#f6a6cb","#201a31");"velvet"->listOf("#d5a5e3","#8c72c5","#1b1524");"garden"->listOf("#72bc9a","#d9bcd4","#14251f");"ocean"->listOf("#62b8e2","#8a8ee9","#102332");"paper"->listOf("#ad786b","#dcb6a1","#eee4d7");"neon"->listOf("#c6ff6b","#a775ff","#131527");"sunset"->listOf("#f6a36a","#d576ab","#30202b");"minimal"->listOf("#9a91b6","#d4c8dc","#211e29");else->listOf("#8d5cff","#ff64af","#15121f")
  }
