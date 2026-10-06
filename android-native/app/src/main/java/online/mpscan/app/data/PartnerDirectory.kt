@@ -31,17 +31,17 @@ object PartnerDirectory {
  val externalWorks=MutableStateFlow<List<Work>>(emptyList())
  val externalErrors=MutableStateFlow<List<String>>(emptyList())
  private var initialized=false
- fun init(context:Context){if(initialized)return;initialized=true;val prefs=context.applicationContext.getSharedPreferences("mp_partner_directory",0);entries.value=parse(JSONObject(prefs.getString("entries","{}")?:"{}"))}
+ fun init(context:Context){if(initialized)return;initialized=true;val prefs=context.applicationContext.getSharedPreferences("mp_partner_directory",0);entries.value=runCatching{parse(JSONObject(prefs.getString("entries","{}")?:"{}"))}.getOrDefault(emptyList())}
  private fun parse(root:JSONObject):List<PartnerEntry> = listOf("partnerScans","donationScans").flatMap{path->val node=root.optJSONObject(path)?:JSONObject();node.keys().asSequence().mapNotNull{id->node.optJSONObject(id)?.takeIf{PartnerPresentation.visible(it,path=="donationScans")}?.let{PartnerEntry(id,path=="donationScans",it)}}.toList()}
  suspend fun refresh(context:Context){
   val root=coroutineScope{val hosted=async{SiteAccess.json("partnerScans")};val donated=async{SiteAccess.json("donationScans")};JSONObject().put("partnerScans",hosted.await()).put("donationScans",donated.await())}
-  entries.value=parse(root);context.getSharedPreferences("mp_partner_directory",0).edit().putString("entries",root.toString()).apply()
+  entries.value=parse(root);val published=ExternalCatalog.partners(context).filter{!it.draft&&it.enabled}.map{it.id}.toSet();externalWorks.value=externalWorks.value.filter{(it.originId.ifBlank{it.scanOwnerUid.removePrefix("external:")}) in published};context.getSharedPreferences("mp_partner_directory",0).edit().putString("entries",root.toString()).apply()
  }
  suspend fun searchCatalog(context:Context,refresh:Boolean){
   val partners=ExternalCatalog.partners(context).filter{!it.draft&&it.enabled};val gate=Semaphore(2)
   val errors=java.util.Collections.synchronizedList(mutableListOf<String>())
-  externalWorks.value=partners.flatMap{ExternalCatalog.cachedCatalog(it.id)}.distinctBy{it.id}
-  if(refresh)externalWorks.value=coroutineScope{partners.map{partner->async{gate.withPermit{try{ExternalCatalog.catalog(partner)}catch(e:CancellationException){throw e}catch(e:Exception){errors+=partner.name;ExternalCatalog.cachedCatalog(partner.id)}}}}.awaitAll().flatten().distinctBy{it.id}}
+  externalWorks.value=partners.flatMap{ExternalCatalog.cachedCatalog(it.id).map{work->work.copy(originKind="external",originId=it.id,originName=it.name,originPhoto=it.photo,originUid=it.responsibleUid,hosting=it.url)}}.distinctBy{it.id}
+  if(refresh)externalWorks.value=coroutineScope{partners.map{partner->async{gate.withPermit{try{ExternalCatalog.catalog(partner)}catch(e:CancellationException){throw e}catch(e:Exception){errors+=partner.name;ExternalCatalog.cachedCatalog(partner.id).map{work->work.copy(originKind="external",originId=partner.id,originName=partner.name,originPhoto=partner.photo,originUid=partner.responsibleUid,hosting=partner.url)}}}}}.awaitAll().flatten().distinctBy{it.id}}
   externalErrors.value=errors.toList()
  }
 }

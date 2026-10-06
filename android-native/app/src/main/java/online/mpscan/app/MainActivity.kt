@@ -124,14 +124,15 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
  var selected by remember{mutableStateOf(Destination.Home)};var selectedWork by remember{mutableStateOf<Work?>(null)};var directReader by remember{mutableStateOf<Pair<Work,Chapter>?>(null)};var settingsOpen by remember{mutableStateOf(false)};var works by remember{mutableStateOf<List<Work>>(emptyList())};var newBadge by remember{mutableStateOf(NewBadgeStyle())};var loading by remember{mutableStateOf(true)};var error by remember{mutableStateOf("")}
  var catalogOnline by remember{mutableStateOf(false)}
  val context=LocalContext.current
+ var connected by remember{mutableStateOf(isConnected(context))}
+ val directoryOwner=androidx.lifecycle.compose.LocalLifecycleOwner.current
  val partnerEntries by PartnerDirectory.entries.collectAsState()
  val externalWorks by PartnerDirectory.externalWorks.collectAsState()
  val displayWorks=works.filter{!connected||!it.partnerOnly||partnerEntries.any{entry->!entry.donation&&entry.scan.optString("ownerUid")==it.scanOwnerUid}}.map{PartnerPresentation.enrich(it,partnerEntries)}
- LaunchedEffect(connected){PartnerDirectory.init(context);if(connected)while(true){try{PartnerDirectory.refresh(context)}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){};delay(20000)}}
+ LaunchedEffect(connected,directoryOwner){PartnerDirectory.init(context);if(connected)directoryOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED){while(true){try{PartnerDirectory.refresh(context)}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){};delay(20000)}}}
  LaunchedEffect(connected,selected){if(connected&&selected==Destination.Search)try{PartnerDirectory.searchCatalog(context,true)}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){}}
  val scope=rememberCoroutineScope()
  var attempt by remember{mutableIntStateOf(0)}
- var connected by remember{mutableStateOf(isConnected(context))}
  LaunchedEffect(Unit){AccountStore(context).session()?.let{runCatching{AccountRepository().profile(it)}.onSuccess{online.mpscan.app.data.ProfileSnapshots.save(it)}}}
  LaunchedEffect(attempt,connected){
   loading=true;error="";val repository=CatalogRepository()

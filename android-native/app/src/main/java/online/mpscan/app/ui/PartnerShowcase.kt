@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.*
@@ -94,7 +95,7 @@ import org.json.JSONObject
  Dialog(close,properties=DialogProperties(usePlatformDefaultWidth=false)){
   HostingTheme(current){Surface(Modifier.fillMaxWidth(.97f).widthIn(max=1080.dp).fillMaxHeight(.94f),color=MaterialTheme.colorScheme.background,shape=RoundedCornerShape(26.dp)){
    if(!available)Column(Modifier.padding(24.dp)){Text("Esta hospedagem não está disponível.");TextButton(close){Text("Voltar")}}
-   else LazyVerticalGrid(GridCells.Adaptive(if(current.optString("layout")=="compact")115.dp else 140.dp),Modifier.padding(horizontal=16.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(14.dp),contentPadding=PaddingValues(top=12.dp,bottom=24.dp)){
+   else LazyVerticalGrid(GridCells.Adaptive(if(current.optString("layout")=="compact")115.dp else 140.dp),Modifier.padding(horizontal=if(current.optString("displayMode")=="app")12.dp else 18.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(14.dp),contentPadding=PaddingValues(top=12.dp,bottom=24.dp)){
     item(span={GridItemSpan(maxLineSpan)}){Row(verticalAlignment=Alignment.CenterVertically){Text(if(donation)"OBRAS DOADAS"else"HOSPEDAGEM",Modifier.weight(1f),color=MpAccent,style=MaterialTheme.typography.labelSmall,fontWeight=FontWeight.Bold);TextButton(close){Text("Fechar")}}}
     item(span={GridItemSpan(maxLineSpan)}){PartnerHero(current,donation,members.size)}
     item(span={GridItemSpan(maxLineSpan)}){Row(verticalAlignment=Alignment.CenterVertically){FramedAvatar(current.optString("photo"),current.optString("scanName"),size=48.dp);Text(current.optString("scanName"),Modifier.padding(start=12.dp),style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)}}
@@ -111,13 +112,17 @@ import org.json.JSONObject
      if(current.optBoolean("showFeatured",true)&&visible.isNotEmpty())item(span={GridItemSpan(maxLineSpan)}){PartnerFeature(visible.first(),current){close();openWork(PartnerPresentation.enrich(it,PartnerDirectory.entries.value))}}
      val history=ReadingStore(context).history().map{it.workId}.toSet();val reading=visible.filter{it.id in history}
      if(current.optBoolean("showContinue",true)&&reading.isNotEmpty())item(span={GridItemSpan(maxLineSpan)}){PartnerShelf("Continue lendo",reading,current,false,ratings){close();openWork(it)}}
-     if(current.optBoolean("showRecent",true)&&recent.isNotEmpty())item(span={GridItemSpan(maxLineSpan)}){Column(verticalArrangement=Arrangement.spacedBy(10.dp)){SectionTitle("Atualizações recentes");if(current.optString("updatesStyle")=="strips")recent.forEach{update->Surface(color=MpSurface2,shape=RoundedCornerShape(16.dp)){Column(Modifier.padding(10.dp)){SearchResultCard(update.work){close();openWork(update.work)};Text(update.chapter.label,color=MpAccent,style=MaterialTheme.typography.labelSmall)}}}else LazyRow(horizontalArrangement=Arrangement.spacedBy(10.dp)){items(recent,key={it.work.id}){update->Column(Modifier.width(if(current.optString("updatesStyle")=="spotlight")190.dp else 150.dp)){WorkCoverTile(update.work){close();openWork(update.work)};Text(update.chapter.label,color=MpAccent,modifier=Modifier.padding(top=6.dp),style=MaterialTheme.typography.labelMedium)}}}}}
+     if(current.optBoolean("showRecent",true)&&recent.isNotEmpty()){
+      item(span={GridItemSpan(maxLineSpan)}){SectionTitle("Atualizações recentes")}
+      if(current.optString("updatesStyle","grid")=="grid")items(recent,key={"recent_"+it.work.id}){update->Column{PartnerWorkTile(update.work,current){close();openWork(update.work)};Text(update.chapter.label,color=MpAccent,style=MaterialTheme.typography.labelMedium,modifier=Modifier.padding(top=6.dp))}}
+      else item(span={GridItemSpan(maxLineSpan)}){if(current.optString("updatesStyle")=="strips")Column(verticalArrangement=Arrangement.spacedBy(10.dp)){recent.forEach{update->Surface(color=MpSurface2,shape=RoundedCornerShape(16.dp)){Column(Modifier.padding(10.dp)){SearchResultCard(update.work){close();openWork(update.work)};Text(update.chapter.label,color=MpAccent,style=MaterialTheme.typography.labelSmall)}}}}else LazyRow(horizontalArrangement=Arrangement.spacedBy(10.dp)){items(recent,key={it.work.id}){update->Column(Modifier.width(190.dp)){PartnerWorkTile(update.work,current){close();openWork(update.work)};Text(update.chapter.label,color=MpAccent,modifier=Modifier.padding(top=6.dp),style=MaterialTheme.typography.labelMedium)}}}}
+     }
      val popular=visible.sortedWith(compareByDescending<Work>{ratings[it.id]?.average?:0.0}.thenByDescending{it.reads})
      if(current.optBoolean("showPopular",true)&&popular.isNotEmpty())item(span={GridItemSpan(maxLineSpan)}){PartnerShelf("Ranking das obras",popular.take(8),current,true,ratings){close();openWork(it)}}
     }
     item(span={GridItemSpan(maxLineSpan)}){SectionTitle(if(query.isNotBlank())"Resultados · ${visible.size}"else"Obras")}
     if(visible.isEmpty()&&!loading)item(span={GridItemSpan(maxLineSpan)}){Text(if(home=="search"&&query.isBlank())"Pesquise para explorar o catálogo desta scan."else"Nenhuma obra disponível nesta seleção.",color=MpMuted)}
-    items(visible,key={it.id}){work->WorkCoverTile(PartnerPresentation.enrich(work,PartnerDirectory.entries.value),Modifier.fillMaxWidth()){close();openWork(PartnerPresentation.enrich(work,PartnerDirectory.entries.value))}}
+    items(visible,key={it.id}){work->PartnerWorkTile(PartnerPresentation.enrich(work,PartnerDirectory.entries.value),current){close();openWork(PartnerPresentation.enrich(work,PartnerDirectory.entries.value))}}
    }
   }}
  }
@@ -129,7 +134,14 @@ import org.json.JSONObject
  }
 }
 @Composable private fun PartnerShelf(title:String,works:List<Work>,scan:JSONObject,rank:Boolean,ratings:Map<String,WorkRating>,open:(Work)->Unit){
- Column(verticalArrangement=Arrangement.spacedBy(12.dp)){SectionTitle(title);LazyRow(horizontalArrangement=Arrangement.spacedBy(12.dp)){itemsIndexed(works,key={_,w->w.id}){index,work->Column(Modifier.width(if(scan.optString("cardsStyle")=="shelf")125.dp else 150.dp)){Box{WorkCoverTile(work){open(PartnerPresentation.enrich(work,PartnerDirectory.entries.value))};if(rank)Surface(Modifier.padding(8.dp),color=MpAccent,shape=RoundedCornerShape(10.dp)){Text("${index+1}º",Modifier.padding(8.dp),color=MaterialTheme.colorScheme.onPrimary,fontWeight=FontWeight.Bold)}};if(rank)Text(ratings[work.id]?.takeIf{it.total>0}?.let{"%.1f / 5 · %d votos".format(it.average,it.total)}?:"Ainda sem avaliações",color=MpMuted,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(top=6.dp))}}}}
+ Column(verticalArrangement=Arrangement.spacedBy(12.dp)){SectionTitle(title);LazyRow(horizontalArrangement=Arrangement.spacedBy(12.dp)){itemsIndexed(works,key={_,w->w.id}){index,work->Column(Modifier.width(if(scan.optString("cardsStyle")=="shelf")125.dp else 150.dp)){Box{PartnerWorkTile(work,scan){open(PartnerPresentation.enrich(work,PartnerDirectory.entries.value))};if(rank)Surface(Modifier.padding(8.dp),color=MpAccent,shape=RoundedCornerShape(10.dp)){Text("${index+1}º",Modifier.padding(8.dp),color=MaterialTheme.colorScheme.onPrimary,fontWeight=FontWeight.Bold)}};if(rank)Text(ratings[work.id]?.takeIf{it.total>0}?.let{"%.1f / 5 · %d votos".format(it.average,it.total)}?:"Ainda sem avaliações",color=MpMuted,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(top=6.dp))}}}}
+}
+@Composable private fun PartnerWorkTile(work:Work,scan:JSONObject,open:()->Unit){
+ val style=scan.optString("cardsStyle","covers")
+ if(style=="covers")WorkCoverTile(work,Modifier.fillMaxWidth(),open)
+ else Surface(Modifier.fillMaxWidth().then(if(style=="floating")Modifier.shadow(7.dp,RoundedCornerShape(20.dp))else Modifier).clickable(onClick=open),color=if(style=="floating")MpSurface2 else Color.Transparent,shape=RoundedCornerShape(if(style=="shelf")10.dp else 20.dp)){
+  Column(Modifier.padding(if(style=="floating")8.dp else 0.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){MpImage(work.cover,work.title,Modifier.fillMaxWidth().aspectRatio(.68f).clip(RoundedCornerShape(if(style=="shelf")8.dp else 16.dp)),contentScale=ContentScale.Crop);Text(work.title,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium);WorkOriginBadge(work)}
+ }
 }
 @Composable fun WorkOriginBadge(work:Work){
  val entries by PartnerDirectory.entries.collectAsState();val origin=PartnerPresentation.origin(work,entries)?:return
@@ -138,6 +150,8 @@ import org.json.JSONObject
 }
 @Composable fun WorkOriginCard(work:Work,openWork:(Work)->Unit){
  val entries by PartnerDirectory.entries.collectAsState();val origin=PartnerPresentation.origin(work,entries)?:return
+ var person by remember(work.id){mutableStateOf<ProfilePerson?>(null)}
+ LaunchedEffect(origin.uid){if(origin.uid.isNotBlank())try{val value=UserDirectory.profile(origin.uid);if(value.length()>0)person=ProfileIdentity.person(origin.uid,value)}catch(e:CancellationException){throw e}catch(e:Exception){}}
  var selected by remember(work.id){mutableStateOf<PartnerEntry?>(null)};var profile by remember(work.id){mutableStateOf(false)}
  val uri=LocalUriHandler.current
  selected?.let{PartnerDetails(it.id,it.scan,it.donation,emptyList(),{selected=null},openWork)}
@@ -148,7 +162,7 @@ import org.json.JSONObject
    Text(when(origin.kind){"hosting"->"Obra publicada pela hospedagem ${origin.name}.";"donation"->"Obra doada por ${origin.name}. Os créditos da equipe de origem são preservados.";else->"Catálogo de ${origin.name}. A obra e seus créditos pertencem à equipe de origem; a MP SCAN oferece o leitor e os recursos do aplicativo."},color=MpMuted,style=MaterialTheme.typography.bodySmall)
    if(origin.kind!="external")TextButton({selected=entries.firstOrNull{it.id==origin.id&&it.donation==(origin.kind=="donation")}}){Text("Conhecer a scan →")}
    else TextButton({uri.openUri(work.hosting.takeIf{it.startsWith("https://")}?:"https://"+work.hosting)}){Text("Visitar a origem ↗")}
-   if(origin.uid.isNotBlank())TextButton({profile=true}){Text(if(origin.kind=="donation")"Ver perfil do doador"else"Ver perfil responsável")}
+   person?.let{UserIdentityCard(it){profile=true}}?:run{if(origin.uid.isNotBlank())TextButton({profile=true}){Text(if(origin.kind=="donation")"Ver perfil do doador"else"Ver perfil responsável")}}
   }
  }
 }
