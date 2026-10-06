@@ -67,7 +67,7 @@ object ExternalCatalog {
    if(!visited.add(address))throw ExternalSourceException("A paginação da origem se repetiu. O catálogo anterior foi preservado.")
    if(visited.size>100)throw ExternalSourceException("A origem tem muitas páginas. A equipe precisa preparar uma integração específica.")
    val listing=ExternalSourceParser.listing(fetch(address,scope),address,scope,partner.name,partner.id)
-   listing.works.forEach{(work,url)->result[work.id]=work;put("work_${work.id}",JSONObject().put("url",url).put("scope",scope).put("work",OfflineMetadata.encode(work)))}
+   listing.works.forEach{(work,url)->val credited=work.copy(originKind="external",originId=partner.id,originName=partner.name,originPhoto=partner.photo,originUid=partner.responsibleUid,hosting=partner.url);result[work.id]=credited;put("work_${work.id}",JSONObject().put("url",url).put("scope",scope).put("work",OfflineMetadata.encode(credited)))}
    next=listing.next
   }
   put("catalog_${partner.id}",JSONObject().put("works",JSONArray(result.values.map{OfflineMetadata.encode(it)})))

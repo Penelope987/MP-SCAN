@@ -65,7 +65,6 @@ internal suspend fun publicJson(path:String,token:String=""):JSONObject=withCont
   }
  }
  Column(Modifier.padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
-  donations.forEach{(id,scan)->CreditTile("Obra doada",scan.optString("scanName","Scan doadora"),scan.optString("photo",scan.optString("donorPhoto")),""){selectedPartner=id to scan};if(scan.optString("donorUid").isNotBlank())CreditTile("Doada por",scan.optString("donorName","Leitor MP SCAN"),scan.optString("donorPhoto"),scan.optString("donorHandle")){uri.openUri("https://www.mpscan.online/#/perfil/"+scan.optString("donorUid"))}}
   requested.forEach{(id,person)->CreditTile("Obra pedida por",person.optString("nome","Leitor MP SCAN"),person.optString("foto"),person.optString("nomeUsuario")){uri.openUri("https://www.mpscan.online/#/perfil/$id")}}
  }
 }

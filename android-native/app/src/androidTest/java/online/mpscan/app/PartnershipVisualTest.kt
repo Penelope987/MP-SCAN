@@ -15,6 +15,10 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import online.mpscan.app.data.*
 import online.mpscan.app.ui.PartnerVitrine
+import online.mpscan.app.ui.PartnerHero
+import online.mpscan.app.ui.HostingTheme
+import online.mpscan.app.ui.WorkOriginBadge
+import org.json.JSONObject
 import online.mpscan.app.ui.UserIdentityCard
 import online.mpscan.app.ui.theme.MpScanTheme
 import org.junit.*
@@ -44,6 +48,12 @@ class PartnershipVisualTest {
   var clicked="";val person=ProfilePerson("user-id","Penélope","penelope","")
   compose.setContent{MpScanTheme{UserIdentityCard(person){clicked=person.uid}}}
   compose.onNodeWithText("Penélope").assertIsDisplayed();compose.onNodeWithText("@penelope").assertIsDisplayed().performClick();assertEquals("user-id",clicked)
+ }
+ @Test fun hostingFollowsTheSitePaletteAndShowsOrigin(){
+  val context=ApplicationProvider.getApplicationContext<Context>();var paper by mutableStateOf(false)
+  compose.setContent{HostingTheme(JSONObject().put("themePreset",if(paper)"paper"else"garden").put("scanName","Hospedagem Teste").put("description","As obras e a equipe, na mesma vitrine.").put("heroStyle","centered")){Column{PartnerHero(JSONObject().put("scanName","Hospedagem Teste"),false,4);WorkOriginBadge(Work("test","Obra","","","","","","",emptyList(),0,0,originKind="hosting",originName="Equipe parceira"))}}}
+  compose.onNodeWithText("Hospedagem Teste").assertIsDisplayed();compose.onNodeWithText("⌂ Hospedagem · Equipe parceira").assertIsDisplayed();save(context,"hospedagem-jardim.png")
+  compose.runOnIdle{paper=true};compose.waitForIdle();compose.onNodeWithText("Hospedagem Teste").assertIsDisplayed();save(context,"hospedagem-paginas.png")
  }
  private fun save(context:Context,name:String){
   val bitmap=compose.onRoot().captureToImage().asAndroidBitmap();val dir=File(context.getExternalFilesDir(null),"ui-checks").apply{mkdirs()}

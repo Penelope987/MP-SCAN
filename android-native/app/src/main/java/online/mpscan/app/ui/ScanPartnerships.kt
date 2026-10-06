@@ -40,6 +40,8 @@ import androidx.compose.ui.window.DialogProperties
 
 @Composable fun ScanPartnerships(openWork:(Work)->Unit,back:()->Unit){
  val context=LocalContext.current;val scope=rememberCoroutineScope();val online=networkAvailable()
+ var information by remember{mutableStateOf(false)}
+ if(information)AlertDialog(onDismissRequest={information=false},title={Text("Sobre as scans parceiras")},text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)){Text("As equipes desta vitrine participam por solicitação e autorização para integrar seus catálogos ao aplicativo.");Text("As obras continuam hospedadas no site de origem. Os créditos e as atualizações pertencem à equipe parceira; a MP SCAN oferece o leitor e os ajustes do aplicativo.");Text("Vantagens: leitura offline dos capítulos baixados, acesso pela busca, biblioteca organizada e retomada da leitura. Novos capítulos dependem da publicação e disponibilidade na origem.");Text("Encontrou uma atribuição incorreta? Avise a equipe pelo suporte. O crédito da origem deve ser preservado.")}},confirmButton={TextButton({information=false}){Text("Entendi")}})
  var partners by remember{mutableStateOf<List<ScanPartnership>>(emptyList())};var selected by remember{mutableStateOf<ScanPartnership?>(null)}
  var administrator by remember{mutableStateOf(false)};var editing by remember{mutableStateOf<ScanPartnership?>(null)};var deleting by remember{mutableStateOf<ScanPartnership?>(null)}
  var retry by remember{mutableIntStateOf(0)};var loading by remember{mutableStateOf(true)};var message by remember{mutableStateOf("")};var saving by remember{mutableStateOf(false)};var filter by remember{mutableStateOf("Todas")}
@@ -53,7 +55,7 @@ import androidx.compose.ui.window.DialogProperties
  selected?.let{partner->BackHandler{selected=null};PartnerCatalog(partner,administrator,{selected=null},{message="";editing=partner},openWork);return}
  BackHandler(onBack=back)
  LazyVerticalGrid(GridCells.Adaptive(280.dp),Modifier.fillMaxSize().padding(horizontal=18.dp),horizontalArrangement=Arrangement.spacedBy(16.dp),verticalArrangement=Arrangement.spacedBy(16.dp),contentPadding=PaddingValues(top=18.dp,bottom=32.dp)){
-  item(span={GridItemSpan(maxLineSpan)}){Column{TextButton(back){Text("← Menu")};Text("SCANS QUE CONECTAM HISTÓRIAS",color=MpAccent,style=MaterialTheme.typography.labelSmall);Text("Parcerias scan",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge);Text("Uma vitrine para cada equipe. Novas histórias para levar com você.",color=MpMuted,modifier=Modifier.padding(top=8.dp))}}
+  item(span={GridItemSpan(maxLineSpan)}){Column{TextButton(back){Text("← Menu")};Text("SCANS QUE CONECTAM HISTÓRIAS",color=MpAccent,style=MaterialTheme.typography.labelSmall);Text("Parcerias scan",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge);Text("Uma vitrine para nossos parceiros que usam o aplicativo para oferecer leitura offline.",color=MpMuted,modifier=Modifier.padding(top=8.dp));TextButton({information=true}){Text("Mais informações →")}}}
   if(administrator)item(span={GridItemSpan(maxLineSpan)}){Column(verticalArrangement=Arrangement.spacedBy(10.dp)){Button({message="";editing=ScanPartnership(java.util.UUID.randomUUID().toString(),"","",draft=true)},Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp)){Text("＋ Nova parceria")};Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("Todas","Públicas","Rascunhos").forEach{label->FilterChip(filter==label,{filter=label},{Text(label)})}}}}
   if(loading)item(span={GridItemSpan(maxLineSpan)}){LinearProgressIndicator(Modifier.fillMaxWidth())}
   if(message.isNotBlank())item(span={GridItemSpan(maxLineSpan)}){Text(message,color=MaterialTheme.colorScheme.error)}
@@ -153,6 +155,7 @@ private fun encodePartnerImage(context:android.content.Context,uri:android.net.U
   item{Text("Atualizada pela scan na própria origem",color=MpAccent2,style=MaterialTheme.typography.labelMedium)}
   if(loading)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
   if(error.isNotBlank())item{Surface(color=MpSurface,shape=RoundedCornerShape(18.dp)){Column(Modifier.padding(16.dp)){Text(error,color=MpMuted);TextButton({retry++}){Text("Atualizar capítulos")}}}}
+  item{WorkOriginCard(work,{})}
   item{Button({download(null)},Modifier.fillMaxWidth(),enabled=online&&!downloading&&chapters.isNotEmpty(),shape=RoundedCornerShape(16.dp)){Icon(ScanDownloadIcon,null,Modifier.size(20.dp));Spacer(Modifier.width(10.dp));Text(if(downloading)"Baixando… $progress%"else"Baixar capítulos para ler offline")};if(downloading)LinearProgressIndicator(progress={progress/100f},Modifier.fillMaxWidth().padding(top=8.dp))}
   items(chapters,key={it.id}){chapter->val complete=chapter.id in saved;val active=chapter.id in pending
    Surface(color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(1.dp,if(complete)MpAccent.copy(.3f)else MpLine)){
