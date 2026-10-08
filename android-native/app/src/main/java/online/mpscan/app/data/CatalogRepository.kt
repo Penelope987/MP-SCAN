@@ -50,14 +50,15 @@ class CatalogRepository(private val base:String="https://nnnsss-23f2f-default-rt
         check(chapter.published&&chapter.publicationMode!="draft"){"Este capítulo ainda não foi publicado."}
         check(chapter.available){"Capítulo agendado. Aguarde a data de liberação."}
         val written=ChapterText.native(JSONObject(raw))
-        if(written.isNotEmpty()){val images=JSONObject(raw);listOf("texto","text","conteudo","content","html","novelText","textoNovel").forEach{images.remove(it)};return@withContext written+PageManifest.parse(images.toString())}
+        val images=JSONObject(raw);listOf("texto","text","conteudo","content","html","novelText","textoNovel").forEach{images.remove(it)}
+        val inlinePages=PageManifest.parse(images.toString())
         val path="capitulosPaginas/$workId/$chapterId"
         // New publisher keys encode their order. Avoid holding every base64 image in memory.
         val shallow=runCatching{JSONObject(read(path,"?shallow=true"))}.getOrNull()
-        shallow?.let{PageManifest.lazyReferences(it,path,chapter.updatedAt)?.let{return@withContext it}}
+        shallow?.let{PageManifest.lazyReferences(it,path,chapter.updatedAt)?.let{pages->return@withContext written+pages}}
         val text=read(path)
-        if(text.isNotBlank()&&text.trim()!="null")PageManifest.parse(text).takeIf{it.isNotEmpty()}?.let{return@withContext it}
-        PageManifest.parse(raw)
+        if(text.isNotBlank()&&text.trim()!="null")PageManifest.parse(text).takeIf{it.isNotEmpty()}?.let{return@withContext written+it}
+        written+inlinePages
 
 
 
