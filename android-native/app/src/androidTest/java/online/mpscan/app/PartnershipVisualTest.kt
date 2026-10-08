@@ -62,7 +62,7 @@ class PartnershipVisualTest {
   val scan=JSONObject().put("scanName","Lunaris scan").put("ownerUid","owner").put("donatedWorkIds",org.json.JSONArray().put("hosted"))
   compose.setContent{MpScanTheme{Column(Modifier.fillMaxWidth().padding(18.dp)){PartnerShowcase(scan,donation,listOf(hosted.copy(partnerOnly=!donation))){clicks++}}}}
   compose.onNodeWithText("1 obra").assertIsDisplayed()
-  val cover=compose.onNodeWithContentDescription("Uma história").fetchSemanticsNode().boundsInRoot
+  val cover=compose.onNodeWithContentDescription("Uma história",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
   val root=compose.onRoot().fetchSemanticsNode().boundsInRoot
   assertTrue("A single cover must not stretch across the card",cover.width<root.width/2)
   compose.onNodeWithText("Conhecer esta hospedagem →").performClick();assertEquals(1,clicks);save(context,"hospedagem-vitrine-celular.png")
