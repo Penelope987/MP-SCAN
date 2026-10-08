@@ -15,6 +15,7 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import online.mpscan.app.data.*
 import online.mpscan.app.ui.PartnerVitrine
+import online.mpscan.app.ui.PartnerShowcase
 import online.mpscan.app.ui.PartnerHero
 import online.mpscan.app.ui.HostingTheme
 import online.mpscan.app.ui.WorkOriginBadge
@@ -54,6 +55,19 @@ class PartnershipVisualTest {
   compose.setContent{HostingTheme(JSONObject().put("themePreset",if(paper)"paper"else"garden").put("scanName","Hospedagem Teste").put("description","As obras e a equipe, na mesma vitrine.").put("heroStyle","centered")){Column{PartnerHero(JSONObject().put("scanName","Hospedagem Teste"),false,4);WorkOriginBadge(Work("test","Obra","","","","","","",emptyList(),0,0,originKind="hosting",originName="Equipe parceira"))}}}
   compose.onNodeWithText("Hospedagem Teste").assertIsDisplayed();compose.onNodeWithText("⌂ Hospedagem · Equipe parceira").assertIsDisplayed();save(context,"hospedagem-jardim.png")
   compose.runOnIdle{paper=true};compose.waitForIdle();compose.onNodeWithText("Hospedagem Teste").assertIsDisplayed();save(context,"hospedagem-paginas.png")
+ }
+ @Test fun singleHostedWorkUsesCompactCoverAndTheSameVitrineAsDonations(){
+  val context=ApplicationProvider.getApplicationContext<Context>();var donation by mutableStateOf(false);var clicks=0
+  val hosted=Work("hosted","Uma história","","","","","","",emptyList(),0,0,scanOwnerUid="owner",partnerOnly=true)
+  val scan=JSONObject().put("scanName","Lunaris scan").put("ownerUid","owner").put("donatedWorkIds",org.json.JSONArray().put("hosted"))
+  compose.setContent{MpScanTheme{Column(Modifier.fillMaxWidth().padding(18.dp)){PartnerShowcase(scan,donation,listOf(hosted.copy(partnerOnly=!donation))){clicks++}}}}
+  compose.onNodeWithText("1 obra").assertIsDisplayed()
+  val cover=compose.onNodeWithContentDescription("Uma história").fetchSemanticsNode().boundsInRoot
+  val root=compose.onRoot().fetchSemanticsNode().boundsInRoot
+  assertTrue("A single cover must not stretch across the card",cover.width<root.width/2)
+  compose.onNodeWithText("Conhecer esta hospedagem →").performClick();assertEquals(1,clicks);save(context,"hospedagem-vitrine-celular.png")
+  compose.runOnIdle{donation=true};compose.waitForIdle()
+  compose.onNodeWithText("Explorar obras doadas →").assertIsDisplayed();save(context,"doacao-vitrine-celular.png")
  }
  private fun save(context:Context,name:String){
   val bitmap=compose.onRoot().captureToImage().asAndroidBitmap();val dir=File(context.getExternalFilesDir(null),"ui-checks").apply{mkdirs()}

@@ -77,4 +77,21 @@ class ReaderDeviceTest {
   }finally{store.delete(work.id,chapter.id);file.delete()}
  }
 
+ @Test fun textOnlyDownloadRejectsSameLengthCorruptionAndRemainsRepairable()=runBlocking{
+  val work=Work("novel_${java.util.UUID.randomUUID()}","Novel offline","","","","novel","","",emptyList(),0,0)
+  val chapter=Chapter("text",1.0,"",true,1);val store=OfflineStore(context)
+  val source=ChapterText.encode("Um capítulo escrito, com acentos: coração e emoção.")
+  try{
+   val pages=store.download(work,chapter,listOf(source),{})
+   assertEquals(1,store.downloads().count{it.workId==work.id})
+   assertEquals("Um capítulo escrito, com acentos: coração e emoção.",PageFiles.fetch(context,pages.single()).text)
+   val file=File(java.net.URI(pages.single()));val bytes=file.readBytes();bytes[bytes.lastIndex]=(bytes.last().toInt() xor 1).toByte();file.writeBytes(bytes)
+   assertTrue(store.localPages(work.id,chapter.id).isEmpty())
+   assertFalse(store.downloads().any{it.workId==work.id})
+   store.restorePage(work.id,chapter.id,0,source)
+   assertEquals(1,store.localPages(work.id,chapter.id).size)
+   assertEquals(1,store.downloads().count{it.workId==work.id})
+  }finally{store.delete(work.id,chapter.id)}
+ }
+
 }

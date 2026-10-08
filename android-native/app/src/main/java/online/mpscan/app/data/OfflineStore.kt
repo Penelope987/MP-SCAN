@@ -42,10 +42,8 @@ class OfflineStore(context: Context) {
         val metadata = File(folder, "chapter.json")
         if (!metadata.isFile) return emptyList()
         return runCatching {
-            val value=JSONObject(metadata.readText());val files = value.optJSONArray("files") ?: JSONArray();val sizes=value.optJSONArray("sizes")
-            (0 until files.length()).mapNotNull { index ->
-                File(folder, files.optString(index)).takeIf { file->val expected=sizes?.optLong(index,0)?:0;file.isFile&&file.length()>0&&(expected<=0||file.length()==expected) }?.toURI()?.toString()
-            }.takeIf { it.size == files.length() } ?: emptyList()
+            val value=JSONObject(metadata.readText())
+            verifiedFiles(folder,value)?.map{it.toURI().toString()}?:emptyList()
         }.getOrDefault(emptyList())
     }
 
@@ -58,7 +56,7 @@ class OfflineStore(context: Context) {
                 runCatching {
                     val metadata = JSONObject(File(chapterFolder, "chapter.json").readText())
                     val files = metadata.optJSONArray("files") ?: JSONArray()
-                    if (files.length() == 0 || (0 until files.length()).any { index->val expected=metadata.optJSONArray("sizes")?.optLong(index,0)?:0;!File(chapterFolder, files.getString(index)).let{file->file.isFile&&file.length()>0&&(expected<=0||file.length()==expected)} }) return@runCatching null
+                    if (verifiedFiles(chapterFolder,metadata)==null) return@runCatching null
                     OfflineChapter(
                         workId = metadata.getString("workId"),
                         workTitle = metadata.optString("workTitle", "Obra baixada"),
@@ -176,6 +174,24 @@ class OfflineStore(context: Context) {
         }
     }
 
+    }
+
+    // A download is complete only when every declared file is intact and inside its chapter.
+    private fun verifiedFiles(folder:File,value:JSONObject):List<File>? {
+        val names=value.optJSONArray("files")?:return null
+        if(names.length()==0)return null
+        val sizes=value.optJSONArray("sizes");val hashes=value.optJSONArray("hashes")
+        val result=ArrayList<File>()
+        for(index in 0 until names.length()){
+            val file=File(folder,names.optString(index))
+            if(file.canonicalFile.parentFile!=folder.canonicalFile||!file.isFile||file.length()<=0)return null
+            val expectedSize=sizes?.optLong(index,0)?:0
+            if(expectedSize>0&&file.length()!=expectedSize)return null
+            val expectedHash=hashes?.optString(index).orEmpty()
+            if(expectedHash.isNotBlank()&&PageFiles.digest(file)!=expectedHash)return null
+            result+=file
+        }
+        return result
     }
 
     private fun chapterFolder(workId: String, chapterId: String) =

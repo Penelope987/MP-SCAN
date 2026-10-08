@@ -39,6 +39,13 @@ import org.json.JSONObject
 }
 @Composable internal fun PartnerShowcase(scan:JSONObject,donation:Boolean,works:List<Work>,open:()->Unit){
  val members=PartnerPresentation.members(scan,donation,works)
+ val ownerUid=scan.optString(if(donation)"donorUid"else"ownerUid")
+ var team by remember(scan.toString(),donation){mutableStateOf(PartnerPresentation.roster(scan,donation,ownerUid))}
+ var person by remember{mutableStateOf<String?>(null)}
+ person?.let{NativeProfileDialog(it){person=null}}
+ LaunchedEffect(ownerUid,scan.toString()){
+  team=team.map{member->try{ProfileIdentity.person(member.uid,UserDirectory.profile(member.uid))}catch(e:CancellationException){throw e}catch(e:Exception){member}}
+ }
  Surface(Modifier.fillMaxWidth().clickable(onClick=open),color=MpSurface,shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,MpLine)){
   Column{
    Box(Modifier.fillMaxWidth().height(120.dp).background(Brush.linearGradient(listOf(MpAccent.copy(.4f),MpSurface2)))){
@@ -48,8 +55,12 @@ import org.json.JSONObject
     Text(if(donation)"OBRAS DOADAS"else"HOSPEDAGEM",Modifier.align(Alignment.BottomStart).padding(16.dp),color=Color.White,style=MaterialTheme.typography.labelSmall,fontWeight=FontWeight.Bold)
    }
    Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-    Row(verticalAlignment=Alignment.CenterVertically){FramedAvatar(scan.optString("photo"),scan.optString("scanName"),size=44.dp);Column(Modifier.weight(1f).padding(start=12.dp)){Text(scan.optString("scanName"),fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge,maxLines=2);Text("${members.size} obras",color=MpMuted,style=MaterialTheme.typography.bodySmall)};Text("↗",color=MpAccent)}
-    if(members.isNotEmpty())Row(horizontalArrangement=Arrangement.spacedBy(5.dp)){members.take(6).forEach{MpImage(it.cover,it.title,Modifier.weight(1f).aspectRatio(.7f).clip(RoundedCornerShape(9.dp)),contentScale=ContentScale.Crop)}}
+    Row(verticalAlignment=Alignment.CenterVertically){FramedAvatar(scan.optString("photo"),scan.optString("scanName"),size=44.dp);Column(Modifier.weight(1f).padding(start=12.dp)){Text(scan.optString("scanName"),fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge,maxLines=2);Text(if(members.size==1)"1 obra"else"${members.size} obras",color=MpMuted,style=MaterialTheme.typography.bodySmall)};Text("↗",color=MpAccent)}
+    if(team.isNotEmpty())Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
+     Text(if(donation)"Equipe doadora"else"ADMs da hospedagem",color=MpMuted,style=MaterialTheme.typography.labelSmall)
+     team.forEach{member->Box(Modifier.clickable{person=member.uid}){FramedAvatar(member.photo,member.name,size=32.dp)}}
+    }
+    if(members.isNotEmpty())Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){members.take(8).forEach{MpImage(it.cover,it.title,Modifier.width(64.dp).height(96.dp).clip(RoundedCornerShape(9.dp)),contentScale=ContentScale.Crop)}}
     Text(if(donation)"Explorar obras doadas →"else"Conhecer esta hospedagem →",color=MpAccent,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.labelLarge)
    }
   }

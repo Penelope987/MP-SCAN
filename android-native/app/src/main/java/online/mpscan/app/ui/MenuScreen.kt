@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.dp
 import online.mpscan.app.ui.MpImage
 import online.mpscan.app.data.*
 import online.mpscan.app.ui.theme.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -33,7 +35,7 @@ import org.json.JSONObject
    item{MenuTile("⚙","Ajustes","Conta, notificações e leitura",settings)}
    item{SupportCard()}
   }else{
-   item{PartnerList("partnerScans","Hospedagem",works,openWork)}
+   item{PartnerList("partnerScans","Hospedagens",works,openWork)}
    item{PartnerList("donationScans","Obras doadas",works,openWork)}
    item{MenuTile("＋","Hospedar com a gente","Conheça a parceria e como solicitar"){uri.openUri("https://www.mpscan.online/#/parceiros/hospedar")}}
   }
@@ -43,9 +45,20 @@ import org.json.JSONObject
 internal suspend fun publicJson(path:String,token:String=""):JSONObject=withContext(Dispatchers.IO){val auth=if(token.isBlank())""else "?auth="+java.net.URLEncoder.encode(token,"UTF-8");AccountRepository().request(if(token.isBlank())SiteAccess.authenticated("https://nnnsss-23f2f-default-rtdb.firebaseio.com/$path.json")else "https://nnnsss-23f2f-default-rtdb.firebaseio.com/$path.json$auth")}
 @Composable private fun PartnerList(path:String,title:String,works:List<Work>,openWork:(Work)->Unit){
  var entries by remember{mutableStateOf<List<Pair<String,JSONObject>>>(emptyList())};var error by remember{mutableStateOf("")};var loading by remember{mutableStateOf(true)};var query by remember{mutableStateOf("")};var retry by remember{mutableIntStateOf(0)}
+ val online=networkAvailable()
+ val directory by PartnerDirectory.entries.collectAsState()
  var selected by remember{mutableStateOf<Pair<String,JSONObject>?>(null)}
  selected?.let{PartnerDetails(it.first,it.second,path=="donationScans",works,{selected=null},openWork)}
- LaunchedEffect(path,retry){loading=true;error="";runCatching{publicJson(path)}.onSuccess{root->entries=root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.takeIf{PartnerPresentation.visible(it,path=="donationScans")}?.let{id to it}}.toList()}.onFailure{error="Não foi possível carregar os parceiros. Confira sua conexão."};loading=false}
+ LaunchedEffect(path,directory){if(entries.isEmpty())entries=directory.filter{it.donation==(path=="donationScans")}.map{it.id to it.scan}}
+ LaunchedEffect(path,retry,online){
+  if(!online){loading=false;error=if(entries.isEmpty())"Você está offline. Seus capítulos baixados estão na Biblioteca."else"Mostrando as informações salvas. Atualizaremos quando a conexão voltar.";return@LaunchedEffect}
+  loading=entries.isEmpty()
+  while(true){
+   try{val root=publicJson(path);entries=root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.takeIf{PartnerPresentation.visible(it,path=="donationScans")}?.let{id to it}}.toList();error=""}
+   catch(e:CancellationException){throw e}catch(e:Exception){error="Não foi possível atualizar os parceiros. Tente novamente."}
+   loading=false;delay(20000)
+  }
+ }
  Column(verticalArrangement=Arrangement.spacedBy(10.dp)){Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);if(loading)LinearProgressIndicator(Modifier.fillMaxWidth());if(error.isNotBlank())Text(error,color=MpMuted);if(!loading&&error.isBlank()&&entries.isEmpty())Text("Nenhuma scan disponível nesta seção.",color=MpMuted);OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),placeholder={Text("Buscar scan ou história")},singleLine=true,shape=RoundedCornerShape(18.dp));if(error.isNotBlank())TextButton({retry++}){Text("Tentar novamente")};entries.filter{(_,scan)->query.isBlank()||scan.optString("scanName").contains(query,true)||scan.optString("description").contains(query,true)||works.any{it.title.contains(query,true)&&it.scanOwnerUid==scan.optString("ownerUid")}}.forEach{(id,scan)->PartnerShowcase(scan,path=="donationScans",works){selected=id to scan}}}
 
 }
