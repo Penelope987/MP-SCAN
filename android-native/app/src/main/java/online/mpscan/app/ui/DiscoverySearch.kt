@@ -18,14 +18,19 @@ import online.mpscan.app.ui.theme.*
 
 @Composable fun DiscoverySearch(works:List<Work>,close:()->Unit,open:(Work)->Unit){
  var query by remember{mutableStateOf("")}
- val matches=remember(works,query){works.filter{Discovery.matches(it,query)}}
+ val context=androidx.compose.ui.platform.LocalContext.current
+ val external by PartnerDirectory.externalWorks.collectAsState()
+ val entries by PartnerDirectory.entries.collectAsState()
+ LaunchedEffect(Unit){try{PartnerDirectory.searchCatalog(context,true)}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){}}
+ val matches=remember(works,external,entries,query){(works+external).distinctBy{it.id}.filter{Discovery.matches(it,query)}.map{PartnerPresentation.enrich(it,entries)}}
  Dialog(onDismissRequest=close,properties=DialogProperties(usePlatformDefaultWidth=false)){
   Surface(Modifier.fillMaxWidth(.95f).widthIn(max=760.dp).fillMaxHeight(.86f),shape=RoundedCornerShape(26.dp),color=MpSurface){
    Column(Modifier.padding(20.dp)){
-    Row(verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("Encontre sua próxima leitura",fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge);Text("Título, sinopse, autor ou gênero",color=MpMuted,style=MaterialTheme.typography.bodySmall)};IconButton(close){Text("×",style=MaterialTheme.typography.headlineSmall)}}
+    Row(verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("Encontre sua próxima leitura",fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge);Text("Obras, autores e perfis por nome ou @",color=MpMuted,style=MaterialTheme.typography.bodySmall)};IconButton(close){Text("×",style=MaterialTheme.typography.headlineSmall)}}
     OutlinedTextField(query,{query=it},Modifier.fillMaxWidth().padding(vertical=16.dp),singleLine=true,placeholder={Text("O que você quer ler?")},shape=RoundedCornerShape(16.dp),leadingIcon={Text("⌕")},trailingIcon={if(query.isNotBlank())IconButton({query=""}){Text("×")}})
-    Text(if(query.isBlank())"Para descobrir" else "${matches.size} obras encontradas",color=MpMuted,style=MaterialTheme.typography.labelMedium)
+    Text(if(query.isBlank())"Para descobrir" else "Obras · ${matches.size} resultados",color=MpMuted,style=MaterialTheme.typography.labelMedium)
     LazyColumn(Modifier.weight(1f).padding(top=12.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+     item{UserSearchResults(query)}
      items(matches.take(if(query.isBlank())8 else 100),key={it.id}){work->SearchResultCard(work){close();open(work)}}
      if(matches.isEmpty())item{Text("Nenhuma obra encontrada. Tente outra palavra.",Modifier.padding(20.dp),color=MpMuted)}
     }
@@ -37,7 +42,7 @@ import online.mpscan.app.ui.theme.*
  Surface(Modifier.fillMaxWidth().clickable(onClick=open),color=MpSurface2,shape=RoundedCornerShape(18.dp)){
   Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically){
    MpImage(work.cover,work.title,Modifier.width(64.dp).aspectRatio(3f/4.4f).clip(RoundedCornerShape(12.dp)),contentScale=ContentScale.Crop)
-   Column(Modifier.weight(1f).padding(start=14.dp)){Text(work.title,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis);if(work.author.isNotBlank())Text(work.author,color=MpMuted,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(top=4.dp));Text(work.synopsis,color=MpMuted,maxLines=2,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(top=6.dp))}
+   Column(Modifier.weight(1f).padding(start=14.dp)){WorkOriginBadge(work);Text(work.title,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis);if(work.author.isNotBlank())Text(work.author,color=MpMuted,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(top=4.dp));Text(work.synopsis,color=MpMuted,maxLines=2,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(top=6.dp))}
    Text("›",color=MpMuted,modifier=Modifier.padding(start=8.dp))
   }
  }

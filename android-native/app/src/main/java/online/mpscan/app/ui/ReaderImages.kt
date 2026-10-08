@@ -14,6 +14,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.*
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.distinctUntilChanged
 import online.mpscan.app.data.*
@@ -37,6 +38,8 @@ import online.mpscan.app.ui.theme.*
   }
  }
  DisposableEffect(sources){onDispose{jobs.values.forEach{it.cancel()}}}
+ // Start the opening page independently of the first lazy-layout observation.
+ LaunchedEffect(sources){if(sources.isNotEmpty())load(0)}
  LaunchedEffect(sources,state){snapshotFlow{state.layoutInfo.visibleItemsInfo.mapNotNull{PageTiles.sourceIndex(it.key)}}.distinctUntilChanged().collect{visible->
   val first=visible.minOrNull()?:0;val last=visible.maxOrNull()?:first
   (first..minOf(sources.lastIndex,last+2)).forEach{load(it)}
@@ -51,6 +54,7 @@ import online.mpscan.app.ui.theme.*
      if(error==null){CircularProgressIndicator();Text("Preparando página ${index+1}…",color=MpMuted,modifier=Modifier.padding(top=12.dp))}
      else{Text(error,color=MpMuted);OutlinedButton({decoderRecovery.remove(index);load(index,true)},Modifier.padding(top=12.dp)){Text(if(sources[index].startsWith("file:"))"Restaurar página"else"Carregar novamente")}}
     }
+   }else if(asset.text!=null){item(key="page:$index:0"){androidx.compose.foundation.text.selection.SelectionContainer{Text(asset.text,Modifier.fillMaxWidth(width).widthIn(max=780.dp).padding(horizontal=22.dp,vertical=12.dp).testTag("reader-text-$index"),fontSize=(18f*zoom.coerceIn(.8f,1.6f)).sp,lineHeight=(30f*zoom.coerceIn(.8f,1.6f)).sp,color=MaterialTheme.colorScheme.onBackground)}}
    }else{
     PageTiles.plan(asset.width,asset.height).forEachIndexed{tileIndex,tile->item(key="page:$index:$tileIndex"){
      ReaderTile(asset,tile,width,zoom){

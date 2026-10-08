@@ -69,6 +69,9 @@ import online.mpscan.app.ui.WorkActions
 import online.mpscan.app.data.SiteAccess
 import online.mpscan.app.ui.SiteAccountGate
 import online.mpscan.app.ui.SiteAnnouncement
+import online.mpscan.app.data.PartnerDirectory
+import online.mpscan.app.data.PartnerPresentation
+import online.mpscan.app.data.ExternalCatalog
 import online.mpscan.app.data.CatalogRepository
 import online.mpscan.app.data.Work
 import online.mpscan.app.data.RecentUpdate
@@ -102,6 +105,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import java.text.SimpleDateFormat
@@ -121,9 +125,15 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
  var selected by remember{mutableStateOf(Destination.Home)};var selectedWork by remember{mutableStateOf<Work?>(null)};var directReader by remember{mutableStateOf<Pair<Work,Chapter>?>(null)};var settingsOpen by remember{mutableStateOf(false)};var works by remember{mutableStateOf<List<Work>>(emptyList())};var newBadge by remember{mutableStateOf(NewBadgeStyle())};var loading by remember{mutableStateOf(true)};var error by remember{mutableStateOf("")}
  var catalogOnline by remember{mutableStateOf(false)}
  val context=LocalContext.current
+ var connected by remember{mutableStateOf(isConnected(context))}
+ val directoryOwner=androidx.lifecycle.compose.LocalLifecycleOwner.current
+ val partnerEntries by PartnerDirectory.entries.collectAsState()
+ val externalWorks by PartnerDirectory.externalWorks.collectAsState()
+ val displayWorks=works.filter{!connected||!it.partnerOnly||partnerEntries.any{entry->!entry.donation&&entry.scan.optString("ownerUid")==it.scanOwnerUid}}.map{PartnerPresentation.enrich(it,partnerEntries)}
+ LaunchedEffect(connected,directoryOwner){PartnerDirectory.init(context);if(connected)directoryOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED){while(true){try{PartnerDirectory.refresh(context)}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){};delay(20000)}}}
+ LaunchedEffect(connected,selected){if(connected&&selected==Destination.Search)try{PartnerDirectory.searchCatalog(context,true)}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){}}
  val scope=rememberCoroutineScope()
  var attempt by remember{mutableIntStateOf(0)}
- var connected by remember{mutableStateOf(isConnected(context))}
  LaunchedEffect(Unit){AccountStore(context).session()?.let{runCatching{AccountRepository().profile(it)}.onSuccess{online.mpscan.app.data.ProfileSnapshots.save(it)}}}
  LaunchedEffect(attempt,connected){
   loading=true;error="";val repository=CatalogRepository()
@@ -157,7 +167,7 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
  SiteAnnouncement(works,connected&&selectedWork==null&&directReader==null&&!settingsOpen){selectedWork=it}
  BackHandler(settingsOpen||directReader!=null||selectedWork!=null){when{settingsOpen->settingsOpen=false;directReader!=null->directReader=null;selectedWork!=null->selectedWork=null}}
  Scaffold(containerColor=MpBackground,topBar={if(!connected&&!settingsOpen&&directReader==null&&selectedWork==null)Surface(color=MpSurface2){Text("Modo offline • Suas obras baixadas estão disponíveis.",Modifier.fillMaxWidth().statusBarsPadding().padding(12.dp),color=MpAccent2,style=MaterialTheme.typography.bodySmall)}},bottomBar={if(selectedWork==null&&directReader==null&&!settingsOpen)Surface(Modifier.padding(horizontal=12.dp,vertical=8.dp),shape=RoundedCornerShape(26.dp),color=MpSurface,border=androidx.compose.foundation.BorderStroke(1.dp,MpLine)){NavigationBar(containerColor=MpSurface,tonalElevation=0.dp){Destination.entries.forEach{x->NavigationBarItem(selected=selected==x,onClick={selected=x},icon={Icon(when(x){Destination.Home->Icons.Default.Home;Destination.Search->Icons.Default.Search;Destination.Library->Icons.Default.List;Destination.Profile->Icons.Default.Person;Destination.Menu->Icons.Default.Menu},contentDescription=x.label)},label={Text(x.label,style=MaterialTheme.typography.labelSmall)},colors=NavigationBarItemDefaults.colors(indicatorColor=MpAccent.copy(.15f)))}}}}){p->
-  Box(Modifier.fillMaxSize().padding(p)){when{settingsOpen->SettingsScreen{settingsOpen=false};directReader!=null->Reader(directReader!!.first,directReader!!.second){directReader=null};selectedWork!=null->WorkDetails(selectedWork!!,newBadge,{selectedWork=null}){selectedWork=it};selected==Destination.Library->OfflineLibrary(works,{selectedWork=it}){w,c->directReader=w to c};selected==Destination.Profile->AccountProfileScreen{settingsOpen=true};selected==Destination.Menu->online.mpscan.app.ui.MenuScreen(works,{selectedWork=it}){settingsOpen=true};loading->Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){CircularProgressIndicator()};error.isNotBlank()->Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){Text(error,color=MpMuted);Button({attempt++},Modifier.padding(top=16.dp)){Text("Tentar novamente")};Text("Para ler offline, vá à Biblioteca e toque em Downloads.",color=MpAccent2,modifier=Modifier.padding(top=16.dp))};works.isEmpty()->Message("As obras publicadas aparecerão aqui.");selected==Destination.Home->Home(works,newBadge,connected&&catalogOnline,Modifier,{selectedWork=it},{w,c->directReader=w to c},{selected=Destination.Search},{selected=Destination.Profile});selected==Destination.Search->Search(works){selectedWork=it}}}
+  Box(Modifier.fillMaxSize().padding(p)){when{settingsOpen->SettingsScreen{settingsOpen=false};directReader!=null->Reader(directReader!!.first,directReader!!.second){directReader=null};selectedWork!=null->if(ExternalCatalog.isExternal(selectedWork!!.id))online.mpscan.app.ui.ExternalWorkScreen(selectedWork!!,{selectedWork=null}){w,c->directReader=w to c}else WorkDetails(selectedWork!!,newBadge,{selectedWork=null}){selectedWork=it};selected==Destination.Library->OfflineLibrary(works,{selectedWork=it}){w,c->directReader=w to c};selected==Destination.Profile->AccountProfileScreen{settingsOpen=true};selected==Destination.Menu->online.mpscan.app.ui.MenuScreen(displayWorks,{selectedWork=it}){settingsOpen=true};loading->Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){CircularProgressIndicator()};error.isNotBlank()->Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){Text(error,color=MpMuted);Button({attempt++},Modifier.padding(top=16.dp)){Text("Tentar novamente")};Text("Para ler offline, vá à Biblioteca e toque em Downloads.",color=MpAccent2,modifier=Modifier.padding(top=16.dp))};works.isEmpty()->Message("As obras publicadas aparecerão aqui.");selected==Destination.Home->Home(displayWorks,newBadge,connected&&catalogOnline,Modifier,{selectedWork=it},{w,c->directReader=w to c},{selected=Destination.Search},{selected=Destination.Profile});selected==Destination.Search->Search((displayWorks+externalWorks).distinctBy{it.id}){selectedWork=it}}}
  }
 }
 @Composable private fun OfflineLibrary(works:List<Work>,openWork:(Work)->Unit,open:(Work,Chapter)->Unit){
@@ -165,7 +175,13 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
  val store=remember{OfflineStore(context.applicationContext)}
  val readingStore=remember{ReadingStore(context.applicationContext)}
  val favorites=remember{FavoritesStore(context.applicationContext)}
- var downloads by remember{mutableStateOf(store.downloads())}
+ var downloads by remember{mutableStateOf(emptyList<OfflineChapter>())}
+ LaunchedEffect(store){
+  downloads=withContext(Dispatchers.IO){store.downloads()}
+  WorkManager.getInstance(context).getWorkInfosFlow(androidx.work.WorkQuery.Builder.fromStates(WorkInfo.State.values().toList()).build())
+   .distinctUntilChangedBy{infos->infos.map{Triple(it.id,it.state,it.progress.getString(ChapterDownloadWorker.CHAPTER_ID))}}
+   .collect{downloads=withContext(Dispatchers.IO){store.downloads()}}
+ }
  var tab by remember{mutableStateOf("favorites")};var libraryQuery by remember{mutableStateOf("")}
  val history=readingStore.history()
  Column(Modifier.fillMaxSize().padding(horizontal=16.dp)){
@@ -351,7 +367,7 @@ private suspend fun loadContinuations(context:android.content.Context,works:List
 @Composable private fun Rail(title:String,works:List<Work>,ranked:Boolean,open:(Work)->Unit){Column{Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineSmall);Spacer(Modifier.height(12.dp));LazyRow(horizontalArrangement=Arrangement.spacedBy(13.dp)){items(works,key={it.id}){w->Box{Card(w,open);if(ranked)Text((works.indexOf(w)+1).toString(),fontWeight=FontWeight.Black,style=MaterialTheme.typography.displaySmall,color=Color.White,modifier=Modifier.align(Alignment.BottomStart).background(Color(0xB30B0B0D)).padding(horizontal=8.dp))}}}}}
 @Composable private fun RecentUpdates(updates:List<RecentUpdate>,open:(Work)->Unit){Column{Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("Atualizações recentes",fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);Text("Capítulos que acabaram de chegar",color=MpMuted,style=MaterialTheme.typography.bodySmall)}};Spacer(Modifier.height(14.dp));if(updates.isEmpty()){Text("As próximas atualizações aparecerão aqui.",color=MpMuted)}else updates.chunked(2).forEach{pair->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){pair.forEach{update->val w=update.work;Surface(Modifier.weight(1f),color=MpSurface,shape=RoundedCornerShape(20.dp),border=androidx.compose.foundation.BorderStroke(1.dp,MpLine)){Column{Box(Modifier.fillMaxWidth().height(142.dp).clickable{open(w)}){MpImage(w.cover,w.title,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)};Column(Modifier.padding(12.dp)){Text(w.title,fontWeight=FontWeight.Black,maxLines=2,minLines=2,overflow=TextOverflow.Ellipsis);Row(Modifier.padding(top=6.dp),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically){Text(update.chapter.label,color=MpAccent2,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.bodySmall);if(isNewChapter(update.chapter))Surface(color=MpAccent.copy(.18f),shape=RoundedCornerShape(6.dp)){Text("NOVO",color=MpAccent2,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(horizontal=5.dp,vertical=3.dp))}};Text(update.chapter.subtitle.ifBlank{" "},color=MpMuted,style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=TextOverflow.Ellipsis);Text(formatUpdateDate(update.updatedAt),color=MpMuted,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(top=3.dp));Button(onClick={open(w)},modifier=Modifier.fillMaxWidth().padding(top=10.dp),shape=RoundedCornerShape(12.dp),contentPadding=PaddingValues(vertical=8.dp)){Text("LER AGORA",fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelMedium)}}}}};if(pair.size==1)Spacer(Modifier.weight(1f))};Spacer(Modifier.height(12.dp))}}}
 private fun formatUpdateDate(value:Long):String{if(value<=0)return "Atualização recente";val millis=if(value<100000000000L)value*1000 else value;return SimpleDateFormat("dd/MM/yyyy",Locale("pt","BR")).format(Date(millis))}
-@Composable private fun Card(w:Work,open:(Work)->Unit,modifier:Modifier=Modifier.width(148.dp)){Column(modifier.clickable{open(w)}){MpImage(w.cover,w.title,Modifier.fillMaxWidth().aspectRatio(3f/4f).clip(RoundedCornerShape(18.dp)).background(MpSurface2),contentScale=ContentScale.Crop);Text(w.title,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=8.dp));Text(w.type,color=MpMuted,style=MaterialTheme.typography.bodySmall)}}
+@Composable private fun Card(w:Work,open:(Work)->Unit,modifier:Modifier=Modifier.width(148.dp)){Column(modifier.clickable{open(w)}){MpImage(w.cover,w.title,Modifier.fillMaxWidth().aspectRatio(3f/4f).clip(RoundedCornerShape(18.dp)).background(MpSurface2),contentScale=ContentScale.Crop);Text(w.title,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=8.dp));Text(w.type,color=MpMuted,style=MaterialTheme.typography.bodySmall);online.mpscan.app.ui.WorkOriginBadge(w)}}
 @Composable private fun Search(works:List<Work>,open:(Work)->Unit){
  var query by remember{mutableStateOf("")};var status by remember{mutableStateOf("")};var genre by remember{mutableStateOf<Set<String>>(emptySet())};var filtersOpen by remember{mutableStateOf(false)}
  val genres=remember(works){works.flatMap{it.genres}.distinct().sorted()}
@@ -359,12 +375,16 @@ private fun formatUpdateDate(value:Long):String{if(value<=0)return "Atualizaçã
  if(filtersOpen)SearchFilters(status,genre,genres,{filtersOpen=false}){newStatus,newGenre->status=newStatus;genre=newGenre}
  Column(Modifier.fillMaxSize().padding(horizontal=18.dp,vertical=24.dp)){
   Text("DESCUBRA NOVAS HISTÓRIAS",color=MpAccent,fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelSmall)
-  Text("Buscar obras",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge,modifier=Modifier.padding(top=6.dp))
+  Text("Buscar obras e pessoas",fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineLarge,modifier=Modifier.padding(top=6.dp))
   Text("Explore mundos, personagens e histórias que ficam.",color=MpMuted,modifier=Modifier.padding(top=8.dp,bottom=18.dp))
-  OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),singleLine=true,shape=RoundedCornerShape(22.dp),leadingIcon={Icon(Icons.Default.Search,"Pesquisar")},trailingIcon={if(query.isNotBlank())IconButton({query=""}){Icon(Icons.Default.Close,"Limpar pesquisa")}},label={Text("Título, sinopse, autor ou gênero")})
+  OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),singleLine=true,shape=RoundedCornerShape(22.dp),leadingIcon={Icon(Icons.Default.Search,"Pesquisar")},trailingIcon={if(query.isNotBlank())IconButton({query=""}){Icon(Icons.Default.Close,"Limpar pesquisa")}},label={Text("Obra, autor, nome ou @arroba")})
   Row(Modifier.fillMaxWidth().padding(vertical=16.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("${filtered.size} obras encontradas",fontWeight=FontWeight.Bold);Text((listOf(status)+genre).filter{it.isNotBlank()}.joinToString(" • ").ifBlank{"Todo o universo MP SCAN"},color=MpMuted,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(top=4.dp))};OutlinedButton({filtersOpen=true},shape=RoundedCornerShape(16.dp)){Text(if(status.isBlank()&&genre.isEmpty())"Refinar busca"else"Filtros ativos")}}
-  if(filtered.isEmpty())LibraryEmpty("Nenhuma história encontrada","Tente outro termo ou remova os filtros.")
-  else LazyVerticalGrid(GridCells.Adaptive(145.dp),horizontalArrangement=Arrangement.spacedBy(16.dp),verticalArrangement=Arrangement.spacedBy(22.dp),contentPadding=PaddingValues(bottom=28.dp)){gridItems(filtered,key={it.id}){Card(it,open,Modifier.fillMaxWidth())}}
+  androidx.compose.foundation.lazy.grid.LazyVerticalGrid(GridCells.Adaptive(145.dp),horizontalArrangement=Arrangement.spacedBy(16.dp),verticalArrangement=Arrangement.spacedBy(16.dp),contentPadding=PaddingValues(bottom=28.dp)){
+   item(span={androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan)}){online.mpscan.app.ui.UserSearchResults(query)}
+   item(span={androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan)}){Text("Obras",fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge)}
+   if(filtered.isEmpty())item(span={androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan)}){LibraryEmpty("Nenhuma história encontrada","Tente outro termo ou remova os filtros.")}
+   gridItems(filtered,key={it.id}){Card(it,open,Modifier.fillMaxWidth())}
+  }
  }
 }
 @Composable private fun WorkDetails(work:Work,newBadge:NewBadgeStyle,back:()->Unit,openWork:(Work)->Unit){
@@ -418,7 +438,7 @@ private fun formatUpdateDate(value:Long):String{if(value<=0)return "Atualizaçã
  if(collectionDialog)CollectionPickerDialog(libraryRepository,session,work.id,{collectionDialog=false}){message->actionMessage=message}
  LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(bottom=30.dp)){
   item{WorkHero(work,availableChapters.size,rating.average,back)}
-  item{online.mpscan.app.ui.WorkCredits(work.id,openWork)}
+  item{online.mpscan.app.ui.WorkCredits(work.id,openWork);online.mpscan.app.ui.WorkOriginCard(work,openWork)}
   item{Column(Modifier.padding(horizontal=12.dp,vertical=14.dp)){Button({continueChapter?.let{reading=it}},Modifier.fillMaxWidth().height(58.dp),enabled=continueChapter!=null,shape=RoundedCornerShape(17.dp)){Text(if(progress.isNotEmpty())"▶ Continuar lendo" else "▶ Começar a ler",fontWeight=FontWeight.Black)};WorkActions(favorite,subscribed,{favorite=favorites.toggle(work.id)},{val current=session;if(current==null)actionMessage="Entre na conta para ativar notificações." else scope.launch{runCatching{val fresh=accountRepository.refresh(current);session=fresh;accountStore.save(fresh);val enabled=!subscribed;libraryRepository.setNotification(fresh,work.id,enabled);enabled}.onSuccess{enabled->subscribed=enabled;if(enabled)NewChapterWorker.runNow(appContext);if(enabled&&android.os.Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)else actionMessage=if(enabled)"Você receberá avisos de novos capítulos." else "Avisos de novos capítulos desativados."}.onFailure{actionMessage=online.mpscan.app.data.PublicErrors.message(it,"Não foi possível atualizar as notificações.")}}},{if(session==null)actionMessage="Entre na conta para usar suas coleções." else collectionDialog=true});if(actionMessage.isNotBlank())Text(actionMessage,color=MpAccent2,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(top=9.dp))}}
   item{Box(Modifier.padding(horizontal=18.dp,vertical=8.dp)){SupportCard()}}
   if(reactions.isNotEmpty())item{WorkReactions(reactions){chosen->val current=session;if(current==null){socialError="Entre na conta para escolher uma reação."}else scope.launch{runCatching{if(current.refreshToken.isBlank())current else accountRepository.refresh(current)}.mapCatching{fresh->session=fresh;accountStore.save(fresh);social.react(work.id,chosen,fresh);fresh}.onSuccess{fresh->reactions=social.reactions(work.id,fresh);socialError="Reação registrada com sucesso."}.onFailure{socialError=online.mpscan.app.data.PublicErrors.message(it,"Não foi possível salvar sua reação.")}}}}

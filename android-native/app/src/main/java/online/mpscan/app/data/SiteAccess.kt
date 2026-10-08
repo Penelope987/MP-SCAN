@@ -16,8 +16,8 @@ object SiteAccess{
  private var app:Context?=null
  fun init(context:Context){app=context.applicationContext}
  fun authenticated(url:String):String{val session=app?.let{AccountStore(it).session()}?:return url;return url+(if('?' in url)"&" else "?")+"auth="+URLEncoder.encode(session.token,"UTF-8")}
- suspend fun json(path:String):JSONObject=withContext(Dispatchers.IO){
-  val connection=URL(authenticated("https://nnnsss-23f2f-default-rtdb.firebaseio.com/$path.json")).openConnection() as HttpURLConnection
+ suspend fun json(path:String,query:String=""):JSONObject=withContext(Dispatchers.IO){
+  val connection=URL(authenticated("https://nnnsss-23f2f-default-rtdb.firebaseio.com/$path.json$query")).openConnection() as HttpURLConnection
   connection.connectTimeout=10000;connection.readTimeout=10000
   try{check(connection.responseCode in 200..299){"Não foi possível verificar sua conta. Tente novamente."};val raw=connection.inputStream.bufferedReader().use{it.readText()};if(raw.trim()=="null")JSONObject()else JSONObject(raw)}finally{connection.disconnect()}
  }

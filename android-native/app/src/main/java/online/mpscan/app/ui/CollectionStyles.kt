@@ -43,7 +43,7 @@ import online.mpscan.app.ui.theme.*
 }
 @Composable fun WorkCoverTile(work:Work,modifier:Modifier=Modifier,open:()->Unit){
  Surface(modifier.clickable(onClick=open),color=MpSurface,shape=RoundedCornerShape(22.dp),border=BorderStroke(1.dp,MpLine)){
-  Column{Box(Modifier.fillMaxWidth().aspectRatio(.68f)){
+  Column{WorkOriginBadge(work);Box(Modifier.fillMaxWidth().aspectRatio(.68f)){
    MpImage(work.cover,work.title,Modifier.matchParentSize(),contentScale=ContentScale.Crop)
    Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent,Color.Transparent,Color.Black.copy(.85f)))))
    Column(Modifier.align(Alignment.BottomStart).padding(14.dp)){Text(work.title,color=Color.White,fontWeight=FontWeight.Bold,maxLines=3,overflow=TextOverflow.Ellipsis);Text("Ver obra →",color=Color.White.copy(.75f),style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(top=5.dp))}

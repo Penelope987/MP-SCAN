@@ -37,7 +37,7 @@ class ReaderDeviceTest {
   val file=image(1440,28000);val asset=PageFiles.inspect(file);val tiles=PageTiles.plan(asset.width,asset.height)
   runBlocking{tiles.forEach{tile->val bitmap=PageFiles.bitmap(asset,tile,1080);assertTrue(bitmap.width<=3072);assertTrue(bitmap.allocationByteCount<=8_000_000);bitmap.recycle()}}
   compose.setContent{MpScanTheme{ReaderImages(listOf(file.toURI().toString()),rememberLazyListState(),1f,1f,false,Modifier.testTag("reader-list")){null}}}
-  compose.waitUntil(20000){compose.onAllNodesWithTag("reader-tile-0").fetchSemanticsNodes().isNotEmpty()}
+  try{compose.waitUntil(20000){compose.onAllNodesWithTag("reader-tile-0").fetchSemanticsNodes().isNotEmpty()}}catch(error:Exception){throw AssertionError("Opening page did not render: "+compose.onRoot(useUnmergedTree=true).printToString(),error)}
   compose.onNodeWithTag("reader-list").performScrollToIndex(tiles.lastIndex)
   val tag="reader-tile-${tiles.last().top}"
   compose.waitUntil(20000){compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()}
@@ -58,4 +58,40 @@ class ReaderDeviceTest {
    val restored=store.localPages(work.id,chapter.id);assertEquals(1,restored.size);assertEquals(15000,PageFiles.fetch(context,restored.single()).height)
   }finally{store.delete(work.id,chapter.id);file.delete()}
  }
+ @Test fun novelAndMixedChapterRemainReadableAfterOfflineDownload(){
+  val file=image(480,800);val inline="data:image/jpeg;base64,"+Base64.encodeToString(file.readBytes(),Base64.NO_WRAP)
+  val work=Work("mixed_${java.util.UUID.randomUUID()}","Capítulo misto","","","","novel","","",emptyList(),0,0)
+  val chapter=Chapter("mixed",1.0,"",true,1);val store=OfflineStore(context)
+  try{
+   val sources=listOf(ChapterText.encode("Texto antes da imagem."),inline,ChapterText.encode("Texto depois da imagem."))
+   val saved=runBlocking{store.download(work,chapter,sources,{})};assertEquals(3,saved.size)
+   assertEquals("Texto antes da imagem.",runBlocking{PageFiles.fetch(context,saved[0])}.text)
+   assertEquals("Texto depois da imagem.",runBlocking{PageFiles.fetch(context,saved[2])}.text)
+   compose.setContent{MpScanTheme{ReaderImages(saved,rememberLazyListState(),1f,1f,false,Modifier.testTag("mixed-reader")){null}}}
+   compose.waitUntil(20000){compose.onAllNodesWithText("Texto antes da imagem.").fetchSemanticsNodes().isNotEmpty()}
+   compose.onNodeWithTag("mixed-reader").performScrollToIndex(2)
+   compose.waitUntil(20000){compose.onAllNodesWithText("Texto depois da imagem.").fetchSemanticsNodes().isNotEmpty()}
+   compose.onNodeWithText("Texto depois da imagem.").assertIsDisplayed()
+   try{runBlocking{store.download(work,chapter,listOf(ChapterText.encode("Não substituir"),"data:image/jpeg;base64,SGVsbG8="),{},true)};fail("Incomplete mixed content must not replace saved chapter")}catch(expected:java.io.IOException){}
+   assertEquals(saved,store.localPages(work.id,chapter.id))
+  }finally{store.delete(work.id,chapter.id);file.delete()}
+ }
+
+ @Test fun textOnlyDownloadRejectsSameLengthCorruptionAndRemainsRepairable()=runBlocking{
+  val work=Work("novel_${java.util.UUID.randomUUID()}","Novel offline","","","","novel","","",emptyList(),0,0)
+  val chapter=Chapter("text",1.0,"",true,1);val store=OfflineStore(context)
+  val source=ChapterText.encode("Um capítulo escrito, com acentos: coração e emoção.")
+  try{
+   val pages=store.download(work,chapter,listOf(source),{})
+   assertEquals(1,store.downloads().count{it.workId==work.id})
+   assertEquals("Um capítulo escrito, com acentos: coração e emoção.",PageFiles.fetch(context,pages.single()).text)
+   val file=File(java.net.URI(pages.single()));val bytes=file.readBytes();bytes[bytes.lastIndex]=(bytes.last().toInt() xor 1).toByte();file.writeBytes(bytes)
+   assertTrue(store.localPages(work.id,chapter.id).isEmpty())
+   assertFalse(store.downloads().any{it.workId==work.id})
+   store.restorePage(work.id,chapter.id,0,source)
+   assertEquals(1,store.localPages(work.id,chapter.id).size)
+   assertEquals(1,store.downloads().count{it.workId==work.id})
+  }finally{store.delete(work.id,chapter.id)}
+ }
+
 }

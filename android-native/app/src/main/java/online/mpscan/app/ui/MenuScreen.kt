@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.dp
 import online.mpscan.app.ui.MpImage
 import online.mpscan.app.data.*
 import online.mpscan.app.ui.theme.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -22,16 +24,18 @@ import org.json.JSONObject
 @Composable fun MenuScreen(works:List<Work>,openWork:(Work)->Unit,settings:()->Unit){
  var page by remember{mutableStateOf("Menu")}
  val uri=LocalUriHandler.current
+ if(page=="Parcerias scan"){ScanPartnerships(openWork){page="Menu"};return}
  if(page=="Personalizar"){LockSettings{page="Menu"};return}
  LazyColumn(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp),contentPadding=PaddingValues(bottom=28.dp)){
   item{if(page!="Menu")TextButton({page="Menu"}){Text("← Menu")};Text(page,fontWeight=FontWeight.Black,style=MaterialTheme.typography.headlineMedium);Text("Tudo para a sua experiência na MP SCAN",color=MpMuted,modifier=Modifier.padding(top=8.dp,bottom=12.dp))}
   if(page=="Menu"){
+   item{MenuTile("◇","Parcerias scan","Catálogos externos e leitura offline"){page="Parcerias scan"}}
    item{MenuTile("♡","Parceiros","Hospedagem, obras doadas e como hospedar"){page="Parceiros"}}
    item{MenuTile("◈","Personalizar","Sua tela de bloqueio, senha e foto"){page="Personalizar"}}
    item{MenuTile("⚙","Ajustes","Conta, notificações e leitura",settings)}
    item{SupportCard()}
   }else{
-   item{PartnerList("partnerScans","Hospedagem",works,openWork)}
+   item{PartnerList("partnerScans","Hospedagens",works,openWork)}
    item{PartnerList("donationScans","Obras doadas",works,openWork)}
    item{MenuTile("＋","Hospedar com a gente","Conheça a parceria e como solicitar"){uri.openUri("https://www.mpscan.online/#/parceiros/hospedar")}}
   }
@@ -41,10 +45,21 @@ import org.json.JSONObject
 internal suspend fun publicJson(path:String,token:String=""):JSONObject=withContext(Dispatchers.IO){val auth=if(token.isBlank())""else "?auth="+java.net.URLEncoder.encode(token,"UTF-8");AccountRepository().request(if(token.isBlank())SiteAccess.authenticated("https://nnnsss-23f2f-default-rtdb.firebaseio.com/$path.json")else "https://nnnsss-23f2f-default-rtdb.firebaseio.com/$path.json$auth")}
 @Composable private fun PartnerList(path:String,title:String,works:List<Work>,openWork:(Work)->Unit){
  var entries by remember{mutableStateOf<List<Pair<String,JSONObject>>>(emptyList())};var error by remember{mutableStateOf("")};var loading by remember{mutableStateOf(true)};var query by remember{mutableStateOf("")};var retry by remember{mutableIntStateOf(0)}
+ val online=networkAvailable()
+ val directory by PartnerDirectory.entries.collectAsState()
  var selected by remember{mutableStateOf<Pair<String,JSONObject>?>(null)}
  selected?.let{PartnerDetails(it.first,it.second,path=="donationScans",works,{selected=null},openWork)}
- LaunchedEffect(path,retry){loading=true;error="";runCatching{publicJson(path)}.onSuccess{root->entries=root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.takeIf{it.optString("status")=="approved"&&!it.optBoolean("hostingPaused")}?.let{id to it}}.toList()}.onFailure{error="Não foi possível carregar os parceiros. Confira sua conexão."};loading=false}
- Column(verticalArrangement=Arrangement.spacedBy(10.dp)){Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);if(loading)LinearProgressIndicator(Modifier.fillMaxWidth());if(error.isNotBlank())Text(error,color=MpMuted);if(!loading&&error.isBlank()&&entries.isEmpty())Text("Nenhuma scan disponível nesta seção.",color=MpMuted);OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),placeholder={Text("Buscar scan ou história")},singleLine=true,shape=RoundedCornerShape(18.dp));if(error.isNotBlank())TextButton({retry++}){Text("Tentar novamente")};entries.filter{(_,scan)->query.isBlank()||scan.optString("scanName").contains(query,true)||scan.optString("description").contains(query,true)||works.any{it.title.contains(query,true)&&it.scanOwnerUid==scan.optString("ownerUid")}}.forEach{(id,scan)->PartnerShowcase(scan,path=="donationScans",works){selected=id to scan}}}
+ LaunchedEffect(path,directory){if(entries.isEmpty())entries=directory.filter{it.donation==(path=="donationScans")}.map{it.id to it.scan}}
+ LaunchedEffect(path,retry,online){
+  if(!online){loading=false;error=if(entries.isEmpty())"Você está offline. Seus capítulos baixados estão na Biblioteca."else"Mostrando as informações salvas. Atualizaremos quando a conexão voltar.";return@LaunchedEffect}
+  loading=entries.isEmpty()
+  while(true){
+   try{val root=publicJson(path);entries=root.keys().asSequence().mapNotNull{id->root.optJSONObject(id)?.takeIf{PartnerPresentation.visible(it,path=="donationScans")}?.let{id to it}}.toList();error=""}
+   catch(e:CancellationException){throw e}catch(e:Exception){error="Não foi possível atualizar os parceiros. Tente novamente."}
+   loading=false;delay(20000)
+  }
+ }
+ Column(verticalArrangement=Arrangement.spacedBy(10.dp)){Text(title,fontWeight=FontWeight.Black,style=MaterialTheme.typography.titleLarge);if(loading)LinearProgressIndicator(Modifier.fillMaxWidth());if(error.isNotBlank())Text(error,color=MpMuted);if(!loading&&error.isBlank()&&entries.isEmpty())Text("Nenhuma scan disponível nesta seção.",color=MpMuted);OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),placeholder={Text("Buscar scan ou história")},singleLine=true,shape=RoundedCornerShape(18.dp));if(error.isNotBlank())TextButton({retry++}){Text("Tentar novamente")};entries.filter{(_,scan)->query.isBlank()||scan.optString("scanName").contains(query,true)||scan.optString("description").contains(query,true)||PartnerPresentation.members(scan,path=="donationScans",works).any{it.title.contains(query,true)}}.forEach{(id,scan)->PartnerShowcase(scan,path=="donationScans",works){selected=id to scan}}}
 
 }
 @Composable fun WorkCredits(workId:String,openWork:(Work)->Unit){
@@ -63,7 +78,6 @@ internal suspend fun publicJson(path:String,token:String=""):JSONObject=withCont
   }
  }
  Column(Modifier.padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
-  donations.forEach{(id,scan)->CreditTile("Obra doada",scan.optString("scanName","Scan doadora"),scan.optString("photo",scan.optString("donorPhoto")),""){selectedPartner=id to scan};if(scan.optString("donorUid").isNotBlank())CreditTile("Doada por",scan.optString("donorName","Leitor MP SCAN"),scan.optString("donorPhoto"),scan.optString("donorHandle")){uri.openUri("https://www.mpscan.online/#/perfil/"+scan.optString("donorUid"))}}
   requested.forEach{(id,person)->CreditTile("Obra pedida por",person.optString("nome","Leitor MP SCAN"),person.optString("foto"),person.optString("nomeUsuario")){uri.openUri("https://www.mpscan.online/#/perfil/$id")}}
  }
 }

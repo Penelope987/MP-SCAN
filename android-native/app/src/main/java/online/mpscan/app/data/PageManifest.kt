@@ -27,13 +27,13 @@ object PageManifest {
     }
     fun parse(text: String): List<String> {
         val raw = JSONTokener(text).nextValue()
-        fun source(value: Any?): String? = when (value) {
-            is String -> normalize(value)
-            is JSONObject -> listOf("dataUrl", "url", "imagemUrl", "imagem", "src", "page", "base64", "data", "imageUrl", "imageURL").firstNotNullOfOrNull { source(value.opt(it)) }
-            else -> null
+        fun source(value: Any?): List<String> = when (value) {
+            is String -> listOfNotNull(normalize(value))
+            is JSONObject -> if(value.optString("tipo",value.optString("type")) in listOf("text","texto","novel"))ChapterText.native(value) else listOf("dataUrl", "url", "imagemUrl", "imagem", "src", "page", "base64", "data", "imageUrl", "imageURL").firstNotNullOfOrNull { source(value.opt(it)).takeIf{it.isNotEmpty()} }?:emptyList()
+            else -> emptyList()
         }
-        if(raw is String)return listOfNotNull(source(raw))
-        if(raw is JSONObject){source(raw)?.let{return listOf(it)};listOf("paginas","pages","imagens","images","data").forEach{field->val nested=raw.opt(field);if(nested is JSONArray||nested is JSONObject)parse(nested.toString()).takeIf{it.isNotEmpty()}?.let{return it}}}
+        if(raw is String)return source(raw)
+        if(raw is JSONObject){source(raw).takeIf{it.isNotEmpty()}?.let{return it};listOf("paginas","pages","imagens","images","data").forEach{field->val nested=raw.opt(field);if(nested is JSONArray||nested is JSONObject)parse(nested.toString()).takeIf{it.isNotEmpty()}?.let{return it}}}
         fun order(key: String, value: Any?): Double = (value as? JSONObject)?.let {
             listOf("ordem", "order", "index", "posicao", "position", "pagina", "numero").firstNotNullOfOrNull { field -> it.opt(field)?.toString()?.toDoubleOrNull() }
         } ?: key.toDoubleOrNull() ?: Double.MAX_VALUE
@@ -43,6 +43,6 @@ object PageManifest {
             else -> emptyList()
         }
         return entries.sortedWith(compareBy<Pair<String, Any?>> { order(it.first, it.second) }.thenBy { it.first })
-            .mapNotNull { source(it.second) }
+            .flatMap { source(it.second) }
     }
 }

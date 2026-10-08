@@ -40,6 +40,7 @@ jobs:
             adb shell svc wifi disable
             adb shell svc data disable
             gradle :app:connectedDebugAndroidTest --stacktrace
+            adb pull /sdcard/Download/mpscan-ui-checks app/build/outputs/ui-checks
       - name: Prepare unsigned release and signing tool
         run: |
           mkdir -p release-output
@@ -59,3 +60,4 @@ jobs:
             android-native/app/build/reports/tests
             android-native/app/build/reports/androidTests
             android-native/app/build/outputs/androidTest-results
+            android-native/app/build/outputs/ui-checks

@@ -7,13 +7,13 @@ import java.net.URL
 
 /** A transfer is not published until the response is complete and nonempty. */
 class PageTransport(private val connectTimeout:Int=20000,private val readTimeout:Int=90000){
- fun download(source:String,target:File){
+ fun download(source:String,target:File,referer:String="https://www.mpscan.online/"){
   var url=URL(source)
   repeat(6){
    val c=url.openConnection() as HttpURLConnection
    c.connectTimeout=connectTimeout;c.readTimeout=readTimeout;c.instanceFollowRedirects=false
    c.setRequestProperty("User-Agent","Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36")
-   c.setRequestProperty("Referer","https://www.mpscan.online/")
+   c.setRequestProperty("Referer",referer)
    c.setRequestProperty("Accept","image/avif,image/webp,image/png,image/jpeg,image/*;q=0.9,*/*;q=0.5")
    try{
     val status=c.responseCode
