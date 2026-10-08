@@ -34,4 +34,10 @@ class ChapterMetadataTest {
   assertTrue(ChapterMetadata.isNew(chapter,1_800_000_000_000L+47L*60*60*1000))
   assertFalse(ChapterMetadata.isNew(chapter,1_800_000_000_000L+48L*60*60*1000))
  }
+ @Test fun editingAnOldChapterDoesNotRestartTheNewBadge(){
+  val now=1_800_000_000_000L
+  val chapter=Chapter("c",1.0,"",true,now,now-30L*24*60*60*1000)
+  assertFalse(ChapterMetadata.isNew(chapter,now))
+ }
+
 }
