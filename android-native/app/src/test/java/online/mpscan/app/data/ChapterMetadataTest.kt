@@ -40,4 +40,16 @@ class ChapterMetadataTest {
   assertFalse(ChapterMetadata.isNew(chapter,now))
  }
 
+ @Test fun publishingAnOldDraftUsesTheExplicitReleaseDate(){
+  val now=1_800_000_000_000L
+  val chapter=ChapterMetadata.parse("c",JSONObject().put("publicadoEm",now).put("criadoEm",now-30L*24*60*60*1000))
+  assertTrue(ChapterMetadata.isNew(chapter,now))
+ }
+ @Test fun editingAReleasedChapterKeepsTheExplicitReleaseDate(){
+  val now=1_800_000_000_000L
+  val chapter=ChapterMetadata.parse("c",JSONObject().put("publishedAt",now-3L*24*60*60*1000).put("atualizadoEm",now))
+  assertFalse(ChapterMetadata.isNew(chapter,now))
+  assertEquals(chapter,OfflineMetadata.chapter(OfflineMetadata.encode(chapter)))
+ }
+
 }
