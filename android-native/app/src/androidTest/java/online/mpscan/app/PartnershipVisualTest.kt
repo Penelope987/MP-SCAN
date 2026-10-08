@@ -65,7 +65,7 @@ class PartnershipVisualTest {
   val cover=compose.onNodeWithContentDescription("Uma história",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
   val root=compose.onRoot().fetchSemanticsNode().boundsInRoot
   assertTrue("A single cover must not stretch across the card",cover.width<root.width/2)
-  compose.onNodeWithText("Conhecer esta hospedagem →").performClick();assertEquals(1,clicks);save(context,"hospedagem-vitrine-celular.png")
+  compose.onNodeWithText("Conhecer esta hospedagem →").performClick();compose.runOnIdle{assertEquals(1,clicks)};save(context,"hospedagem-vitrine-celular.png")
   compose.runOnIdle{donation=true};compose.waitForIdle()
   compose.onNodeWithText("Explorar obras doadas →").assertIsDisplayed();save(context,"doacao-vitrine-celular.png")
  }

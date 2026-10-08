@@ -61,7 +61,9 @@ import org.json.JSONObject
      team.forEach{member->Box(Modifier.clickable{person=member.uid}){FramedAvatar(member.photo,member.name,size=32.dp)}}
     }
     if(members.isNotEmpty())Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){members.take(8).forEach{MpImage(it.cover,it.title,Modifier.width(64.dp).height(96.dp).clip(RoundedCornerShape(9.dp)),contentScale=ContentScale.Crop)}}
-    Text(if(donation)"Explorar obras doadas →"else"Conhecer esta hospedagem →",color=MpAccent,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.labelLarge)
+    FilledTonalButton(onClick=open,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp),colors=ButtonDefaults.filledTonalButtonColors(containerColor=MpAccent.copy(.12f),contentColor=MpAccent)){
+     Text(if(donation)"Explorar obras doadas →"else"Conhecer esta hospedagem →",fontWeight=FontWeight.Bold,style=MaterialTheme.typography.labelLarge)
+    }
    }
   }
  }
