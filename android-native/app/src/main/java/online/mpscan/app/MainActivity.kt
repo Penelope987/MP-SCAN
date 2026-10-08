@@ -105,6 +105,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import java.text.SimpleDateFormat
@@ -174,7 +175,13 @@ private enum class Destination(val label:String,val icon:String){Home("Início",
  val store=remember{OfflineStore(context.applicationContext)}
  val readingStore=remember{ReadingStore(context.applicationContext)}
  val favorites=remember{FavoritesStore(context.applicationContext)}
- var downloads by remember{mutableStateOf(store.downloads())}
+ var downloads by remember{mutableStateOf(emptyList<OfflineChapter>())}
+ LaunchedEffect(store){
+  downloads=withContext(Dispatchers.IO){store.downloads()}
+  WorkManager.getInstance(context).getWorkInfosFlow(androidx.work.WorkQuery.Builder.fromStates(WorkInfo.State.values().toList()).build())
+   .distinctUntilChangedBy{infos->infos.map{Triple(it.id,it.state,it.progress.getString(ChapterDownloadWorker.CHAPTER_ID))}}
+   .collect{downloads=withContext(Dispatchers.IO){store.downloads()}}
+ }
  var tab by remember{mutableStateOf("favorites")};var libraryQuery by remember{mutableStateOf("")}
  val history=readingStore.history()
  Column(Modifier.fillMaxSize().padding(horizontal=16.dp)){
