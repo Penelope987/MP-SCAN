@@ -1,4 +1,4 @@
-# MP SCAN para iPhone — 0.1.0
+# MP SCAN para iPhone — 0.1.1
 
 Primeira etapa nativa em SwiftUI, baseada no contrato de dados do Android 6.3.2. **Não é um IPA assinado nem uma versão pronta para divulgar ao público.**
 
@@ -31,7 +31,7 @@ Primeira etapa nativa em SwiftUI, baseada no contrato de dados do Android 6.3.2.
 
 1. Entre na pasta `ios` do pacote. Use Xcode 16 ou posterior e suas ferramentas de linha de comando.
 2. Instale XcodeGen: `brew install xcodegen`.
-3. O pacote entregue contém seu `App/GoogleService-Info.plist`. No GitHub ele fica ignorado: copie seu arquivo para esse caminho.
+3. A configuração real fica fora do GitHub: copie seu `GoogleService-Info.plist` para `App/GoogleService-Info.plist`. O IPA privado entregue já recebe essa configuração.
 4. Execute `python3 scripts/generate.py` nesta pasta.
 5. Abra `MPSCAN.xcodeproj`. Selecione o target MPSCAN, Signing & Capabilities, sua equipe Apple.
 6. Mantenha **Bundle Identifier: com.mpscan**, exatamente como registrado. Não use o identificador Android.
@@ -57,12 +57,16 @@ Depois dos testes de dispositivo: Product > Archive > Distribute App > App Store
 
 Não troque suas regras de banco apenas para esta etapa: o código usa os caminhos já existentes; valide as permissões na conta real sem afrouxá-las.
 
-## Verificação executada nesta entrega
+## Verificação e instalação desta etapa
 
-- 19 testes XCTest do módulo MPSCANCore executados em Linux com Swift 6.0.3: zero falhas.
-- Análise sintática de todos os arquivos Swift da interface e dos testes UI: aprovada. Isto não é compilação contra os frameworks iOS.
-- Plist conferido: mesmo projeto do Android e Bundle ID `com.mpscan`; esquema de retorno Google derivado do arquivo.
-- Compilação Xcode, testes UI de simulador, login e downloads no servidor real e testes em aparelhos: **pendentes**.
-- A revisão automática bloqueou a publicação da árvore de código no GitHub por falta de autorização explícita para envio ao repositório público. Nenhum commit do projeto iOS nem teste Actions foi executado. Foi criada apenas a branch vazia e um objeto do ícone.
+A validação automatizada inclui 29 testes XCTest do módulo Core e três testes de interface em cada simulador (iPhone e iPad). O resultado definitivo e os testes físicos pendentes estão em VALIDACAO-iOS-0.1.1.txt, no pacote entregue. Execução do código: https://github.com/Penelope987/MP-SCAN/actions/runs/38346646978. Os testes também conferem que completar o perfil preserva a privacidade, o histórico e as imagens escolhidas, sem publicar dados internos da conta.
 
-Documentação usada: [SDK Firebase iOS](https://github.com/firebase/firebase-ios-sdk), [login Google iOS](https://firebase.google.com/docs/auth/ios/google-signin), [dados em tempo real](https://firebase.google.com/docs/database/ios/read-and-write), [TestFlight](https://developer.apple.com/testflight/), [cadastro Apple](https://developer.apple.com/programs/enroll/).
+O projeto foi publicado com autorização na branch `codex/ios-native-0.1.0`, [PR em rascunho #13](https://github.com/Penelope987/MP-SCAN/pull/13). A branch principal e as regras de produção não foram alteradas. A configuração real do servidor continua fora do repositório público.
+
+## Teste pessoal pelo Windows
+
+O pacote para aparelho físico é um IPA ARM64 sem assinatura. Um IPA não instala diretamente pelo Safari. No Windows, o AltServer pode assinar e instalar o aplicativo com a Conta Apple do próprio usuário. Com conta gratuita, é necessário renovar periodicamente; instalação pessoal não equivale a distribuição pelo TestFlight.
+
+Veja o guia COMO-INSTALAR-NO-IPHONE-WINDOWS.txt. O IPA privado entregue recebe seu GoogleService-Info.plist após a compilação, sem publicar o arquivo no GitHub. O instalador pode alterar o Bundle ID ao assinar, exigindo conferir o cadastro do Google para esse identificador. Login Google real e assinatura no seu aparelho ainda precisam de teste.
+
+Documentação usada: [SDK Firebase iOS](https://github.com/firebase/firebase-ios-sdk), [login Google iOS](https://firebase.google.com/docs/auth/ios/google-signin), [dados em tempo real](https://firebase.google.com/docs/database/ios/read-and-write), [TestFlight](https://developer.apple.com/testflight/), [cadastro Apple](https://developer.apple.com/programs/enroll/), [AltServer Windows](https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows).
