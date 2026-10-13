@@ -113,9 +113,14 @@ import MPSCANCore
     private func normalized(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "@", with: "").lowercased() }
     private func writeProfile(user: User, name: String, handle: String) async throws {
         let h = normalized(handle), owner = user.uid
-        let raw: [String: Any] = ["nome": name.trimmingCharacters(in: .whitespacesAndNewlines), "nomeUsuario": h, "foto": user.photoURL?.absoluteString ?? "", "publico": true, "criadoEm": Date().timeIntervalSince1970 * 1000]
-        var pub = raw; pub["uid"] = owner
-        try await Backend.shared.update(["nomesUsuario/\(h)": owner, "usuarios/\(owner)": raw, "perfisPublicos/\(owner)": pub])
+        let previous = try await Backend.shared.read("usuarios/\(owner)") as? [String: Any] ?? [:]
+        let payload = ProfileWrites(previous: previous, uid: owner, name: name, handle: h, providerPhoto: user.photoURL?.absoluteString ?? "", now: Date().timeIntervalSince1970 * 1000)
+        var updates: [String: Any] = ["nomesUsuario/\(h)": owner, "usuarios/\(owner)": payload.own, "perfisPublicos/\(owner)": payload.visible, "identidadesComentarios/\(owner)": payload.identity]
+        if !payload.isPublic {
+            var privateProfile = payload.own; privateProfile["uid"] = owner
+            updates["perfisPrivados/\(owner)"] = privateProfile
+        }
+        try await Backend.shared.update(updates)
     }
     private func action(_ operation: () async throws -> Void) async {
         guard !busy else { return }; busy = true; message = ""; defer { busy = false }
