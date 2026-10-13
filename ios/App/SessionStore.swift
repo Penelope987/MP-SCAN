@@ -117,8 +117,7 @@ import MPSCANCore
         let payload = ProfileWrites(previous: previous, uid: owner, name: name, handle: h, providerPhoto: user.photoURL?.absoluteString ?? "", now: Date().timeIntervalSince1970 * 1000)
         var updates: [String: Any] = ["nomesUsuario/\(h)": owner, "usuarios/\(owner)": payload.own, "perfisPublicos/\(owner)": payload.visible, "identidadesComentarios/\(owner)": payload.identity]
         if !payload.isPublic {
-            var privateProfile = payload.own; privateProfile["uid"] = owner
-            updates["perfisPrivados/\(owner)"] = privateProfile
+            updates["perfisPrivados/\(owner)"] = payload.shared
         }
         try await Backend.shared.update(updates)
     }
