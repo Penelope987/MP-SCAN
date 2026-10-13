@@ -54,6 +54,6 @@ struct Backend {
     func update(_ paths: [String: Any]) async throws { try await Database.database().reference().updateChildValues(paths) }
     static func transient(_ error: Error) -> Bool {
         if let e = error as? ServiceError, case .retry = e { return true }
-        return (error as NSError).domain == NSURLErrorDomain
+        return NetworkFailure.isTransient(error)
     }
 }

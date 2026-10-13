@@ -11,7 +11,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: cache
         with:
           path: |
             ios/build
@@ -66,3 +67,11 @@ jobs:
           name: iOS-device-unsigned
           path: ios/MP-SCAN-iOS-0.1.1-sem-assinatura.ipa
           if-no-files-found: error
+
+      - uses: actions/cache/save@v4
+        if: always() && steps.cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ios/build
+            ios/Core/.build
+          key: ${{ steps.cache.outputs.cache-primary-key }}

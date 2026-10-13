@@ -16,11 +16,11 @@ final class MPSCANUITests: XCTestCase {
         let app = openApp(); capture(app, "inicio")
         tapTab(app, "Busca"); XCTAssertTrue(app.staticTexts["Encontre sua próxima leitura"].waitForExistence(timeout: 5)); capture(app, "busca")
         tapTab(app, "Biblioteca"); XCTAssertTrue(app.staticTexts["Histórias para levar"].waitForExistence(timeout: 5)); capture(app, "biblioteca")
-        tapTab(app, "Menu"); XCTAssertTrue(app.staticTexts["Aparência"].waitForExistence(timeout: 5)); capture(app, "aparencia")
+        tapTab(app, "Menu"); XCTAssertTrue(app.navigationBars["Ajustes"].waitForExistence(timeout: 5)); capture(app, "aparencia")
     }
     func testNovelAndMixedReader() throws {
         let app = openApp(); app.buttons["work-sample"].firstMatch.tap()
-        XCTAssertTrue(app.staticTexts["Capítulo 1"].waitForExistence(timeout: 10)); app.staticTexts["Capítulo 1"].tap()
+        XCTAssertTrue(app.buttons["chapter-sample-chapter"].waitForExistence(timeout: 10)); app.buttons["chapter-sample-chapter"].tap()
         XCTAssertTrue(app.staticTexts["Era uma vez uma história para levar com você, mesmo sem internet."].waitForExistence(timeout: 10)); capture(app, "leitor-misto")
     }
     func testOfflineDownloadAndReading() throws {

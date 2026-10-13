@@ -36,7 +36,7 @@ public enum ContentParser {
                 var source: String?
                 for key in keys {
                     let raw = try element.attr(key)
-                    if !raw.isEmpty { source = raw.hasPrefix("data:") ? raw : try element.absUrl(key); break }
+                    if !raw.isEmpty { source = raw.hasPrefix("data:") || raw.hasPrefix("https://") || raw.hasPrefix("http://") || raw.hasPrefix("//") ? raw : try element.absUrl(key); break }
                 }
                 guard let value = source, let normalized = image(value) else { throw ModelError.unsupportedImage }
                 result.append(ContentBlock(.image, normalized))
