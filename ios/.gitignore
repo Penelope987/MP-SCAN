@@ -1,0 +1,9 @@
+App/GoogleService-Info.plist
+App/Info.plist
+MPSCAN.xcodeproj/
+project.yml
+.build/
+Core/.build/
+build/
+*.xcresult/
+.DS_Store
