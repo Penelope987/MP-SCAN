@@ -22,7 +22,7 @@ struct HomeView: View {
 }
 struct WorkGrid: View {
     var works: [Work]
-    var body: some View { LazyVGrid(columns: [GridItem(.adaptive(minimum: 140, maximum: 210), spacing: 16)], spacing: 22) { ForEach(works) { work in NavigationLink { WorkView(work: work) } label: { WorkTile(work: work) }.buttonStyle(.plain) } } }
+    var body: some View { LazyVGrid(columns: [GridItem(.adaptive(minimum: 140, maximum: 210), spacing: 16)], spacing: 22) { ForEach(works) { work in NavigationLink { WorkView(work: work) } label: { WorkTile(work: work) }.buttonStyle(.plain).accessibilityIdentifier("work-\(work.id)") } } }
 }
 struct WorkTile: View {
     @EnvironmentObject var offline: OfflineStore

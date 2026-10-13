@@ -14,7 +14,10 @@ struct DownloadItem: Identifiable, Sendable { let manifest: OfflineManifest; let
     nonisolated static func key(_ value: String) -> String { SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined() }
     func bind(_ uid: String) {
         for task in tasks.values { task.cancel() }; tasks = [:]; progress = [:]; errors = [:]; items = []; owner = uid
-        guard !uid.isEmpty else { return }; Task { await reload() }
+        guard !uid.isEmpty else { return }; Task {
+            if TestFixtures.enabled && uid == "test-user" { await storage.resetFixtures() }
+            await reload()
+        }
     }
     func reload() async { let uid = owner; let result = await storage.list(owner: uid); if uid == owner { items = result } }
     func cover(_ work: String) -> URL? {
@@ -50,6 +53,7 @@ actor OfflineDisk {
         return url
     }
     private func directory(owner: String, work: String, chapter: String) -> URL { root.appendingPathComponent(OfflineStore.key(owner), isDirectory: true).appendingPathComponent(OfflineStore.key(work + "/" + chapter), isDirectory: true) }
+    func resetFixtures() { try? fm.removeItem(at: root.appendingPathComponent(OfflineStore.key("test-user"))) }
     func list(owner: String) -> [DownloadItem] {
         guard !owner.isEmpty else { return [] }
         let directory = root.appendingPathComponent(OfflineStore.key(owner))

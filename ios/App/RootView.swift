@@ -32,7 +32,10 @@ struct AccessStateView: View {
 }
 struct LoginView: View {
     @EnvironmentObject var session: SessionStore
-    @State private var email = "", password = "", name = "", handle = ""
+    @State private var email = ""
+    @State private var password = ""
+    @State private var name = ""
+    @State private var handle = ""
     @State private var register = false
     var body: some View {
         ScrollView {
@@ -59,7 +62,8 @@ struct LoginView: View {
 }
 struct CompleteProfileView: View {
     @EnvironmentObject var session: SessionStore
-    @State private var name = "", handle = ""
+    @State private var name = ""
+    @State private var handle = ""
     var body: some View { ScrollView { VStack(alignment: .leading, spacing: 22) { Text("Seu espaço na MP SCAN").font(.largeTitle.bold()); Text("Escolha o nome e o @ que vão identificar você na comunidade.").foregroundStyle(.secondary); MPCard { VStack(spacing: 16) { TextField("Nome de perfil", text: $name); TextField("@arroba", text: $handle).textInputAutocapitalization(.never).autocorrectionDisabled(); Notice(message: session.message); PrimaryButton(title: "Salvar e continuar", icon: "checkmark", busy: session.busy) { Task { await session.complete(name: name, handle: handle) } } }.textFieldStyle(.roundedBorder) }; Button("Sair") { session.logout() } }.padding(24).frame(maxWidth: 520).frame(maxWidth: .infinity) }.onAppear { name = session.name; handle = session.handle } }
 }
 struct MainTabs: View {

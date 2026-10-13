@@ -39,10 +39,12 @@ import MPSCANCore
         return root.appendingPathComponent("catalog-\(OfflineStore.key(uid)).json")
     }
     func chapters(_ work: Work) async throws -> [Chapter] {
+        if TestFixtures.enabled { return [TestFixtures.chapter] }
         let raw = try await Backend.shared.read("capitulos/\(work.id)") as? [String: Any] ?? [:]
         return raw.compactMap { id, v in (v as? [String: Any]).map { Chapter(id: id, raw: $0) } }.filter { $0.mode != "draft" }.sorted { ($0.number ?? -1) > ($1.number ?? -1) }
     }
     func content(work: Work, chapter: Chapter) async throws -> [ContentBlock] {
+        if TestFixtures.enabled { return TestFixtures.blocks }
         let raw = try await Backend.shared.read("capitulos/\(work.id)/\(chapter.id)") as? [String: Any] ?? [:]
         guard Chapter(id: chapter.id, raw: raw).available() else { throw ModelError.unavailable }
         var content = try ContentParser.written(raw)

@@ -67,6 +67,7 @@ import MPSCANCore
     }
     var validProfile: Bool { !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && handle.range(of: "^[a-zA-Z0-9_]{3,24}$", options: .regularExpression) != nil }
     func requireAllowed() async throws {
+        if mock { return }
         guard access == .ready, !uid.isEmpty else { throw ServiceError.signedOut }
         let owner = uid
         do {

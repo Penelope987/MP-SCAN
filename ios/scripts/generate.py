@@ -11,7 +11,7 @@ if v.get('BUNDLE_ID')!='com.mpscan' or v.get('PROJECT_ID')!='meow-scan-ffff0':
 project={
  'name':'MPSCAN',
  'options':{'deploymentTarget':{'iOS':'17.0'}},
- 'settings':{'base':{'SWIFT_VERSION':'5.0','IPHONEOS_DEPLOYMENT_TARGET':'17.0','MARKETING_VERSION':'0.1.0','CURRENT_PROJECT_VERSION':'1','TARGETED_DEVICE_FAMILY':'1,2','ENABLE_USER_SCRIPT_SANDBOXING':'YES'}},
+ 'settings':{'base':{'SWIFT_VERSION':'5.0','IPHONEOS_DEPLOYMENT_TARGET':'17.0','MARKETING_VERSION':'0.1.1','CURRENT_PROJECT_VERSION':'2','TARGETED_DEVICE_FAMILY':'1,2','ENABLE_USER_SCRIPT_SANDBOXING':'YES'}},
  'packages':{'Firebase':{'url':'https://github.com/firebase/firebase-ios-sdk.git','exactVersion':'12.4.0'}, 'GoogleSignIn':{'url':'https://github.com/google/GoogleSignIn-iOS.git','exactVersion':'8.0.0'},'MPSCANCore':{'path':'Core'}},
  'targets':{
   'MPSCAN':{'type':'application','platform':'iOS','sources':[{'path':'App','excludes':['GoogleService-Info.example.plist']}],
