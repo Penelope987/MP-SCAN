@@ -1,0 +1,24 @@
+import SwiftUI
+import MPSCANCore
+
+struct LibraryView: View {
+    @EnvironmentObject var offline: OfflineStore
+    var body: some View { ScrollView { VStack(alignment: .leading, spacing: 22) { Text("Histórias para levar").font(.largeTitle.bold()); Text("Seus capítulos baixados ficam aqui, prontos para ler sem internet.").foregroundStyle(.secondary); if offline.items.isEmpty { ContentUnavailableView("Sua biblioteca offline", systemImage: "arrow.down.circle", description: Text("Abra uma obra e toque no ícone de download do capítulo.")) }; ForEach(offline.items) { item in MPCard { HStack(spacing: 14) { NavigationLink { ReaderView(work: item.manifest.work, chapter: item.manifest.chapter) } label: { HStack(spacing: 14) { RemotePicture(source: item.manifest.work.cover, local: offline.cover(item.manifest.work.id)).frame(width: 58, height: 80).clipShape(RoundedRectangle(cornerRadius: 10)); VStack(alignment: .leading, spacing: 6) { Text(item.manifest.work.title).font(.headline); Text(item.manifest.chapter.label).font(.subheadline); Label("Disponível offline", systemImage: "checkmark.circle.fill").font(.caption).foregroundStyle(.secondary) } }.frame(maxWidth: .infinity, alignment: .leading) }.buttonStyle(.plain); Menu { Button("Remover download", role: .destructive) { Task { await offline.remove(item) } } } label: { Image(systemName: "ellipsis").padding(12) } } } } }.padding(20).frame(maxWidth: 780).frame(maxWidth: .infinity) }.background { MPBackdrop() }.navigationTitle("Biblioteca").refreshable { await offline.reload() } }
+}
+struct PublicPerson: Identifiable { var id: String; var name: String; var handle: String; var photo: String; var bio: String; var isPublic: Bool
+    init(id: String, raw: [String: Any]) { self.id = id; name = text(raw, "nome", "name"); handle = text(raw, "nomeUsuario", "username"); photo = text(raw, "foto", "photo"); isPublic = raw["publico"] as? Bool ?? true; bio = isPublic ? text(raw, "bio") : "" }
+}
+struct PersonRow: View { var person: PublicPerson; var body: some View { MPCard { HStack(spacing: 14) { Avatar(source: person.photo); VStack(alignment: .leading, spacing: 4) { Text(person.name.isEmpty ? "Perfil" : person.name).font(.headline); Text("@\(person.handle)").font(.subheadline).foregroundStyle(.secondary) }; Spacer(); Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary) } } } }
+struct PublicProfileView: View {
+    var person: PublicPerson
+    var body: some View { ScrollView { VStack(spacing: 22) { Avatar(source: person.photo, size: 100); Text(person.name).font(.title.bold()); Text("@\(person.handle)").foregroundStyle(.secondary); if person.isPublic { if !person.bio.isEmpty { MPCard { Text(person.bio) } } } else { MPCard { Label("Conta privada", systemImage: "lock.fill"); Text("As informações deste perfil são visíveis apenas para pessoas autorizadas.").foregroundStyle(.secondary) } } }.padding(24).frame(maxWidth: 680).frame(maxWidth: .infinity) }.background { MPBackdrop() }.navigationTitle("Perfil").navigationBarTitleDisplayMode(.inline) }
+}
+struct MyProfileView: View {
+    @EnvironmentObject var session: SessionStore
+    @EnvironmentObject var offline: OfflineStore
+    var body: some View { ScrollView { VStack(spacing: 24) { Avatar(source: session.photo, size: 100); Text(session.name).font(.title.bold()); Text("@\(session.handle)").foregroundStyle(.secondary); MPCard { HStack { Label("Capítulos offline", systemImage: "arrow.down.circle.fill"); Spacer(); Text("\(offline.items.count)").font(.title2.bold()) } }; MPCard { VStack(alignment: .leading, spacing: 10) { Text("Sua conta acompanha você").font(.headline); Text("Você está usando a mesma conta da MP SCAN no Android.").foregroundStyle(.secondary) } }; Button("Sair da conta", role: .destructive) { session.logout() } }.padding(24).frame(maxWidth: 680).frame(maxWidth: .infinity) }.background { MPBackdrop() }.navigationTitle("Meu perfil") }
+}
+struct SettingsView: View {
+    @EnvironmentObject var appearance: AppearanceStore
+    var body: some View { Form { Section("Aparência") { Picker("Tema", selection: $appearance.mode) { Text("Automático").tag("system"); Text("Claro").tag("light"); Text("Escuro").tag("dark") }; Picker("Cor de destaque", selection: $appearance.color) { Text("Violeta").tag("violet"); Text("Rosa").tag("pink"); Text("Azul").tag("blue"); Text("Verde").tag("green") } }; Section("Comunidade") { Link(destination: URL(string: "https://t.me/MPSCAN0")!) { Label("Nosso canal oficial", systemImage: "paperplane.fill") }; Link(destination: URL(string: "https://livepix.gg/mpscan")!) { Label("Apoie a MP SCAN", systemImage: "heart.fill") } }; Section("Sobre esta versão") { Text("MP SCAN para iPhone · 0.1.1"); Text("Primeira etapa da adaptação. Os recursos administrativos e sociais completos ainda estão em desenvolvimento.").font(.footnote).foregroundStyle(.secondary) } }.navigationTitle("Ajustes") }
+}
